@@ -1,0 +1,30 @@
+# Files that should NOT be included in the Docker image
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# User data and credentials (mounted as a volume at run-time)
+data/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Development / test artefacts
+qa/
+test_email_preview.py
+test_email_preview.html
+*.bat
+*.sh
+*.md
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/

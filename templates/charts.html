@@ -1,0 +1,688 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – Charts{% endblock %}
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 0.5rem; color: var(--c-text); }
+        .subtitle { text-align: center; color: var(--c-text-2); margin-bottom: 2rem; }
+
+        nav .sep { color: #ddd; margin: 0 0.3rem; user-select: none; font-weight: 300; }
+        .chart-card {
+            background: var(--c-surface);
+            padding: 1.5rem;
+            border-radius: var(--r-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--c-border);
+            margin-bottom: 2rem;
+        }
+        .chart-card h2 {
+            font-size: 1.1rem;
+            color: var(--c-text);
+            margin-bottom: 1rem;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-height: 2000px;
+        }
+        .empty-state {
+            text-align: center;
+            color: var(--c-text-3);
+            padding: 3rem;
+            font-size: 1.1rem;
+        }
+        .empty-state a { color: var(--c-primary); }
+        .chart-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        .chart-card-header h2 { margin-bottom: 0; }
+
+        /* Fullscreen modal */
+        .chart-modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9000;
+            align-items: center;
+            justify-content: center;
+        }
+        .chart-modal-backdrop.open { display: flex; }
+        .chart-modal {
+            background: var(--c-surface);
+            border-radius: var(--r-lg);
+            padding: 1.5rem;
+            width: 92vw;
+            max-width: 1200px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-lg);
+        }
+        .chart-modal-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        .chart-modal-top h2 { font-size: 1.15rem; color: var(--c-text); margin: 0; }
+        .chart-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--c-text-2);
+            line-height: 1;
+            padding: 0.2rem 0.4rem;
+        }
+        .chart-modal-close:hover { color: var(--c-danger); }
+        .chart-modal-canvas-wrap {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        /* Word cloud */
+        #tagCloud {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem 0.65rem;
+            padding: 1.25rem 0.5rem;
+            min-height: 120px;
+        }
+        .wc-tag {
+            display: inline-block;
+            cursor: default;
+            line-height: 1.2;
+            border-radius: 4px;
+            padding: 2px 5px;
+            transition: transform .15s, box-shadow .15s;
+            white-space: nowrap;
+        }
+        .wc-tag:hover {
+            transform: scale(1.12);
+            box-shadow: 0 2px 8px rgba(0,0,0,.15);
+            z-index: 1;
+        }
+        .wc-divider { border: 0; border-top: 1px solid var(--c-border); margin: 0.75rem 0; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div id="emptyState" class="empty-state" style="display:none;">
+            <p>No search results to display. <a href="/">Run a search</a> first, then come back here.</p>
+            <p style="margin-top:0.6rem;font-size:0.82rem;color:var(--c-text-3);">
+                If RSP helps your work, you can <a href="https://ko-fi.com/ribeirolabs" target="_blank" rel="noopener noreferrer">support RibeiroLabs on Ko-fi</a> (optional).
+            </p>
+        </div>
+
+        <!-- Fullscreen modal -->
+        <div class="chart-modal-backdrop" id="chartModal" onclick="closeChartModal(event)">
+            <div class="chart-modal">
+                <div class="chart-modal-top">
+                    <h2 id="chartModalTitle"></h2>
+                    <button class="chart-modal-close" onclick="closeChartModal()" title="Close">&times;</button>
+                </div>
+                <div class="chart-modal-canvas-wrap">
+                    <canvas id="chartModalCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div id="chartsContent" style="display:none;">
+            <!-- 1. Publications per Year -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h2>Number of Publications per Year</h2>
+                    <button class="btn btn-neutral btn-sm" onclick="expandChart('chartYear', 'Number of Publications per Year')" title="Expand">&#x26F6;</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chartYear"></canvas>
+                </div>
+                <button class="btn btn-purple btn-sm" style="margin-top:0.75rem;" onclick="exportChart('chartYear', 'publications_per_year.png')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export as PNG</button>
+            </div>
+
+            <!-- 2. Keyword Frequency / Word Cloud -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h2>Abstract Keyword Frequency</h2>
+                    <button class="btn btn-neutral btn-sm" onclick="expandChart('chartKeywords', 'Keyword Frequency')" title="Expand">&#x26F6;</button>
+                </div>
+
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid var(--c-border);">
+                    <label for="wcSource" style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2);">Source:</label>
+                    <select id="wcSource" onchange="renderWordCloud()" style="margin-bottom:0; width:auto; font-size:var(--text-sm);">
+                        <option value="all" selected>All fields</option>
+                        <option value="abstract">Abstracts only</option>
+                        <option value="title">Titles only</option>
+                        <option value="keywords">Author keywords only</option>
+                    </select>
+                    <label for="wcTopN" style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2);">Top:</label>
+                    <select id="wcTopN" onchange="renderWordCloud()" style="margin-bottom:0; width:auto; font-size:var(--text-sm);">
+                        <option value="30">30</option>
+                        <option value="50" selected>50</option>
+                        <option value="75">75</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span id="wcStats" style="font-size:var(--text-xs); color:var(--c-text-3);"></span>
+                </div>
+
+                <div id="tagCloud"></div>
+                <hr class="wc-divider">
+
+                <p style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2); margin-bottom:0.75rem;">Top terms — frequency bar chart</p>
+                <div class="chart-container">
+                    <canvas id="chartKeywords"></canvas>
+                </div>
+                <button class="btn btn-purple btn-sm" style="margin-top:0.75rem;" onclick="exportChart('chartKeywords', 'keyword_frequency.png')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export as PNG</button>
+            </div>
+
+            <!-- 3. Publications per Venue -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h2>Number of Publications per Venue</h2>
+                    <button class="btn btn-neutral btn-sm" onclick="expandChart('chartVenue', 'Number of Publications per Venue')" title="Expand">&#x26F6;</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chartVenue"></canvas>
+                </div>
+                <button class="btn btn-purple btn-sm" style="margin-top:0.75rem;" onclick="exportChart('chartVenue', 'publications_per_venue.png')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export as PNG</button>
+            </div>
+
+            <!-- 4. Publications per Document Type -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h2>Number of Publications per Document Type</h2>
+                    <button class="btn btn-neutral btn-sm" onclick="expandChart('chartDocType', 'Number of Publications per Document Type')" title="Expand">&#x26F6;</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chartDocType"></canvas>
+                </div>
+                <button class="btn btn-purple btn-sm" style="margin-top:0.75rem;" onclick="exportChart('chartDocType', 'publications_per_doc_type.png')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export as PNG</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        /* ── Word Cloud constants — must be defined before first renderWordCloud() call ── */
+        const WC_STOP_WORDS = new Set([
+            'a','an','the','and','or','but','in','on','at','to','for','of','with',
+            'as','by','from','that','this','these','those','is','are','was','were',
+            'be','been','being','have','has','had','do','does','did','will','would',
+            'could','should','may','might','must','shall','can','not','no','nor',
+            'so','yet','both','either','each','all','any','more','most','other',
+            'some','such','than','then','when','where','while','which','who','whom',
+            'whose','what','how','if','because','although','though','even',
+            'its','it','we','our','us','you','your','he','she','they','their','them',
+            'his','her','i','my','me','into','over','after','before','about','between',
+            'through','during','without','within','along','across','behind','among',
+            'study','paper','research','review','based','using','used','show','shows',
+            'showed','shown','also','well','two','three','four','five','first','second',
+            'third','one','new','different','large','small','high','low',
+            'result','results','method','methods','approach','approaches','data',
+            'analysis','proposed','present','presents','presented','provide','provides',
+            'provided','use','uses','found','find','findings','work','works',
+            'however','therefore','thus','since','given','set','sets','per',
+            'including','include','includes','included','several','various','many',
+            'much','number','numbers','due','effect','effects','able','significantly',
+            'significant','related','compared','comparing','compare','et','al','etc'
+        ]);
+        const WC_PALETTE = [
+            '#2563eb','#16a34a','#dc2626','#d97706','#7c3aed',
+            '#0891b2','#be185d','#15803d','#b45309','#1d4ed8'
+        ];
+        let _kwChart = null;
+
+        const docs = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
+
+        if (docs.length === 0) {
+            document.getElementById('emptyState').style.display = 'block';
+        } else if (typeof Chart === 'undefined') {
+            // Chart.js is CDN-loaded; offline it never arrives and an
+            // unguarded `new Chart` would kill the whole script silently.
+            document.getElementById('chartsContent').style.display = 'block';
+            document.getElementById('chartsContent').insertAdjacentHTML('afterbegin',
+                '<p style="color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:7px;padding:0.8rem 1rem;">' +
+                'Charts could not be loaded — Chart.js is fetched from a CDN and requires an internet connection.</p>');
+        } else {
+            // Disable animations so PNG captures (exports, replication ZIP)
+            // never snapshot a chart mid-animation.
+            Chart.defaults.animation = false;
+            document.getElementById('chartsContent').style.display = 'block';
+            renderCharts(docs);
+            renderWordCloud();
+        }
+
+        function linearTrend(data) {
+            const n = data.length;
+            if (n < 2) return data.slice();
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += data[i];
+                sumXY += i * data[i];
+                sumX2 += i * i;
+            }
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            return data.map((_, i) => Math.max(0, slope * i + intercept));
+        }
+
+        function renderCharts(docs) {
+            // 1. Publications per Year
+            // Unknown years are excluded from the axis, trend, and average
+            // (a non-year category would distort the regression), and gap
+            // years are zero-filled so the trend reflects real time spacing.
+            const yearCounts = {};
+            let unknownYears = 0;
+            docs.forEach(d => {
+                const y = parseInt(d.year, 10);
+                if (Number.isFinite(y) && y > 0) yearCounts[y] = (yearCounts[y] || 0) + 1;
+                else unknownYears++;
+            });
+            const years = Object.keys(yearCounts).map(Number);
+            const yearLabels = [], yearData = [];
+            if (years.length) {
+                const minY = Math.min(...years), maxY = Math.max(...years);
+                for (let y = minY; y <= maxY; y++) {
+                    yearLabels.push(String(y));
+                    yearData.push(yearCounts[y] || 0);
+                }
+            }
+
+            // Compute linear trend line (index == year offset now that the
+            // axis is contiguous, so index-based regression is correct)
+            const trendData = linearTrend(yearData);
+
+            // Trend color: green if increasing, red if decreasing
+            const trendColor = trendData.length >= 2 && trendData[trendData.length - 1] >= trendData[0]
+                ? 'rgba(39, 174, 96, 0.9)' : 'rgba(231, 76, 60, 0.9)';
+
+            // Compute average line
+            const avg = yearData.length ? yearData.reduce((a, b) => a + b, 0) / yearData.length : 0;
+            const avgData = yearData.map(() => avg);
+
+            new Chart(document.getElementById('chartYear'), {
+                type: 'bar',
+                data: {
+                    labels: yearLabels,
+                    datasets: [{
+                        label: 'Publications',
+                        data: yearData,
+                        backgroundColor: 'rgba(37, 99, 235, 0.7)',
+                        borderColor: 'rgba(37, 99, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Trend',
+                        data: trendData,
+                        type: 'line',
+                        borderColor: trendColor,
+                        borderWidth: 2,
+                        borderDash: [6, 3],
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0
+                    },
+                    {
+                        label: 'Average',
+                        data: avgData,
+                        type: 'line',
+                        borderColor: 'rgba(217, 119, 6, 0.9)',
+                        borderWidth: 2,
+                        borderDash: [3, 3],
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    aspectRatio: 1.5,
+                    plugins: {
+                        legend: { display: true },
+                        title: {
+                            display: unknownYears > 0,
+                            text: unknownYears > 0 ? `${unknownYears} paper(s) with unknown year not shown` : ''
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { title: { display: true, text: 'Year' } }
+                    }
+                }
+            });
+
+            // 2. Publications per Venue
+            const venueCounts = {};
+            docs.forEach(d => {
+                const venue = d.journal || 'Unknown/Not specified';
+                venueCounts[venue] = (venueCounts[venue] || 0) + 1;
+            });
+            // Sort by count descending, take top 20
+            const venueSorted = Object.entries(venueCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+            const venueLabels = venueSorted.map(e => e[0].length > 40 ? e[0].substring(0, 37) + '...' : e[0]);
+            const venueData = venueSorted.map(e => e[1]);
+
+            new Chart(document.getElementById('chartVenue'), {
+                type: 'bar',
+                data: {
+                    labels: venueLabels,
+                    datasets: [{
+                        label: 'Publications',
+                        data: venueData,
+                        backgroundColor: 'rgba(22, 163, 74, 0.7)',
+                        borderColor: 'rgba(22, 163, 74, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    aspectRatio: 1.5,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Number' } },
+                        y: { title: { display: true, text: 'Venue' } }
+                    }
+                }
+            });
+
+            // 3. Publications per Document Type
+            const docTypeNames = {
+                'ART': 'Journal Article',
+                'COMM': 'Conference Paper',
+                'THESE': 'Thesis / Dissertation',
+                'COUV': 'Book Chapter',
+                'REPORT': 'Technical Report',
+                'PREPRINT': 'Preprint',
+                'OUV': 'Book',
+                'HDR': 'Habilitation',
+                'POSTER': 'Poster',
+                'UNDEFINED': 'Undefined',
+                'Preprint': 'Preprint',
+                'Unknown': 'Unknown',
+            };
+            const typeCounts = {};
+            docs.forEach(d => {
+                const raw = d.docType || 'Unknown';
+                const t = docTypeNames[raw] || raw;
+                typeCounts[t] = (typeCounts[t] || 0) + 1;
+            });
+            const typeSorted = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+            const typeLabels = typeSorted.map(e => e[0]);
+            const typeData = typeSorted.map(e => e[1]);
+
+            const typeColors = [
+                'rgba(52, 152, 219, 0.7)',
+                'rgba(231, 76, 60, 0.7)',
+                'rgba(39, 174, 96, 0.7)',
+                'rgba(243, 156, 18, 0.7)',
+                'rgba(155, 89, 182, 0.7)',
+                'rgba(26, 188, 156, 0.7)',
+                'rgba(241, 196, 15, 0.7)',
+                'rgba(230, 126, 34, 0.7)',
+            ];
+
+            new Chart(document.getElementById('chartDocType'), {
+                type: 'bar',
+                data: {
+                    labels: typeLabels,
+                    datasets: [{
+                        label: 'Publications',
+                        data: typeData,
+                        backgroundColor: typeLabels.map((_, i) => typeColors[i % typeColors.length]),
+                        borderColor: typeLabels.map((_, i) => typeColors[i % typeColors.length].replace('0.7', '1')),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    aspectRatio: 1.5,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { title: { display: true, text: 'Document Type' } }
+                    }
+                }
+            });
+
+            // Save chart PNGs to localStorage so Export ZIP can include them
+            setTimeout(function() {
+                try {
+                    localStorage.setItem('rsp_chart_year_png',    document.getElementById('chartYear').toDataURL('image/png'));
+                    localStorage.setItem('rsp_chart_venue_png',   document.getElementById('chartVenue').toDataURL('image/png'));
+                    localStorage.setItem('rsp_chart_doctype_png', document.getElementById('chartDocType').toDataURL('image/png'));
+                } catch(e) { /* localStorage full or unavailable */ }
+            }, 300);
+        }
+
+        /* ── Word Cloud / Keyword Frequency ── */
+        /* WC_STOP_WORDS and WC_PALETTE are declared at the top of this script block */
+
+        function _wcTokenize(text) {
+            if (!text) return [];
+            return text.toLowerCase()
+                // Abstracts from APIs often contain JATS/HTML markup and
+                // entities (<jats:p>, &amp;, <sub>) — sometimes double-escaped.
+                // Strip them before tokenizing or "jats"/"amp"/"sub" pollute
+                // the frequencies.
+                .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/&[a-z0-9#]+;/g, ' ')
+                .replace(/[^a-z0-9\s\-]/g, ' ')
+                .split(/\s+/)
+                .map(w => w.replace(/^-+|-+$/g, ''))
+                .filter(w => w.length >= 3 && !WC_STOP_WORDS.has(w) && !/^\d+$/.test(w));
+        }
+
+        function buildFreqMap(docs, source) {
+            const freq = {};
+            docs.forEach(function(doc) {
+                const texts = [];
+                if (source === 'abstract' || source === 'all') { if (doc.abstract) texts.push(doc.abstract); }
+                if (source === 'title'    || source === 'all') { if (doc.title)    texts.push(doc.title); }
+                if (source === 'keywords' || source === 'all') {
+                    if (Array.isArray(doc.keywords)) texts.push(doc.keywords.join(' '));
+                    else if (doc.keywords) texts.push(doc.keywords);
+                }
+                texts.forEach(function(t) {
+                    _wcTokenize(t).forEach(function(w) { freq[w] = (freq[w] || 0) + 1; });
+                });
+            });
+            return freq;
+        }
+
+        function renderWordCloud() {
+            const wcDocs = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
+            if (!wcDocs.length) return;
+
+            const source = document.getElementById('wcSource').value;
+            const topN   = parseInt(document.getElementById('wcTopN').value, 10);
+
+            // Count how many docs have content in this field
+            function hasContent(doc, src) {
+                if (src === 'abstract' || src === 'all') { if (doc.abstract && doc.abstract.trim()) return true; }
+                if (src === 'title'    || src === 'all') { if (doc.title    && doc.title.trim())    return true; }
+                if (src === 'keywords' || src === 'all') {
+                    if (Array.isArray(doc.keywords) && doc.keywords.length) return true;
+                    if (doc.keywords && String(doc.keywords).trim()) return true;
+                }
+                return false;
+            }
+            const withContent = wcDocs.filter(function(d){ return hasContent(d, source); }).length;
+            const statsEl = document.getElementById('wcStats');
+            const fieldLabel = { abstract:'abstracts', title:'titles', keywords:'author keywords', all:'any field' }[source];
+            statsEl.textContent = withContent + '\u202f/\u202f' + wcDocs.length + ' papers have ' + fieldLabel;
+
+            let freq   = buildFreqMap(wcDocs, source);
+            let sorted = Object.entries(freq).sort(function(a,b){ return b[1]-a[1]; }).slice(0, topN);
+
+            // Auto-fallback: if chosen source yielded nothing, try "all"
+            if (!sorted.length && source !== 'all') {
+                freq   = buildFreqMap(wcDocs, 'all');
+                sorted = Object.entries(freq).sort(function(a,b){ return b[1]-a[1]; }).slice(0, topN);
+                document.getElementById('tagCloud').dataset.fallback = '1';
+            } else {
+                delete document.getElementById('tagCloud').dataset.fallback;
+            }
+
+            if (!sorted.length) {
+                document.getElementById('tagCloud').innerHTML = '<span style="color:var(--c-text-3)">No text found — try switching the source to <em>All fields</em>.</span>';
+                return;
+            }
+
+            const maxFreq = sorted[0][1];
+            const minFreq = sorted[sorted.length - 1][1];
+            const fRange  = maxFreq - minFreq || 1;
+
+            let fallbackNote = '';
+            if (document.getElementById('tagCloud').dataset.fallback) {
+                fallbackNote = '<div style="font-size:0.78rem;color:var(--c-text-3);margin-bottom:0.5rem;text-align:center;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>️ No ' + fieldLabel + ' found — showing all fields instead.</div>';
+            }
+
+            // Tag cloud
+            const tagHtml = sorted.map(function(entry, idx) {
+                const word  = entry[0], count = entry[1];
+                const ratio   = (count - minFreq) / fRange;
+                const size    = (0.78 + ratio * 1.55).toFixed(2);
+                const opacity = (0.6  + ratio * 0.4).toFixed(2);
+                const weight  = ratio > 0.6 ? 700 : ratio > 0.3 ? 600 : 400;
+                const color   = WC_PALETTE[idx % WC_PALETTE.length];
+                return '<span class="wc-tag" style="font-size:' + size + 'rem;color:' + color + ';opacity:' + opacity + ';font-weight:' + weight + '" title="' + word + ': ' + count + ' occurrence' + (count !== 1 ? 's' : '') + '">' + word + '</span>';
+            }).join('');
+            document.getElementById('tagCloud').innerHTML = fallbackNote + tagHtml;
+
+            // Bar chart — top 30
+            const barItems  = sorted.slice(0, 30);
+            const barLabels = barItems.map(function(e){ return e[0]; });
+            const barData   = barItems.map(function(e){ return e[1]; });
+            const barBg     = barLabels.map(function(_, i){ return WC_PALETTE[i % WC_PALETTE.length] + 'b3'; });
+            const barBorder = barLabels.map(function(_, i){ return WC_PALETTE[i % WC_PALETTE.length]; });
+
+            if (_kwChart) { _kwChart.destroy(); _kwChart = null; }
+            _kwChart = new Chart(document.getElementById('chartKeywords'), {
+                type: 'bar',
+                data: {
+                    labels: barLabels,
+                    datasets: [{
+                        label: 'Frequency',
+                        data: barData,
+                        backgroundColor: barBg,
+                        borderColor: barBorder,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Occurrences' } },
+                        y: { title: { display: true, text: 'Term' } }
+                    }
+                }
+            });
+
+            setTimeout(function() {
+                try { localStorage.setItem('rsp_chart_keywords_png', document.getElementById('chartKeywords').toDataURL('image/png')); }
+                catch(e) {}
+            }, 300);
+        }
+
+        async function exportChart(canvasId, filename) {
+            const srcChart = Chart.getChart(canvasId);
+            if (!srcChart) return;
+
+            // Determine a good export size — venue chart is horizontal so use portrait
+            const isHorizontal = srcChart.config.options && srcChart.config.options.indexAxis === 'y';
+            const exportW = isHorizontal ? 1200 : 1800;
+            const exportH = isHorizontal ? Math.max(900, (srcChart.config.data.labels || []).length * 32 + 120) : 800;
+
+            // Render at high resolution on an offscreen canvas
+            const offscreen = document.createElement('canvas');
+            offscreen.width  = exportW;
+            offscreen.height = exportH;
+
+            // Deep-clone config and force non-responsive, animation-off.
+            // devicePixelRatio MUST be pinned to 1: Chart.js retina-scales
+            // the backing store by window.devicePixelRatio even when
+            // responsive:false, so on HiDPI displays the offscreen bitmap
+            // would be larger than exportW×exportH and drawImage() would
+            // export only the top-left crop of the chart.
+            const clonedData    = JSON.parse(JSON.stringify(srcChart.config.data));
+            const clonedOptions = JSON.parse(JSON.stringify(srcChart.config.options));
+            clonedOptions.animation  = false;
+            clonedOptions.responsive = false;
+            clonedOptions.devicePixelRatio = 1;
+            clonedOptions.plugins = clonedOptions.plugins || {};
+            clonedOptions.plugins.legend = clonedOptions.plugins.legend || {};
+            clonedOptions.plugins.legend.labels = clonedOptions.plugins.legend.labels || {};
+            clonedOptions.plugins.legend.labels.font = { size: 14 };
+            if (clonedOptions.scales) {
+                Object.values(clonedOptions.scales).forEach(function(axis) {
+                    axis.ticks = axis.ticks || {};
+                    axis.ticks.font = { size: 12 };
+                    if (axis.title) axis.title.font = { size: 13 };
+                });
+            }
+
+            const exportChart = new Chart(offscreen, {
+                type: srcChart.config.type,
+                data: clonedData,
+                options: clonedOptions,
+            });
+
+            // fillStyle white background then export
+            const tmpCanvas = document.createElement('canvas');
+            tmpCanvas.width  = exportW;
+            tmpCanvas.height = exportH;
+            const tmpCtx = tmpCanvas.getContext('2d');
+            tmpCtx.fillStyle = '#ffffff';
+            tmpCtx.fillRect(0, 0, exportW, exportH);
+            tmpCtx.drawImage(offscreen, 0, 0);
+
+            exportChart.destroy();
+            await saveImageAs(tmpCanvas.toDataURL('image/png'), filename);
+        }
+        let modalChart = null;
+
+        function expandChart(canvasId, title) {
+            const srcChart = Chart.getChart(canvasId);
+            if (!srcChart) return;
+
+            document.getElementById('chartModalTitle').textContent = title;
+            document.getElementById('chartModal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+
+            if (modalChart) { modalChart.destroy(); modalChart = null; }
+
+            const modalCanvas = document.getElementById('chartModalCanvas');
+            modalChart = new Chart(modalCanvas, {
+                type: srcChart.config.type,
+                data: JSON.parse(JSON.stringify(srcChart.config.data)),
+                options: JSON.parse(JSON.stringify(srcChart.config.options))
+            });
+        }
+
+        function closeChartModal(e) {
+            if (e && e.target !== document.getElementById('chartModal')) return;
+            document.getElementById('chartModal').classList.remove('open');
+            document.body.style.overflow = '';
+            if (modalChart) { modalChart.destroy(); modalChart = null; }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeChartModal();
+        });
+    </script>
+{% endblock %}

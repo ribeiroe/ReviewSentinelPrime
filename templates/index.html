@@ -1,0 +1,2993 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – Search{% endblock %}
+{% block head_extra %}
+<style>
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        .search-box {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        label { font-weight: 600; display: block; margin-bottom: 0.5rem; }
+        .help-text { font-size: 0.85rem; color: #888; margin-bottom: 0.75rem; }
+        input[type="text"], input[type="number"] {
+            margin-bottom: 1rem;
+        }
+        .row { display: flex; gap: 1rem; align-items: flex-end; }
+        .row .field { flex: 1; }
+        .row .field-small { width: 120px; }
+        .status {
+            text-align: center;
+            margin: 1rem 0;
+            color: #666;
+        }
+        .error { color: #e74c3c; }
+        .results-header {
+            font-size: 0.95rem;
+            color: #555;
+            margin-bottom: 1rem;
+        }
+        /* ── View toggle ── */
+        #viewToggleBar {
+            display: none;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        /* ── Pagination ── */
+        #paginationBar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            margin-top: 1.25rem;
+            flex-wrap: wrap;
+        }
+        /* ── List-view row ── */
+        .paper-row {
+            display: grid;
+            grid-template-columns: 90px 1fr 60px 130px;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.55rem 0.9rem;
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+            margin-bottom: 0.4rem;
+            font-size: 0.9rem;
+        }
+        .paper-row:hover { background: #f5faff; }
+        .paper-row.expanded { background: var(--c-primary-lt); border-left: 3px solid var(--c-primary); }
+        .paper-row.is-new   { border-left: 3px solid var(--c-success); }
+        .badge-new { display:inline-block; background:var(--c-success); color:#fff; font-size:0.65rem; font-weight:700; padding:1px 5px; border-radius:3px; vertical-align:middle; margin-right:4px; letter-spacing:.4px; }
+        #diffBanner { display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.75rem; font-size:0.875rem; color:#166534; align-items:center; gap:0.75rem; flex-wrap:wrap; }
+        #diffBanner strong { color:#15803d; }
+        #diffBanner .diff-btn { background:#16a34a; color:#fff; border:none; border-radius:4px; padding:3px 10px; font-size:0.8rem; cursor:pointer; white-space:nowrap; }
+        #diffBanner .diff-btn:hover { background:#15803d; }
+        #diffBanner .diff-btn.active { background:#15803d; outline:2px solid #166534; }
+        #diffBanner .diff-dismiss { margin-left:auto; background:none; border:none; color:#6b7280; cursor:pointer; font-size:1rem; line-height:1; }
+        #removedSection { display:none; background:#fff7f7; border:1px solid #fecaca; border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.75rem; font-size:0.85rem; color:#991b1b; }
+        #removedSection summary { cursor:pointer; font-weight:600; }
+
+        /* Excluded-papers panel */
+        #excludedPanel { margin-top:1.25rem; }
+        #excludedPanel > details { background:#fffbeb; border:1px solid #fde68a; border-radius:6px; overflow:hidden; }
+        #excludedPanel > details > summary {
+            cursor:pointer; padding:0.6rem 1rem; font-size:0.875rem; font-weight:600;
+            color:#92400e; list-style:none; display:flex; align-items:center; gap:0.5rem;
+            user-select:none;
+        }
+        #excludedPanel > details > summary::-webkit-details-marker { display:none; }
+        #excludedPanel > details > summary .excl-chevron { font-size:0.7rem; transition:transform .2s; }
+        #excludedPanel > details[open] > summary .excl-chevron { transform:rotate(90deg); }
+        .excl-group { border-top:1px solid #fde68a; }
+        .excl-group-header {
+            padding:0.4rem 1rem; font-size:0.78rem; font-weight:700; letter-spacing:.3px;
+            text-transform:uppercase; color:#78350f; background:#fef3c7;
+            display:flex; align-items:center; gap:0.5rem;
+        }
+        .excl-reason-badge {
+            display:inline-block; padding:1px 7px; border-radius:3px; font-size:0.7rem;
+            font-weight:700; background:#d97706; color:#fff; letter-spacing:.3px;
+        }
+        .excl-row {
+            display:grid; grid-template-columns:1fr auto auto; align-items:center;
+            gap:0.5rem 0.75rem; padding:0.35rem 1rem; font-size:0.82rem;
+            border-bottom:1px solid #fef3c7; color:var(--c-text-2);
+        }
+        .excl-row:last-child { border-bottom:none; }
+        .excl-row:hover { background:#fffbeb; }
+        .excl-title { color:var(--c-text); font-size:0.83rem; }
+        .excl-meta { font-size:0.76rem; color:var(--c-text-3); white-space:nowrap; }
+        .excl-why {
+            display:inline-flex; align-items:center; justify-content:center;
+            width:16px; height:16px; border-radius:50%; background:#d97706; color:#fff;
+            font-size:0.65rem; font-weight:700; cursor:help; position:relative;
+            flex-shrink:0;
+        }
+        .excl-why::after {
+            content: attr(data-tip);
+            position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+            background:#1e293b; color:#fff; font-size:0.75rem; font-weight:400;
+            padding:4px 8px; border-radius:4px; white-space:nowrap; pointer-events:none;
+            opacity:0; transition:opacity .15s; z-index:100;
+            box-shadow:0 2px 8px rgba(0,0,0,.2);
+        }
+        .excl-why:hover::after { opacity:1; }
+        .excl-link { font-size:0.75rem; color:var(--c-primary); white-space:nowrap; }
+        .paper-row .row-source { font-weight: 700; font-size: 0.78rem; }
+        .paper-row .row-title { font-weight: 500; color: #1a1a1a; cursor: pointer; }
+        .paper-row .row-year  { color: #666; text-align: center; }
+        .paper-row .row-link  { text-align: right; white-space: nowrap; }
+        .paper-row .row-link a { font-size: 0.82rem; }
+        .row-chevron {
+            font-size: 0.7rem; color: var(--c-primary); margin-left: 0.35rem;
+            transition: transform 0.2s; display: inline-block;
+        }
+        .row-detail {
+            display: none;
+            grid-column: 1 / -1;
+            border-top: 1px solid #dce9f5;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+        }
+        .row-detail .paper-authors  { font-size:0.88rem; color:#444; margin-bottom:0.25rem; }
+        .row-detail .paper-meta     { font-size:0.85rem; color:#666; margin-bottom:0.25rem; }
+        .row-detail .doi-link       { font-size:0.82rem; margin-bottom:0.4rem; }
+        .row-detail .paper-abstract { font-size:0.88rem; color:#333; margin-bottom:0.5rem; line-height:1.5; }
+        .row-detail .paper-keywords { margin-bottom:0.4rem; }
+        .row-chevron {
+            font-size: 0.7rem;
+            color: var(--c-primary);
+            margin-left: 0.35rem;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+        .row-detail {
+            display: none;
+            grid-column: 1 / -1;
+            border-top: 1px solid #dce9f5;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+        }
+        .row-detail .paper-authors  { font-size:0.88rem; color:#444; margin-bottom:0.25rem; }
+        .row-detail .paper-meta     { font-size:0.85rem; color:#666; margin-bottom:0.25rem; }
+        .row-detail .doi-link       { font-size:0.82rem; margin-bottom:0.4rem; }
+        .row-detail .paper-abstract { font-size:0.88rem; color:#333; margin-bottom:0.5rem; line-height:1.5; }
+        .row-detail .paper-keywords { margin-bottom:0.4rem; }
+        /* list-view header row */
+        .paper-row-header {
+            display: grid;
+            grid-template-columns: 90px 1fr 60px 130px;
+            gap: 0.6rem;
+            padding: 0.35rem 0.9rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 0.06em;
+        }
+        .paper {
+            background: #fff;
+            padding: 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 1rem;
+        }
+        .paper-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.4rem;
+        }
+        .paper-title a { color: #2c3e50; text-decoration: none; }
+        .paper-title a:hover { color: var(--c-primary); text-decoration: underline; }
+        .paper-meta {
+            font-size: 0.85rem;
+            color: #777;
+            margin-bottom: 0.4rem;
+        }
+        .paper-authors { font-style: italic; margin-bottom: 0.3rem; }
+        .paper-abstract {
+            font-size: 0.9rem;
+            color: #555;
+            line-height: 1.5;
+            margin-top: 0.5rem;
+        }
+        .paper-keywords {
+            margin-top: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+        .keyword-tag {
+            background: #eaf2f8;
+            color: #2980b9;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+        .doi-link {
+            font-size: 0.85rem;
+            margin-top: 0.4rem;
+        }
+        .doi-link a { color: var(--c-primary); }
+        .paper-link {
+            margin-top: 0.5rem;
+        }
+        .paper-link a {
+            display: inline-block;
+            background: var(--c-primary);
+            color: #fff;
+            padding: 0.3rem 0.8rem;
+            border-radius: var(--r-sm);
+            font-size: 0.82rem;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .paper-link a:hover { background: var(--c-primary-dk); }
+        .source-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+        .source-hal { background: #d4efdf; color: #1e8449; }
+        .source-arxiv { background: #fdebd0; color: #b9770e; }
+        .source-ieee { background: #d6eaf8; color: #1a5276; }
+        .source-scopus { background: #f5e6ff; color: #6c3483; }
+        .source-inspec { background: #fce4ec; color: #880e4f; }
+        .source-sciencedirect { background: #fff3e0; color: #e65100; }
+        .source-springer { background: #e3f2fd; color: #0d47a1; }
+        .source-pubmed { background: #fce4ec; color: #880e4f; }
+        .source-acm { background: #fff8e1; color: #e65100; }
+        .source-openalex { background: #e8f4fd; color: #1a5276; }
+        .source-snowball { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; }
+
+        nav .sep { color: #ddd; margin: 0 0.3rem; user-select: none; font-weight: 300; }
+        /* Save Search Modal */
+        #saveModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        #saveModal.open { display: flex; }
+        #saveModalBox {
+            background: #fff;
+            border-radius: 10px;
+            padding: 2rem;
+            width: 440px;
+            max-width: 95vw;
+            box-shadow: 0 6px 32px rgba(0,0,0,0.22);
+        }
+        #saveModalBox h3 { margin: 0 0 0.75rem; font-size: 1.1rem; color: #1a2a4a; }
+        #saveModalBox label { font-size: 0.9rem; color: #555; display:block; margin-bottom:0.35rem; }
+        #saveModalBox input[type=text] { width:100%; margin-bottom:0.5rem; }
+        .modal-btns { display:flex; gap:0.6rem; justify-content:flex-end; margin-top:1.2rem; }
+        /* Validation papers */
+        .validation-box {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .validation-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            padding: 0.55rem 0.6rem;
+            border-radius: 6px;
+            border: 1px solid #f0f0f0;
+            margin-bottom: 0.4rem;
+            background: #fafafa;
+            font-size: 0.88rem;
+        }
+        .validation-item:last-child { margin-bottom: 0; }
+        .v-item-top {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .v-indicator {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .v-found { background: #27ae60; }
+        .v-missing { background: #e74c3c; }
+        .v-neutral { background: #bdc3c7; }
+        .v-title {
+            flex: 1;
+            font-weight: 500;
+            color: #1f2937;
+            line-height: 1.35;
+        }
+        .v-status-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 0.15rem 0.45rem;
+            border-radius: 3px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .v-status-found { background: #d4efdf; color: #1e8449; }
+        .v-status-missing { background: #fadbd8; color: #c0392b; }
+        .v-item-sources {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            padding-left: 1.25rem;
+        }
+        .v-src-badge {
+            font-size: 0.68rem;
+            font-weight: 600;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 3px;
+            padding: 0.1rem 0.4rem;
+        }
+        .v-remove {
+            background: none; border: none; color: #9ca3af; cursor: pointer;
+            font-size: 1rem; padding: 0 0.2rem; width: auto; flex-shrink: 0;
+            line-height: 1;
+        }
+        .v-remove:hover { color: #c0392b; }
+        .v-summary {
+            font-size: 0.88rem;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+        }
+        /* legacy classes kept for back-compat */
+        .v-label { display: none; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+
+        <!-- ── Research participation banner (dismissible, shown once) ── -->
+        <div id="researchBanner" style="background:linear-gradient(135deg,#1a2a4a 0%,#2471a3 100%);
+             color:#fff;border-radius:8px;padding:1rem 2.8rem 1rem 1.4rem;margin-bottom:1.2rem;
+             align-items:center;gap:1rem;flex-wrap:wrap;position:relative;display:none;">
+          <div style="width:1.6rem;height:1.6rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;align-self:flex-start;margin-top:0.05rem;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg></div>
+          <div style="flex:1;min-width:200px;">
+            <strong style="font-size:0.97rem;">Help us evaluate Review Sentinel Prime</strong>
+            <p style="margin:0.2rem 0 0;font-size:0.83rem;opacity:0.88;line-height:1.45;">
+              RSP is being evaluated as part of a research study on systematic literature review tools.
+              After using the tool, please take <strong>8–12 minutes</strong> to complete the survey —
+              your feedback shapes the future of the tool.
+            </p>
+            <div style="margin-top:0.6rem;display:flex;gap:0.6rem;flex-wrap:wrap;">
+              <a href="/survey"   style="display:inline-flex;align-items:center;gap:0.4rem;
+                 background:#fff;color:#1a2a4a;font-weight:700;font-size:0.82rem;
+                 padding:0.35rem 0.9rem;border-radius:4px;text-decoration:none;white-space:nowrap;">
+                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="2.5" width="9" height="11" rx="1.5"/><path d="M6.5 2.5V1.5h3v1"/><line x1="6" y1="7" x2="10" y2="7"/><line x1="6" y1="9.5" x2="10" y2="9.5"/></svg> Take the Survey
+              </a>
+              <a href="/feedback" style="display:inline-flex;align-items:center;gap:0.4rem;
+                 background:rgba(255,255,255,0.18);color:#fff;font-weight:600;
+                 font-size:0.82rem;padding:0.35rem 0.9rem;border-radius:4px;text-decoration:none;
+                 border:1px solid rgba(255,255,255,0.4);white-space:nowrap;">
+                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 2.5h-11a1 1 0 00-1 1v7a1 1 0 001 1h3.5l2 2 2-2h3.5a1 1 0 001-1v-7a1 1 0 00-1-1z"/></svg> Report a Bug / Feature
+              </a>
+            </div>
+          </div>
+          <button onclick="dismissResearchBanner()" aria-label="Dismiss"
+                  style="position:absolute;top:0.5rem;right:0.6rem;
+                         width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+                         background:rgba(255,255,255,0.15);border:none;border-radius:50%;
+                         color:#fff;font-size:1.1rem;cursor:pointer;line-height:1;
+                         transition:background 0.15s;"
+                  onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+                  onmouseout="this.style.background='rgba(255,255,255,0.15)'"
+                  title="Dismiss">&times;</button>
+        </div><!-- /researchBanner -->
+
+        <div class="search-box">
+            <label for="keywords">Keywords</label>
+            <input type="text" id="keywords" placeholder="e.g. (deep learning OR neural network) AND protein folding" oninput="if(!this.value.includes(',')) document.getElementById('keywords-error').style.display='none';">
+            <p id="keywords-error" class="field-error" style="display:none;">Commas are not allowed. Use <strong>OR</strong> or <strong>AND</strong> to combine terms, e.g. <code>deep learning OR neural network</code>.</p>
+            <details class="query-tips">
+              <summary>Query tips</summary>
+              <ul>
+                <li>Use <strong>AND</strong> to require both terms: <code>climate AND adaptation</code></li>
+                <li>Use <strong>OR</strong> to accept either term: <code>deep learning OR neural network</code></li>
+                <li>Use <strong>parentheses</strong> to group: <code>(deep learning OR neural network) AND protein</code></li>
+                <li>Use <strong>quotes</strong> for an exact phrase: <code>"machine learning"</code></li>
+              </ul>
+            </details>
+
+            <div style="display:flex; gap:1rem; align-items:flex-end; margin-bottom:1rem;">
+                <div style="width:155px; margin-right:0.25rem;">
+                    <label for="rows" style="white-space:nowrap;">Results per Page</label>
+                    <input type="number" id="rows" value="25" min="1" max="200" style="margin-bottom:0;">
+                </div>
+                <input type="hidden" id="maxPerDb" value="10000">
+                <div style="flex:1; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <button id="searchBtn" onclick="doSearch()" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.5" y1="9.5" x2="14" y2="14"/></svg> Search Papers</button>
+                    <button id="refilterToggleBtn" onclick="toggleRefilterMode()" class="btn btn-neutral" title="Switch between running a live API search and applying filters offline on cached results">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13,2.5 8.5,8.5 11.5,8.5 3,13.5 7.5,7.5 4.5,7.5 13,2.5"/></svg> <strong id="refilterModeLabel">Live Search</strong>
+                    </button>
+                    <button id="saveBtn" onclick="saveCurrentSearch()" class="btn btn-success" title="Save this query as a configured search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Search</button>
+                    <button onclick="importSearchConfig()" class="btn btn-teal" title="Import a previously exported search_configuration.json to reload all settings"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12l1.5-5.5H13.5L12 12z"/><path d="M1.5 6.5V5a1 1 0 011-1h3.5l1.5 2H2.5"/></svg> Import Config (JSON)</button>
+                    <button onclick="confirmClearSearch()" class="btn btn-danger"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear</button>
+                    <input type="file" id="importConfigInput" accept=".json" style="display:none;" onchange="handleConfigFile(event)">
+                </div>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+                <label style="margin-bottom:0.4rem;">Databases</label>
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem 1.2rem; padding:0.5rem 0;">
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbIeee"> IEEE</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbAcm" checked> ACM DL</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbScopus"> Scopus</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbSciencedirect"> ScienceDirect</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbSpringer"> Springer</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbInspec"> Inspec</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbPubmed"> PubMed</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbArxiv" checked> arXiv</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbHal" checked> HAL</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbOpenalex" checked> OpenAlex</label>
+                </div>
+                <div id="ieeeKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> IEEE API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="scopusKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Scopus API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="inspecKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Inspec (Engineering Village) API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="sciencedirectKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> ScienceDirect API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="springerKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Springer Nature API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="pubmedKeyNotice" style="display:none; font-size:0.75rem; color:#2980b9; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="5.5"/><line x1="8" y1="7.5" x2="8" y2="11"/></svg> PubMed API key is optional but recommended for higher rate limits. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="acmKeyNotice" style="display:none; font-size:0.75rem; color:#2980b9; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="5.5"/><line x1="8" y1="7.5" x2="8" y2="11"/></svg> ACM DL works without a key. An optional institutional key can be added in <a href="/settings" style="color:#2980b9;">Settings</a>.
+                </div>
+
+            </div>
+
+            <!-- Inclusion / Exclusion Criteria -->
+            <div style="margin-top:1rem;">
+                <a href="#" onclick="toggleFilters(); return false;" style="font-size:0.9rem; color:var(--c-primary); text-decoration:none;" id="filterToggle">+ Show Inclusion / Exclusion Criteria</a>
+            </div>
+            <div id="filterPanel" style="display:none; margin-top:1rem; border-top:1px solid #eee; padding-top:1rem;">
+                <div>
+                    <label>Year range</label>
+                    <p class="help-text">Filter results by publication year. Leave empty for no restriction.</p>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <input type="number" id="yearFrom" placeholder="From" min="1900" max="2100" style="width:90px;">
+                        <span>to</span>
+                        <input type="number" id="yearTo" placeholder="To" min="1900" max="2100" style="width:90px;">
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem;">
+                    <label>Include document types</label>
+                    <p class="help-text">Leave unchecked for all types.</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="docTypeFilter" value="ART"> Articles</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="docTypeFilter" value="COMM"> Conference</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="docTypeFilter" value="THESE"> Thesis</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="docTypeFilter" value="COUV"> Book chapter</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="docTypeFilter" value="REPORT"> Report</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="docTypeFilter" value="PREPRINT"> Preprint</label>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem;">
+                    <label>Language</label>
+                    <p class="help-text">Select which languages to include. Leave empty for all languages. (Applies to HAL, IEEE, Scopus, Inspec, Springer, and PubMed; arXiv and ScienceDirect do not support language filtering.)</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="en"> English</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="fr"> French</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="es"> Spanish</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="de"> German</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="pt"> Portuguese</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="it"> Italian</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="zh"> Chinese</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="ja"> Japanese</label>
+                    </div>
+                    <div style="margin-top:0.35rem;">
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="includeUnknownLanguage" checked>
+                            Also include papers whose language could not be detected
+                        </label>
+                    </div>
+                </div>
+                <!-- Filter fields: 2-column grid pairing Include / Exclude -->
+                <div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.65rem;">
+
+                    <!-- Include terms -->
+                    <div style="border:1px solid #bbf7d0;border-radius:8px;padding:0.7rem 0.8rem;background:#f0fdf4;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><circle cx="8" cy="8" r="7" fill="#22c55e"/><path d="M5 8l2.5 2.5L11 5.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span style="color:#15803d;font-size:0.83rem;font-weight:700;">Include Terms</span>
+                            <select id="includeTermsMode" title="Match mode for include terms" style="font-size:0.75rem;padding:0.18rem 0.3rem;border:1px solid #86efac;border-radius:5px;background:#fff;color:#15803d;font-weight:600;cursor:pointer;white-space:nowrap;width:auto;">
+                                <option value="all">ALL (AND)</option>
+                                <option value="any">ANY (OR)</option>
+                            </select>
+                        </div>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Only papers whose title or abstract contain these terms are kept.</p>
+                        <textarea id="includeTerms" placeholder="e.g. machine learning, neural network" rows="3" style="width:100%;font-size:0.83rem;border-color:#86efac;resize:vertical;"></textarea>
+                    </div>
+
+                    <!-- Exclude terms -->
+                    <div style="border:1px solid #fecdd3;border-radius:8px;padding:0.7rem 0.8rem;background:#fff1f2;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><circle cx="8" cy="8" r="7" fill="#ef4444"/><path d="M5 5l6 6M11 5l-6 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            <span style="color:#b91c1c;font-size:0.83rem;font-weight:700;">Exclude Terms</span>
+                            <select id="excludeTermsMode" title="Match mode for exclude terms" style="font-size:0.75rem;padding:0.18rem 0.3rem;border:1px solid #fca5a5;border-radius:5px;background:#fff;color:#b91c1c;font-weight:600;cursor:pointer;white-space:nowrap;width:auto;">
+                                <option value="all">ALL (AND)</option>
+                                <option value="any" selected>ANY (OR)</option>
+                            </select>
+                        </div>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Papers whose title or abstract contain these terms are removed.</p>
+                        <textarea id="excludeTerms" placeholder="e.g. survey, review, grey literature" rows="3" style="width:100%;font-size:0.83rem;border-color:#fca5a5;resize:vertical;"></textarea>
+                    </div>
+
+                    <!-- Include venues -->
+                    <div style="border:1px solid #bbf7d0;border-radius:8px;padding:0.7rem 0.8rem;background:#f0fdf4;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><circle cx="8" cy="8" r="7" fill="#22c55e"/><path d="M5 8l2.5 2.5L11 5.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span style="color:#15803d;font-size:0.83rem;font-weight:700;">Include Venues</span>
+                            <select id="includeVenuesMode" title="Match mode for include venues" style="font-size:0.75rem;padding:0.18rem 0.3rem;border:1px solid #86efac;border-radius:5px;background:#fff;color:#15803d;font-weight:600;cursor:pointer;white-space:nowrap;width:auto;">
+                                <option value="all">ALL (AND)</option>
+                                <option value="any" selected>ANY (OR)</option>
+                            </select>
+                        </div>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated journal/conference names. Leave empty to include all venues.</p>
+                        <textarea id="includeVenues" placeholder="e.g. TSE, ICSE, JSS, TOSEM, EMSE" rows="3" style="width:100%;font-size:0.83rem;border-color:#86efac;resize:vertical;"></textarea>
+                    </div>
+
+                    <!-- Exclude venues -->
+                    <div style="border:1px solid #fecdd3;border-radius:8px;padding:0.7rem 0.8rem;background:#fff1f2;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><circle cx="8" cy="8" r="7" fill="#ef4444"/><path d="M5 5l6 6M11 5l-6 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            <span style="color:#b91c1c;font-size:0.83rem;font-weight:700;">Exclude Venues</span>
+                            <select id="excludeVenuesMode" title="Match mode for exclude venues" style="font-size:0.75rem;padding:0.18rem 0.3rem;border:1px solid #fca5a5;border-radius:5px;background:#fff;color:#b91c1c;font-weight:600;cursor:pointer;white-space:nowrap;width:auto;">
+                                <option value="all">ALL (AND)</option>
+                                <option value="any" selected>ANY (OR)</option>
+                            </select>
+                        </div>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated journal/conference names. Papers from these venues are removed.</p>
+                        <textarea id="excludeVenues" placeholder="e.g. arXiv, workshop, poster, preprint" rows="3" style="width:100%;font-size:0.83rem;border-color:#fca5a5;resize:vertical;"></textarea>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <!-- Validation Papers Panel -->
+        <div class="validation-box">
+            <a href="#" onclick="toggleValidation(); return false;" style="font-size:0.9rem; color:var(--c-primary); text-decoration:none;" id="validationToggle">+ Validation Papers (0)</a>
+            <div id="validationPanel" style="display:none; margin-top:1rem;">
+                <p class="help-text">Add titles of papers you know should appear in your results. After each search, each paper will show <span style="color:#27ae60;font-weight:600;">green</span> (found) or <span style="color:#e74c3c;font-weight:600;">red</span> (missing).</p>
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+                    <input type="text" id="validationTitle" placeholder="Paste a paper title here..." style="flex:1; margin-bottom:0;">
+                    <button onclick="addValidationPaper()" class="btn btn-primary btn-sm"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg> Add</button>
+                </div>
+                <div id="validationList"></div>
+            </div>
+        </div>
+
+        <!-- Citation Snowballing Panel -->
+        <div class="validation-box" style="margin-top:0.75rem;">
+            <a href="#" onclick="toggleSnowball(); return false;" style="font-size:0.9rem; color:var(--c-primary); text-decoration:none;" id="snowballToggle">+ Citation Snowballing (0 seeds)</a>
+            <div id="snowballPanel" style="display:none; margin-top:1rem;">
+                <p class="help-text">Add DOIs or paper titles of key seed papers. RSP will use <strong>OpenAlex</strong> (free, no API key) to find papers that <em>cite</em> them (forward) or papers they <em>reference</em> (backward). Results will be merged into your current result set.</p>
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; align-items:center;">
+                    <input type="text" id="snowballDoi" placeholder="DOI (e.g. 10.1145/3519939) or paper title" style="flex:1; margin-bottom:0; font-size:0.83rem;">
+                    <button onclick="addSnowballDoi()" class="btn btn-success btn-sm"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg> Add</button>
+                </div>
+                <div id="snowballDoiList" style="margin-bottom:0.75rem; display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <label style="font-size:0.83rem; font-weight:600; color:#374151;">Direction:</label>
+                    <select id="snowballMode" style="margin-bottom:0; font-size:0.83rem; width:auto; min-width:160px;">
+                        <option value="forward">↑ Forward (papers that cite seeds)</option>
+                        <option value="backward">↓ Backward (papers cited by seeds)</option>
+                        <option value="both">↑↓ Both directions</option>
+                    </select>
+                    <button id="snowballRunBtn" onclick="runSnowballing()" class="btn btn-success btn-sm"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> Run Snowballing</button>
+                    <button onclick="clearSnowballResults()" class="btn btn-neutral btn-sm" title="Remove snowball results from current results"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg> Clear Snowball Results</button>
+                </div>
+                <div id="snowballStatus" style="margin-top:0.6rem; font-size:0.83rem; color:#374151;"></div>
+            </div>
+        </div>
+
+        <!-- Save Search Modal -->
+        <div id="saveModal" role="dialog" aria-modal="true">
+            <div id="saveModalBox">
+                <h3>Save Search</h3>
+                <label for="saveName">Search name</label>
+                <input type="text" id="saveName" placeholder="e.g. My Climate Research" autocomplete="off">
+                <p id="saveModalSummary" style="font-size:0.82rem;color:#666;margin:0 0 0.75rem;"></p>
+                <label for="saveScheduleType" style="font-weight:600;">Schedule</label>
+                <div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:1rem;">
+                    <select id="saveScheduleType" style="flex:1;min-width:200px;margin-bottom:0;width:auto;" onchange="toggleSaveScheduleValue()">
+                        <option value="manual">Manual (on demand)</option>
+                        <option value="hours">Every N hours</option>
+                        <option value="days">Every N days</option>
+                        <option value="months">Every N months</option>
+                    </select>
+                    <input type="number" id="saveScheduleValue" value="1" min="1" placeholder="N"
+                           style="width:70px;margin-bottom:0;display:none;" title="Interval">
+                </div>
+                <div id="saveEmailRow" style="display:none;margin-bottom:1rem;">
+                    <label for="saveNotifyEmail" style="font-weight:600;">Notify by email</label>
+                    <input type="email" id="saveNotifyEmail" placeholder="e.g. you@example.com" autocomplete="email"
+                           style="width:100%;margin-top:0.25rem;">
+                    <span style="font-size:0.78rem;color:#888;">An email summary will be sent after each scheduled run.</span>
+                </div>
+                <div class="modal-btns">
+                    <button type="button" onclick="closeSaveModal()" class="btn btn-neutral">Cancel</button>
+                    <button type="button" id="saveModalBtn" onclick="confirmSave()" class="btn btn-success"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save &amp; Go to Saved Searches</button>
+                </div>
+            </div>
+        </div>
+        <div id="status" class="status"></div>
+        <!-- Offline filter cache banner (shown when Offline Filter mode is ON) -->
+        <div id="cacheInfoBanner" style="margin-bottom:0.75rem; padding:0.65rem 1rem; background:#fffbeb; border:1px solid #f59e0b; border-radius:7px; font-size:0.85rem; color:#92400e; align-items:flex-start; gap:0.6rem; flex-wrap:wrap; display:none;">
+            <span style="width:1rem;height:1rem;display:inline-flex;align-items:center;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 1.5,3.5 6.5,4"/><path d="M2 5a7 7 0 107-7"/></svg></span>
+            <span id="cacheInfoText" style="flex:1;"></span>
+            <span id="cacheStaleWarning" style="display:none; font-weight:700; color:#dc2626;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Cache query/databases differ from current settings — results may not match.</span>
+        </div>
+        <div id="viewToggleBar">
+            <span style="font-size:0.85rem;color:#555;margin-right:0.25rem;">View:</span>
+            <button class="view-btn active" id="btnCard" onclick="setView('card')">&#9646;&#9646; Cards</button>
+            <button class="view-btn"         id="btnList" onclick="setView('list')">&#9776; List</button>
+        </div>
+        <div id="exportBar" style="display:none; margin-bottom:1rem; padding:0.6rem 1rem; background:#f0f8ff; border-radius:6px; border:1px solid #d6eaf8; align-items:center; gap:0.5rem; flex-wrap:nowrap; white-space:nowrap; overflow:hidden;">
+            <button onclick="exportReplicationPackage()" class="btn btn-purple btn-sm"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="14,5.5 8,9 2,5.5"/><line x1="8" y1="9" x2="8" y2="14"/><path d="M14 5.5L8 2 2 5.5v5L8 14l6-3.5z"/></svg> Export Replication Package (ZIP)</button>
+            <button onclick="exportSearchConfig()" class="btn btn-teal btn-sm" title="Download a JSON file with all search settings — import it later to replay this search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Export Config (JSON)</button>
+            <button onclick="printResultsPDF()" class="btn btn-purple btn-sm" title="Open a print-ready page with all results (title, authors, abstract, DOI) — use browser Print → Save as PDF"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6z"/><polyline points="9,2 9,6 13,6"/></svg> Print to PDF</button>
+            <span style="font-size:0.8rem; color:#777; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">PRISMA-aligned SLR package for open science repositories</span>
+        </div>
+
+        <!-- Export modal -->
+        <div id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle"
+             style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:10000;
+                    align-items:center; justify-content:center; padding:1rem;">
+          <div style="background:#fff; border-radius:12px; box-shadow:0 8px 40px rgba(15,23,42,.22);
+                      padding:1.75rem 2rem; width:100%; max-width:480px; position:relative;">
+            <div style="width:2rem;height:2rem;margin:0 auto 0.5rem;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="14,5.5 8,9 2,5.5"/><line x1="8" y1="9" x2="8" y2="14"/><path d="M14 5.5L8 2 2 5.5v5L8 14l6-3.5z"/></svg></div>
+            <h3 id="exportModalTitle" style="margin:0 0 0.25rem; font-size:1.15rem; font-weight:700;
+                                             color:#0f172a; text-align:center;">Export Replication Package</h3>
+            <p style="margin:0 0 1.25rem; font-size:0.875rem; color:#475569; text-align:center;">
+              A PRISMA-aligned ZIP containing your results, metadata, and protocol.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:1rem;">
+              <div>
+                <label for="exportPkgName" style="display:block; font-size:0.82rem; font-weight:600;
+                       color:#0f172a; margin-bottom:0.3rem;">Package name <span style="color:#dc2626;">*</span></label>
+                <input id="exportPkgName" type="text" placeholder="e.g. machine-learning-slr-2026"
+                       style="width:100%; box-sizing:border-box; padding:0.55rem 0.75rem; border:1px solid #cbd5e1;
+                              border-radius:6px; font-size:0.9rem; font-family:inherit;
+                              outline:none; transition:border-color .15s;"
+                       onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'">
+                <p style="margin:0.3rem 0 0; font-size:0.78rem; color:#64748b;">
+                  Used as the label inside the ZIP (spaces → hyphens).
+                </p>
+              </div>
+              <div>
+                <label for="exportFileName" style="display:block; font-size:0.82rem; font-weight:600;
+                       color:#0f172a; margin-bottom:0.3rem;">File name <span style="color:#dc2626;">*</span></label>
+                <div style="display:flex; align-items:center; gap:0.4rem;">
+                  <input id="exportFileName" type="text" placeholder="e.g. replication_package_2026"
+                         style="flex:1; padding:0.55rem 0.75rem; border:1px solid #cbd5e1;
+                                border-radius:6px; font-size:0.9rem; font-family:inherit;
+                                outline:none; transition:border-color .15s;"
+                         onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'">
+                  <span style="font-size:0.875rem; color:#64748b; white-space:nowrap;">.zip</span>
+                </div>
+                <p style="margin:0.3rem 0 0; font-size:0.78rem; color:#64748b;">
+                  The browser will save this file to your default Downloads folder.
+                </p>
+              </div>
+            </div>
+            <div style="display:flex; gap:0.75rem; margin-top:1.5rem; justify-content:flex-end;">
+              <button id="exportModalCancel" class="btn btn-neutral" onclick="hideExportModal()">Cancel</button>
+              <button id="exportModalConfirm" class="btn btn-purple" onclick="confirmExport()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 8l4 4 4-4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Download ZIP</button>
+            </div>
+          </div>
+        </div>
+        <div id="results"></div>
+        <!-- Diff banner (shown after a search when a previous run exists for the same query) -->
+        <div id="diffBanner" role="status" aria-live="polite" style="display:none;">
+            <span style="display:inline-flex;align-items:center;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg></span>
+            <span id="diffBannerText"></span>
+            <button class="diff-btn" id="diffFilterBtn" onclick="toggleNewOnly()" title="Show only papers new in this run">🆕 Show only new</button>
+            <details id="removedDetails" style="display:none;">
+                <summary id="removedSummary"></summary>
+                <ul id="removedList" style="margin:0.5rem 0 0 1rem; padding:0;"></ul>
+            </details>
+            <button class="diff-dismiss" onclick="document.getElementById('diffBanner').style.display='none'" title="Dismiss"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg></button>
+        </div>
+        <div id="excludedPanel"></div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        function toggleFilters() {
+            const panel = document.getElementById('filterPanel');
+            const toggle = document.getElementById('filterToggle');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                toggle.textContent = '− Hide Inclusion / Exclusion Criteria';
+            } else {
+                panel.style.display = 'none';
+                toggle.textContent = '+ Show Inclusion / Exclusion Criteria';
+            }
+            saveFormState();
+        }
+
+        function getFilters() {
+            const yearFrom = document.getElementById('yearFrom').value;
+            const yearTo = document.getElementById('yearTo').value;
+            const excludeTerms = document.getElementById('excludeTerms').value.trim();
+            const excludeTermsMode = document.getElementById('excludeTermsMode').value;
+            const includeTerms = document.getElementById('includeTerms').value.trim();
+            const includeTermsMode = document.getElementById('includeTermsMode').value;
+            const includeVenues = document.getElementById('includeVenues').value.trim();
+            const includeVenuesMode = document.getElementById('includeVenuesMode').value;
+            const excludeVenues = document.getElementById('excludeVenues').value.trim();
+            const excludeVenuesMode = document.getElementById('excludeVenuesMode').value;
+            const docTypes = Array.from(document.querySelectorAll('.docTypeFilter:checked')).map(cb => cb.value);
+            const languages = Array.from(document.querySelectorAll('.langFilter:checked')).map(cb => cb.value);
+            const includeUnknownLanguage = document.getElementById('includeUnknownLanguage').checked;
+            return {
+                yearFrom: yearFrom ? parseInt(yearFrom) : null,
+                yearTo: yearTo ? parseInt(yearTo) : null,
+                excludeTerms: excludeTerms ? excludeTerms.split(',').map(t => t.trim()).filter(Boolean) : [],
+                excludeTermsMode: excludeTermsMode,
+                includeTerms: includeTerms ? includeTerms.split(',').map(t => t.trim()).filter(Boolean) : [],
+                includeTermsMode: includeTermsMode,
+                includeVenues: includeVenues ? includeVenues.split(',').map(t => t.trim()).filter(Boolean) : [],
+                includeVenuesMode: includeVenuesMode,
+                excludeVenues: excludeVenues ? excludeVenues.split(',').map(t => t.trim()).filter(Boolean) : [],
+                excludeVenuesMode: excludeVenuesMode,
+                docTypes: docTypes,
+                languages: languages,
+                includeUnknownLanguage: includeUnknownLanguage,
+            };
+        }
+
+        // ── Re-filter / cache mode ────────────────────────────────
+        let _cacheInfo = null;
+
+        async function loadCacheInfo() {
+            try {
+                const r = await fetch('/api/raw-cache-info');
+                _cacheInfo = await r.json();
+            } catch(e) { _cacheInfo = {exists: false}; }
+            applyRefilterUI();
+        }
+
+        function toggleRefilterMode() {
+            const on = localStorage.getItem('rsp_refilter_mode') === '1';
+            localStorage.setItem('rsp_refilter_mode', on ? '0' : '1');
+            applyRefilterUI();
+        }
+
+        function applyRefilterUI() {
+            const on = localStorage.getItem('rsp_refilter_mode') === '1';
+            const lbl = document.getElementById('refilterModeLabel');
+            const btn = document.getElementById('refilterToggleBtn');
+            const searchBtn = document.getElementById('searchBtn');
+            const banner = document.getElementById('cacheInfoBanner');
+            const infoText = document.getElementById('cacheInfoText');
+            const staleWarn = document.getElementById('cacheStaleWarning');
+            if (!lbl) return;
+
+            lbl.textContent = on ? 'Offline Filter' : 'Live Search';
+            btn.style.borderColor = on ? '#f59e0b' : '';
+            btn.style.color = on ? '#92400e' : '';
+            btn.style.background = on ? '#fffbeb' : '';
+            const _ZAP = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13,2.5 8.5,8.5 11.5,8.5 3,13.5 7.5,7.5 4.5,7.5 13,2.5"/></svg>';
+            const _ROTATE = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 1.5,3.5 6.5,4"/><path d="M2 5a7 7 0 107-7"/></svg>';
+            searchBtn.innerHTML = on ? _ROTATE + ' Apply Filters Offline' : _ZAP + ' Run Live Search';
+
+            if (on && _cacheInfo && _cacheInfo.exists) {
+                const ts = _cacheInfo.timestamp ? new Date(_cacheInfo.timestamp).toLocaleString() : 'unknown date';
+                const dbs = (_cacheInfo.databases || []).join(', ');
+                infoText.innerHTML =
+                    `<strong>Offline Filter mode</strong> — using ${_cacheInfo.count.toLocaleString()} cached raw records` +
+                    ` from <em>"${escapeHtml(_cacheInfo.query)}"</em> (${escapeHtml(dbs)}) — cached ${ts}.` +
+                    ` <span style="color:#78350f;">Adjust filters freely and click Re-filter. No API calls will be made.</span>`;
+                banner.style.display = 'flex';
+
+                // Stale check: warn if current keywords or databases differ
+                const curKeywords = (document.getElementById('keywords') || {}).value || '';
+                const curDbs = getSelectedDatabases().sort().join(',');
+                const cachedDbs = (_cacheInfo.databases || []).slice().sort().join(',');
+                const stale = curKeywords.trim() !== (_cacheInfo.query || '').trim() || curDbs !== cachedDbs;
+                staleWarn.style.display = stale ? '' : 'none';
+            } else if (on && _cacheInfo && !_cacheInfo.exists) {
+                infoText.innerHTML = '<strong>Offline Filter mode</strong> — <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> No cache found yet. Run a live search first to populate the cache.';
+                banner.style.display = 'flex';
+                staleWarn.style.display = 'none';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        // Init on page load
+        loadCacheInfo();
+
+        let _searchInFlight = false;
+        async function doSearch() {
+            // The Enter key bypasses the disabled Search button, so an
+            // explicit in-flight guard is needed to prevent two concurrent
+            // SSE streams corrupting the UI and the server raw cache.
+            if (_searchInFlight) return;
+            const keywords = document.getElementById('keywords').value.trim();
+            const rows = document.getElementById('rows').value;
+            const maxPerDb = document.getElementById('maxPerDb').value;
+            const databases = getSelectedDatabases();
+            const filters = getFilters();
+            const statusEl = document.getElementById('status');
+            const resultsEl = document.getElementById('results');
+            const btn = document.getElementById('searchBtn');
+
+            if (!keywords) {
+                statusEl.innerHTML = '<span class="error">Please enter at least one keyword.</span>';
+                return;
+            }
+            if (keywords.includes(',')) {
+                document.getElementById('keywords-error').style.display = '';
+                document.getElementById('keywords').focus();
+                return;
+            }
+            document.getElementById('keywords-error').style.display = 'none';
+            if (databases.length === 0) {
+                statusEl.innerHTML = '<span class="error">Please select at least one database.</span>';
+                return;
+            }
+
+            _searchInFlight = true;
+            btn.disabled = true;
+            resultsEl.innerHTML = '';
+            document.getElementById('exportBar').style.display = 'none';
+            document.getElementById('viewToggleBar').style.display = 'none';
+
+            const useCache = localStorage.getItem('rsp_refilter_mode') === '1';
+
+            // ── Build progress panel ──────────────────────────────
+            const dbLabelsMap = {
+                hal: 'HAL', arxiv: 'arXiv', ieee: 'IEEE Xplore',
+                scopus: 'Scopus', inspec: 'Inspec', sciencedirect: 'ScienceDirect',
+                springer: 'Springer Nature', pubmed: 'PubMed', acm: 'ACM DL',
+                openalex: 'OpenAlex'
+            };
+
+            if (useCache) {
+                statusEl.innerHTML = `
+                    <div id="progressPanel" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:0.85rem 1.1rem;margin-bottom:0.5rem;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                        <div style="font-size:0.82rem;font-weight:700;color:#92400e;letter-spacing:0.04em;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 1.5,3.5 6.5,4"/><path d="M2 5a7 7 0 107-7"/></svg> RE-FILTERING FROM LOCAL CACHE</div>
+                        <div id="elapsedTimer" style="font-size:0.8rem;color:#9ca3af;font-variant-numeric:tabular-nums;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> 0.0s</div>
+                      </div>
+                      <div id="cacheProgressMsg" style="font-size:0.85rem;color:#78350f;">Applying your filter settings to cached raw results — no API calls made.</div>
+                    </div>`;
+            } else {
+                let progressRows = databases.map(db => `
+                    <div id="prog-${db}" style="display:flex;align-items:center;gap:0.6rem;padding:0.3rem 0;border-bottom:1px solid #f0f0f0;">
+                      <span style="min-width:130px;font-size:0.88rem;font-weight:600;color:#374151;">${dbLabelsMap[db] || db}</span>
+                      <span id="prog-spinner-${db}" style="font-size:0.8rem;color:#6b7280;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> Searching…</span>
+                    </div>`).join('');
+                statusEl.innerHTML = `
+                    <div id="progressPanel" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:0.85rem 1.1rem;margin-bottom:0.5rem;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                        <div style="font-size:0.82rem;font-weight:700;color:#6b7280;letter-spacing:0.04em;">SEARCHING DATABASES</div>
+                        <div id="elapsedTimer" style="font-size:0.8rem;color:#9ca3af;font-variant-numeric:tabular-nums;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> 0.0s</div>
+                      </div>
+                      ${progressRows}
+                    </div>`;
+            }
+
+            // ── Elapsed timer ─────────────────────────────────────
+            function _fmtElapsed(ms) {
+                const totalSec = ms / 1000;
+                if (totalSec < 60) return `${totalSec.toFixed(1)}s`;
+                const h = Math.floor(totalSec / 3600);
+                const m = Math.floor((totalSec % 3600) / 60);
+                const s = Math.floor(totalSec % 60);
+                if (h > 0) return `${h}h ${m}m ${s}s`;
+                return `${m}m ${s}s`;
+            }
+            const _searchStart = Date.now();
+            let _timerInterval = setInterval(() => {
+                const el = document.getElementById('elapsedTimer');
+                if (el) el.textContent = `⏱ ${_fmtElapsed(Date.now() - _searchStart)}`;
+            }, 100);
+
+            function updateProgress(db, found, retrieved, error, warning) {
+                const cell = document.getElementById(`prog-spinner-${db}`);
+                if (!cell) return;
+                if (error && found === 0) {
+                    cell.innerHTML = `<span style="color:#dc2626;font-size:0.8rem;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#dc2626;"><circle cx="8" cy="8" r="6.5"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> ${escapeHtml(error)}</span>`;
+                } else if (error) {
+                    // Partial results with a mid-pagination failure — show both
+                    cell.innerHTML = `<span style="color:#d97706;font-size:0.8rem;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#d97706;"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> ${found.toLocaleString()} found, ${retrieved.toLocaleString()} retrieved — ${escapeHtml(error)}</span>`;
+                } else if (warning) {
+                    cell.innerHTML = `<span style="color:#d97706;font-size:0.8rem;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#d97706;"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> ${escapeHtml(warning)}</span>`;
+                } else {
+                    cell.innerHTML = `<span style="color:#16a34a;font-size:0.8rem;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#16a34a;"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> ${found.toLocaleString()} found, ${retrieved.toLocaleString()} retrieved</span>`;
+                }
+            }
+
+            try {
+                const resp = await fetch('/search/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keywords, rows: maxPerDb, databases, filters, use_cache: useCache })
+                });
+
+                if (!resp.ok) {
+                    clearInterval(_timerInterval);
+                    const errData = await resp.json().catch(() => ({}));
+                    statusEl.innerHTML = `<span class="error">${errData.message || 'Search failed.'}</span>`;
+                    return;
+                }
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let data = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    // SSE events are separated by \n\n
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop(); // keep incomplete trailing chunk
+                    for (const part of parts) {
+                        const line = part.split('\n').find(l => l.startsWith('data: '));
+                        if (!line) continue;
+                        try {
+                            const payload = JSON.parse(line.slice(6));
+                            if (payload.type === 'progress') {
+                                updateProgress(payload.db, payload.found, payload.retrieved, payload.error, payload.warning);
+                            } else if (payload.type === 'cache_loaded') {
+                                // cache mode — update the dedicated message div
+                                // (a depth-first div:last-child matched the
+                                // elapsed timer, which overwrote it instantly)
+                                const msgDiv = document.getElementById('cacheProgressMsg');
+                                if (msgDiv) {
+                                    const ts = payload.timestamp ? new Date(payload.timestamp).toLocaleString() : '';
+                                    msgDiv.innerHTML =
+                                        `<span style="color:#16a34a;font-weight:600;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#16a34a;"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> ${payload.count.toLocaleString()} raw records</span>` +
+                                        (ts ? ` <span style="color:#9ca3af;font-size:0.82rem;">cached ${ts}</span>` : '') +
+                                        ` — applying filters…`;
+                                }
+                            } else if (payload.type === 'done') {
+                                data = payload;
+                            } else if (payload.type === 'error') {
+                                clearInterval(_timerInterval);
+                                statusEl.innerHTML = `<span class="error">${payload.message}</span>`;
+                                return;
+                            }
+                        } catch (e) { /* ignore parse errors */ }
+                    }
+                }
+
+                if (!data) {
+                    clearInterval(_timerInterval);
+                    statusEl.innerHTML = '<span class="error">No response from server.</span>';
+                    return;
+                }
+
+                clearInterval(_timerInterval);
+                const _elapsed = _fmtElapsed(Date.now() - _searchStart);
+                const cacheLabel = useCache ? ' <span style="color:#b45309;font-size:0.82rem;font-weight:600;">[re-filtered from cache]</span>' : '';
+                statusEl.innerHTML = `<span class="results-header">Found <strong>${data.numFound.toLocaleString()}</strong> papers across all databases. Showing ${data.docs.length.toLocaleString()} after filters.${cacheLabel} <span style="color:#9ca3af;font-size:0.85rem;font-weight:400;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> ${_elapsed}</span></span>`;
+
+                // After a live search, refresh the cache info banner
+                if (!useCache) loadCacheInfo();
+
+                if (data.docs.length > 0) {
+                    document.getElementById('exportBar').style.display = 'flex';
+                }
+
+                window._lastDocsAll = data.docs;
+                safeStoreResults(data.docs);
+                checkValidationPapers(data.docs);
+                if (data.prisma) {
+                    // Stamp with the run ID so the PRISMA/screening pages can
+                    // refuse to merge screening counts from a different run
+                    if (data.runId) data.prisma.runId = data.runId;
+                    localStorage.setItem('lastPrismaData', JSON.stringify(data.prisma));
+                }
+                if (data.excluded_docs) {
+                    try { localStorage.setItem('lastExcludedDocs', JSON.stringify(data.excluded_docs)); } catch(e) {}
+                }
+
+                if (data.docs.length === 0) {
+                    resultsEl.innerHTML = '<p>No papers found for these keywords. Try broader terms.</p>';
+                    renderExcludedPanel(data.excluded_docs || null);
+                    // Clear stale state from the previous search, or the old
+                    // pagination bar would keep re-rendering the old results
+                    window._lastDocs = [];
+                    window._lastDocsAll = [];
+                    const pgBar = document.getElementById('paginationBar');
+                    if (pgBar) pgBar.innerHTML = '';
+                    return;
+                }
+
+                window._lastDocs = data.docs;
+                _currentPage = 1;
+                _pageSize = Math.max(1, parseInt(rows) || 25);
+                _showNewOnly = false;
+                _applyDiff(data.diff);
+                renderResults(data.docs);
+                renderExcludedPanel(data.excluded_docs || null);
+                document.getElementById('viewToggleBar').style.display = 'flex';
+            } catch (err) {
+                clearInterval(_timerInterval);
+                statusEl.innerHTML = `<span class="error">Network error: ${err.message}</span>`;
+            } finally {
+                _searchInFlight = false;
+                btn.disabled = false;
+                maybeNudgeSurvey();
+            }
+        }
+
+        // ── Research participation nudge ──────────────────────────
+        function maybeNudgeSurvey() {
+            if (localStorage.getItem('rsp_nudge_dismissed')) return;
+            var count = parseInt(localStorage.getItem('rsp_search_count') || '0') + 1;
+            localStorage.setItem('rsp_search_count', count);
+            // Show after the 1st completed search
+            if (count === 1) {
+                showResearchNudge();
+            }
+        }
+
+        function showResearchNudge() {
+            var c = document.getElementById('toastContainer');
+            var t = document.createElement('div');
+            t.className = 'toast toast-info';
+            t.style.cssText = 'max-width:340px;line-height:1.4;padding:0.85rem 1rem;';
+            t.innerHTML =
+                '<strong style="display:block;margin-bottom:0.3rem;">Great \u2014 you ran your first search! \uD83C\uDF89</strong>' +
+                '<span style="font-size:0.87rem;">Would you help our research by completing a short survey? It takes 8\u201312 minutes.</span>' +
+                '<div style="margin-top:0.55rem;display:flex;gap:0.5rem;flex-wrap:wrap;">' +
+                  '<a href="/survey" style="background:var(--c-primary);color:#fff;padding:0.3rem 0.75rem;border-radius:6px;' +
+                     'text-decoration:none;font-size:0.82rem;font-weight:700;">Take Survey</a>' +
+                  '<button onclick="localStorage.setItem(\'rsp_nudge_dismissed\',\'1\');this.closest(\'.toast\').remove();" ' +
+                     'style="background:none;border:1px solid rgba(255,255,255,0.5);color:inherit;padding:0.3rem 0.75rem;' +
+                     'border-radius:4px;font-size:0.82rem;cursor:pointer;">Maybe later</button>' +
+                '</div>';
+            c.appendChild(t);
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() { t.classList.add('show'); });
+            });
+            // Auto-hide after 18 seconds
+            setTimeout(function() {
+                t.classList.remove('show');
+                t.addEventListener('transitionend', function() { t.remove(); }, { once: true });
+            }, 18000);
+        }
+
+        function dismissResearchBanner() {
+            localStorage.setItem('rsp_banner_dismissed', '1');
+            var el = document.getElementById('researchBanner');
+            if (el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(function(){ el.style.display='none'; }, 320); }
+        }
+
+        // Show banner once (hide if already dismissed)
+        (function() {
+            if (!localStorage.getItem('rsp_banner_dismissed')) {
+                var el = document.getElementById('researchBanner');
+                if (el) el.style.display = 'flex';
+            }
+        }());
+
+        let _currentView = 'card';
+        let _currentPage = 1;
+        let _pageSize    = 25;
+
+        // ── Diff / new-paper tracking ─────────────────────────────────
+        let _newDocKeys  = new Set();   // keys of papers new since previous run
+        let _showNewOnly = false;       // "show only new" filter active
+
+        function _docKey(doc) {
+            // Must mirror the backend _doc_key exactly: Python's isalnum()
+            // keeps Unicode letters/digits, so this regex must too — an
+            // ASCII-only [^a-z0-9] made keys for accented DOI-less titles
+            // never match, hiding genuinely NEW papers from the diff.
+            const doi = (doc.doi || '').trim().toLowerCase();
+            if (doi) return doi;
+            return (doc.title || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+        }
+
+        function _applyDiff(diff) {
+            if (!diff || !diff.hasPreviousRun) {
+                _newDocKeys.clear();
+                document.getElementById('diffBanner').style.display = 'none';
+                return;
+            }
+            _newDocKeys = new Set(diff.newDocKeys || []);
+
+            const banner  = document.getElementById('diffBanner');
+            const text    = document.getElementById('diffBannerText');
+            const prevDate = diff.previousRunDate || 'last run';
+
+            let msg = `<strong>${diff.newCount.toLocaleString()} new paper${diff.newCount !== 1 ? 's' : ''}</strong> since ${prevDate}`;
+            if (diff.removedCount > 0) {
+                msg += ` · <strong>${diff.removedCount.toLocaleString()} removed</strong>`;
+            } else {
+                msg += ' · no papers removed';
+            }
+            text.innerHTML = msg;
+
+            // Removed papers list
+            const removedDetails = document.getElementById('removedDetails');
+            if (diff.removedCount > 0 && diff.removedDocs && diff.removedDocs.length) {
+                document.getElementById('removedSummary').textContent =
+                    `▸ ${diff.removedCount} paper${diff.removedCount !== 1 ? 's' : ''} no longer found`;
+                const ul = document.getElementById('removedList');
+                ul.innerHTML = diff.removedDocs.map(d => {
+                    const authors = Array.isArray(d.authors) ? d.authors.slice(0,2).join(', ') : (d.authors || '');
+                    return `<li style="margin-bottom:0.3rem;">${escapeHtml(d.title || 'Untitled')}${d.year ? ' (' + d.year + ')' : ''}${authors ? ' — ' + escapeHtml(authors) : ''}</li>`;
+                }).join('');
+                removedDetails.style.display = '';
+            } else {
+                removedDetails.style.display = 'none';
+            }
+
+            banner.style.display = (diff.newCount > 0 || diff.removedCount > 0) ? 'flex' : 'none';
+        }
+
+        function toggleNewOnly() {
+            _showNewOnly = !_showNewOnly;
+            const btn = document.getElementById('diffFilterBtn');
+            if (btn) btn.classList.toggle('active', _showNewOnly);
+            _currentPage = 1;
+            if (window._lastDocs) renderResults(window._lastDocs);
+        }
+
+        function setView(v) {
+            _currentView = v;
+            _currentPage = 1;
+            document.getElementById('btnCard').classList.toggle('active', v === 'card');
+            document.getElementById('btnList').classList.toggle('active', v === 'list');
+            if (window._lastDocs) renderResults(window._lastDocs);
+        }
+
+        function renderResults(docs) {
+            const resultsEl = document.getElementById('results');
+            // Apply "show only new" filter if active
+            const filteredDocs = _showNewOnly
+                ? docs.filter(d => _newDocKeys.has(_docKey(d)))
+                : docs;
+            const total     = filteredDocs.length;
+            const totalPages = Math.max(1, Math.ceil(total / _pageSize));
+            _currentPage = Math.min(_currentPage, totalPages);
+            const start = (_currentPage - 1) * _pageSize;
+            const end   = Math.min(start + _pageSize, total);
+            const page  = filteredDocs.slice(start, end);
+
+            // Update status to show current range
+            const statusEl = document.getElementById('status');
+            const existing = statusEl.innerHTML;
+            if (existing && !existing.includes('error')) {
+                statusEl.innerHTML = `<span class="results-header">Showing <strong>${start + 1}–${end}</strong> of <strong>${total}</strong> results.</span>`;
+            }
+
+            if (_currentView === 'list') {
+                let html = '<div class="paper-row-header"><span>Source</span><span>Title</span><span>Year</span><span>Link</span></div>';
+                html += page.map(doc => renderPaperList(doc)).join('');
+                resultsEl.innerHTML = html;
+            } else {
+                resultsEl.innerHTML = page.map(doc => renderPaper(doc)).join('');
+            }
+
+            renderPagination(total, totalPages);
+        }
+
+        /* ── Excluded-papers panel ── */
+        function renderExcludedPanel(exclData) {
+            const panel = document.getElementById('excludedPanel');
+            if (!panel) return;
+
+            // Accept either a passed object or read from localStorage
+            let excl = exclData;
+            if (!excl) {
+                try { excl = JSON.parse(localStorage.getItem('lastExcludedDocs') || '{}'); } catch(e) { excl = {}; }
+            }
+
+            // Count total excluded
+            let totalExcl = 0;
+            for (const docs of Object.values(excl)) {
+                if (Array.isArray(docs)) totalExcl += docs.length;
+            }
+
+            if (totalExcl === 0) { panel.innerHTML = ''; return; }
+
+            const REASON_LABELS = {
+                duplicates:         'Removed as duplicate',
+                year_range:         'Outside year range',
+                doc_type:           'Document type excluded',
+                language:           'Language excluded',
+                exclude_terms:      'Contains excluded term',
+                must_include_terms: 'Missing required term',
+                include_venues:     'Venue not in include list',
+                exclude_venues:     'Venue in exclude list',
+            };
+            const REASON_COLORS = {
+                duplicates:         '#6366f1',
+                year_range:         '#0891b2',
+                doc_type:           '#7c3aed',
+                language:           '#0d9488',
+                exclude_terms:      '#dc2626',
+                must_include_terms: '#ea580c',
+                include_venues:     '#16a34a',
+                exclude_venues:     '#be123c',
+            };
+
+            let groupsHtml = '';
+            for (const [reason, docs] of Object.entries(excl)) {
+                if (!Array.isArray(docs) || !docs.length) continue;
+                const label = REASON_LABELS[reason] || reason.replace(/_/g, ' ');
+                const color = REASON_COLORS[reason] || '#d97706';
+                let rowsHtml = '';
+                docs.forEach(function(doc) {
+                    const title   = doc.title   || 'Untitled';
+                    const year    = doc.year    || '—';
+                    const source  = doc.source  || '';
+                    const doi     = doc.doi     || '';
+                    const url     = safeUrl(doc.url || (doi ? 'https://doi.org/' + encodeURIComponent(doi) : ''));
+                    const linkHtml = url
+                        ? `<a class="excl-link" href="${escapeHtml(url)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg></a>`
+                        : '<span style="color:#ccc">—</span>';
+                    rowsHtml += `<div class="excl-row">
+                        <span class="excl-title">${escapeHtml(title)}</span>
+                        <span class="excl-meta">${escapeHtml(String(year))}${source ? ' · ' + escapeHtml(source) : ''}</span>
+                        ${linkHtml}
+                    </div>`;
+                });
+                groupsHtml += `<div class="excl-group">
+                    <div class="excl-group-header">
+                        <span class="excl-reason-badge" style="background:${color};">${escapeHtml(label)}</span>
+                        <span style="color:#78350f;">${docs.length} paper${docs.length !== 1 ? 's' : ''}</span>
+                        <span class="excl-why" data-tip="${escapeHtml(label)} — ${docs.length} paper${docs.length !== 1 ? 's' : ''} removed by this filter">!</span>
+                    </div>
+                    ${rowsHtml}
+                </div>`;
+            }
+
+            panel.innerHTML = `<details id="exclDetails">
+                <summary>
+                    <span class="excl-chevron">&#9654;</span>
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> <strong>${totalExcl}</strong> paper${totalExcl !== 1 ? 's' : ''} filtered out by active criteria
+                </summary>
+                ${groupsHtml}
+            </details>`;
+        }
+
+        function renderPagination(total, totalPages) {
+            let bar = document.getElementById('paginationBar');
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'paginationBar';
+                document.getElementById('results').after(bar);
+            }
+            if (totalPages <= 1) { bar.innerHTML = ''; return; }
+            const start = (_currentPage - 1) * _pageSize + 1;
+            const end   = Math.min(_currentPage * _pageSize, total);
+            bar.innerHTML = `
+                <button class="pg-btn" onclick="gotoPage(${_currentPage - 1})" ${_currentPage === 1 ? 'disabled' : ''}>&#8592; Prev</button>
+                <span class="pg-info">${start}–${end} of ${total} &nbsp;|&nbsp; Page ${_currentPage} of ${totalPages}</span>
+                <button class="pg-btn" onclick="gotoPage(${_currentPage + 1})" ${_currentPage === totalPages ? 'disabled' : ''}>Next &#8594;</button>
+            `;
+        }
+
+        function gotoPage(n) {
+            if (!window._lastDocs) return;
+            _currentPage = n;
+            renderResults(window._lastDocs);
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function toggleRowDetail(titleEl) {
+            const row    = titleEl.closest('.paper-row');
+            const detail = row.querySelector('.row-detail');
+            const chev   = row.querySelector('.row-chevron');
+            const open   = detail.style.display === 'grid';
+            detail.style.display = open ? 'none' : 'grid';
+            row.classList.toggle('expanded', !open);
+            chev.style.transform = open ? '' : 'rotate(90deg)';
+        }
+
+        function _srcClass(source) {
+            const map = { HAL:'source-hal', IEEE:'source-ieee', Scopus:'source-scopus', Inspec:'source-inspec',
+                          ScienceDirect:'source-sciencedirect', 'Springer Nature':'source-springer',
+                          PubMed:'source-pubmed', ACM:'source-acm', arXiv:'source-arxiv',
+                          OpenAlex:'source-openalex',
+                          'Snowball↑Forward':'source-snowball', 'Snowball↓Backward':'source-snowball' };
+            return map[source] || 'source-arxiv';
+        }
+        function renderSourceBadges(doc) {
+            const srcs = (doc.sources && doc.sources.length > 0) ? doc.sources : [doc.source || 'Unknown'];
+            return srcs.map(s => `<span class="source-badge ${_srcClass(s)}">${escapeHtml(s)}</span>`).join(' ');
+        }
+
+        function renderPaperList(doc) {
+            const title    = doc.title   || 'Untitled';
+            const authors  = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || 'Unknown authors');
+            const year     = doc.year    || '—';
+            const journal  = doc.journal || '';
+            const abstract = doc.abstract || '';
+            const url      = safeUrl(doc.url);
+            const doi      = doc.doi     || '';
+            const keywords = doc.keywords || [];
+            const docType  = doc.docType  || '';
+            const link     = url || (doi ? `https://doi.org/${encodeURIComponent(doi)}` : '');
+            const badges   = renderSourceBadges(doc);
+            const isNew    = _newDocKeys.size > 0 && _newDocKeys.has(_docKey(doc));
+            const newBadge = isNew ? '<span class="badge-new">NEW</span>' : '';
+
+            let detail = '';
+            detail += `<div class="paper-authors">${escapeHtml(authors)}</div>`;
+            let meta = doc.year ? escapeHtml(String(doc.year)) : '';
+            if (journal) meta += ` &mdash; ${escapeHtml(journal)}`;
+            if (docType) meta += ` &mdash; <em>${escapeHtml(docType)}</em>`;
+            if (meta) detail += `<div class="paper-meta">${meta}</div>`;
+            if (doi) detail += `<div class="doi-link">DOI: <a href="https://doi.org/${encodeURIComponent(doi)}" target="_blank" rel="noopener">${escapeHtml(doi)}</a></div>`;
+            if (abstract) {
+                const short = abstract.length > 300 ? abstract.substring(0, 300) + '...' : abstract;
+                detail += `<div class="paper-abstract">${escapeHtml(short)}</div>`;
+            }
+            if (keywords.length > 0) {
+                detail += `<div class="paper-keywords">${keywords.slice(0, 8).map(k => `<span class="keyword-tag">${escapeHtml(k)}</span>`).join('')}</div>`;
+            }
+            if (link) detail += `<div class="paper-link"><a href="${escapeHtml(link)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></div>`;
+
+            return `<div class="paper-row${isNew ? ' is-new' : ''}">
+                <span class="row-source" style="display:flex;flex-wrap:wrap;gap:0.25rem;">${badges}</span>
+                <span class="row-title" onclick="toggleRowDetail(this)" title="Click to expand details">${newBadge}${escapeHtml(title)}<span class="row-chevron">&#9654;</span></span>
+                <span class="row-year">${escapeHtml(String(year))}</span>
+                <span class="row-link">${link ? `<span class="paper-link"><a href="${escapeHtml(link)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></span>` : '<span style="color:#aaa">No link</span>'}</span>
+                <div class="row-detail">${detail}</div>
+            </div>`;
+        }
+
+        function renderPaper(doc) {
+            const source = doc.source || 'Unknown';
+            const title = doc.title || 'Untitled';
+            const authors = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || 'Unknown authors');
+            const year = doc.year || '';
+            const journal = doc.journal || '';
+            const abstract = doc.abstract || '';
+            const url = safeUrl(doc.url);
+            const doi = doc.doi || '';
+            const keywords = doc.keywords || [];
+            const docType = doc.docType || '';
+
+            const sourceClass = source === 'HAL' ? 'source-hal' : (source === 'IEEE' ? 'source-ieee' : (source === 'Scopus' ? 'source-scopus' : (source === 'Inspec' ? 'source-inspec' : (source === 'ScienceDirect' ? 'source-sciencedirect' : (source === 'Springer Nature' ? 'source-springer' : (source === 'PubMed' ? 'source-pubmed' : (source === 'ACM' ? 'source-acm' : (source === 'OpenAlex' ? 'source-openalex' : 'source-arxiv'))))))));
+
+            let html = '<div class="paper">';
+            html += `<div class="paper-title">`;
+            html += `<span class="source-badge ${sourceClass}">${escapeHtml(source)}</span>`;
+            if (url) {
+                html += `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(title)}</a>`;
+            } else {
+                html += escapeHtml(title);
+            }
+            html += `</div>`;
+            html += `<div class="paper-authors">${escapeHtml(authors)}</div>`;
+            html += `<div class="paper-meta">`;
+            if (year) html += `${escapeHtml(String(year))}`;
+            if (journal) html += ` &mdash; ${escapeHtml(journal)}`;
+            if (docType) html += ` &mdash; <em>${escapeHtml(docType)}</em>`;
+            html += `</div>`;
+            if (doi) {
+                html += `<div class="doi-link">DOI: <a href="https://doi.org/${encodeURIComponent(doi)}" target="_blank" rel="noopener">${escapeHtml(doi)}</a></div>`;
+            }
+            if (abstract) {
+                const shortAbstract = abstract.length > 300 ? abstract.substring(0, 300) + '...' : abstract;
+                html += `<div class="paper-abstract">${escapeHtml(shortAbstract)}</div>`;
+            }
+            if (keywords.length > 0) {
+                html += `<div class="paper-keywords">${keywords.slice(0, 8).map(k => `<span class="keyword-tag">${escapeHtml(k)}</span>`).join('')}</div>`;
+            }
+            if (url) {
+                html += `<div class="paper-link"><a href="${escapeHtml(url)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function escapeHtml(text) {
+            // Must also escape quotes: escaped values are interpolated into
+            // HTML attributes and inline handlers, where an unescaped " or '
+            // breaks out of the value.
+            return String(text == null ? '' : text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function safeUrl(url) {
+            // Paper URLs come from external APIs — allow only http(s) links
+            // so javascript: URLs can never reach an href.
+            const u = String(url == null ? '' : url).trim();
+            return /^https?:\/\//i.test(u) ? u : '';
+        }
+
+        function printResultsPDF() {
+            const docs = window._lastDocs;
+            if (!docs || docs.length === 0) {
+                showToast('No results to print. Run a search first.', 'warning');
+                return;
+            }
+            const query = (document.getElementById('keywords') || {}).value || '';
+            const ts = new Date().toLocaleString();
+            const rows = docs.map((doc, i) => {
+                const title   = doc.title || 'Untitled';
+                const authors = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || '');
+                const year    = doc.year || '';
+                const journal = doc.journal || '';
+                const doi     = doc.doi || '';
+                const url     = safeUrl(doc.url);
+                const src     = (doc.sources && doc.sources.length ? doc.sources.join(', ') : (doc.source || ''));
+                const abst    = doc.abstract
+                    ? escapeHtml(doc.abstract)
+                    : '<em style="color:#999">No abstract available.</em>';
+                const doiLink = doi ? `<a href="https://doi.org/${encodeURIComponent(doi)}" style="color:#1d4ed8;">${escapeHtml(doi)}</a>` : '';
+                const titleStr = url
+                    ? `<a href="${escapeHtml(url)}" style="color:#1d4ed8; text-decoration:none;">${escapeHtml(title)}</a>`
+                    : escapeHtml(title);
+                return `<div style="page-break-inside:avoid; border:1px solid #e2e8f0; border-radius:6px; padding:0.85rem 1rem; margin-bottom:1rem; background:#fff;">
+                    <div style="font-size:0.7rem; color:#6b7280; margin-bottom:0.2rem;">#${i+1} &nbsp;|&nbsp; ${escapeHtml(src)}</div>
+                    <div style="font-size:1rem; font-weight:700; color:#0f172a; margin-bottom:0.25rem; line-height:1.35;">${titleStr}</div>
+                    <div style="font-size:0.82rem; color:#374151; margin-bottom:0.2rem;">${escapeHtml(authors)}</div>
+                    <div style="font-size:0.8rem; color:#6b7280; margin-bottom:0.5rem;">${escapeHtml([year, journal].filter(Boolean).join(' — '))}${doiLink ? ' &nbsp;|&nbsp; DOI: ' + doiLink : ''}</div>
+                    <div style="font-size:0.85rem; color:#1e293b; line-height:1.55;">${abst}</div>
+                </div>`;
+            }).join('');
+
+            const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+            <title>Search Results — ${escapeHtml(query)}</title>
+            <style>
+                body { font-family: Georgia, serif; margin: 2cm; color: #0f172a; background: #f8fafc; }
+                h1 { font-size: 1.3rem; margin-bottom: 0.15rem; }
+                .meta { font-size: 0.8rem; color: #6b7280; margin-bottom: 1.5rem; }
+                @media print {
+                    body { background: #fff; margin: 1.5cm; }
+                    a { color: #000 !important; }
+                }
+            </style></head><body>
+            <h1>Search Results: <em>${escapeHtml(query)}</em></h1>
+            <div class="meta">${docs.length} results &nbsp;|&nbsp; Printed ${escapeHtml(ts)} &nbsp;|&nbsp; Review Sentinel Prime</div>
+            ${rows}
+            </body></html>`;
+
+            const win = window.open('', '_blank');
+            if (!win) { showToast('Pop-up blocked. Please allow pop-ups for this page.', 'error'); return; }
+            win.document.write(html);
+            win.document.close();
+            win.onload = () => win.print();
+        }
+
+        async function saveCurrentSearch() {
+            const keywords = document.getElementById('keywords').value.trim();
+            if (!keywords) {
+                showToast('Please enter keywords before saving.', 'warning');
+                return;
+            }
+            const databases = getSelectedDatabases();
+            const filters   = getFilters();
+            const vp        = getValidationPapers();
+            const fParts = [];
+            if (filters.yearFrom || filters.yearTo) fParts.push(`Years ${filters.yearFrom||'*'}–${filters.yearTo||'*'}`);
+            if ((filters.includeTerms||[]).length) fParts.push(`Include (${filters.includeTermsMode==='any'?'ANY':'ALL'}): ${filters.includeTerms.join(', ')}`);
+            if ((filters.excludeTerms||[]).length) fParts.push(`Exclude (${filters.excludeTermsMode==='all'?'ALL':'ANY'}): ${filters.excludeTerms.join(', ')}`);
+            if ((filters.includeVenues||[]).length) fParts.push(`Venues (${filters.includeVenuesMode==='all'?'ALL':'ANY'}): ${filters.includeVenues.join(', ')}`);
+            if ((filters.excludeVenues||[]).length) fParts.push(`Excl venues (${filters.excludeVenuesMode==='all'?'ALL':'ANY'}): ${filters.excludeVenues.join(', ')}`);
+            const summary = [
+                `DBs: ${databases.join(', ') || 'none'}`,
+                `Filters: ${fParts.length ? fParts.join(' | ') : 'none'}`,
+                `Validation: ${vp.length ? vp.length + ' paper(s)' : 'none'}`
+            ].join('  ·  ');
+            document.getElementById('saveModalSummary').textContent = summary;
+            document.getElementById('saveName').value = keywords.substring(0, 60);
+            document.getElementById('saveModal').classList.add('open');
+            setTimeout(() => { document.getElementById('saveName').focus(); document.getElementById('saveName').select(); }, 60);
+        }
+
+        function closeSaveModal() {
+            document.getElementById('saveModal').classList.remove('open');
+            document.getElementById('saveEmailRow').style.display = 'none';
+            document.getElementById('saveNotifyEmail').value = '';
+        }
+
+        function toggleSaveScheduleValue() {
+            const type = document.getElementById('saveScheduleType').value;
+            document.getElementById('saveScheduleValue').style.display = type === 'manual' ? 'none' : 'inline-block';
+            document.getElementById('saveEmailRow').style.display = type === 'manual' ? 'none' : 'block';
+        }
+
+        document.getElementById('saveModal').addEventListener('click', function(e) {
+            if (e.target === this) closeSaveModal();
+        });
+
+        document.getElementById('saveName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') confirmSave();
+        });
+
+        async function confirmSave() {
+            const name      = document.getElementById('saveName').value.trim() || 'Untitled Search';
+            const keywords  = document.getElementById('keywords').value.trim();
+            const databases = getSelectedDatabases();
+            const filters   = getFilters();
+            const schedType    = document.getElementById('saveScheduleType').value;
+            const schedule      = schedType === 'manual'
+                ? { type: 'manual' }
+                : { type: schedType, value: parseInt(document.getElementById('saveScheduleValue').value) || 1 };
+            const notifyEmail   = schedType !== 'manual' ? (document.getElementById('saveNotifyEmail').value.trim() || '') : '';
+            const btn           = document.getElementById('saveModalBtn');
+            btn.disabled    = true;
+            btn.textContent = 'Saving…';
+            try {
+                const resp = await fetch('/api/searches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        query: keywords,
+                        databases: databases,
+                        maxResults: 200,
+                        schedule: schedule,
+                        filters: filters,
+                        validationPapers: getValidationPapers(),
+                        snowballSeeds: _snowballDois,
+                        notifyEmail: notifyEmail
+                    })
+                });
+                if (resp.ok) {
+                    window.location.href = '/config';
+                } else {
+                    closeSaveModal();
+                    document.getElementById('status').innerHTML = '<span class="error">Failed to save search. Please try again.</span>';
+                }
+            } catch (err) {
+                closeSaveModal();
+                document.getElementById('status').innerHTML = `<span class="error">Error saving: ${err.message}</span>`;
+            } finally {
+                btn.disabled    = false;
+                btn.textContent = 'Save & Go to Saved Searches';
+            }
+        }
+
+        // Allow Enter key to trigger search
+        document.getElementById('keywords').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') doSearch();
+        });
+
+        // Export modal: Enter confirms, Escape closes, backdrop closes
+        document.getElementById('exportPkgName').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); document.getElementById('exportFileName').focus(); }
+            if (e.key === 'Escape') hideExportModal();
+        });
+        document.getElementById('exportFileName').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); confirmExport(); }
+            if (e.key === 'Escape') hideExportModal();
+        });
+        document.getElementById('exportModal').addEventListener('click', function(e) {
+            if (e.target === this) hideExportModal();
+        });
+
+        function getSelectedDatabases() {
+            const dbs = [];
+            if (document.getElementById('dbIeee').checked) dbs.push('ieee');
+            if (document.getElementById('dbScopus').checked) dbs.push('scopus');
+            if (document.getElementById('dbSciencedirect').checked) dbs.push('sciencedirect');
+            if (document.getElementById('dbSpringer').checked) dbs.push('springer');
+            if (document.getElementById('dbInspec').checked) dbs.push('inspec');
+            if (document.getElementById('dbArxiv').checked) dbs.push('arxiv');
+            if (document.getElementById('dbPubmed').checked) dbs.push('pubmed');
+            if (document.getElementById('dbHal').checked) dbs.push('hal');
+            if (document.getElementById('dbAcm').checked) dbs.push('acm');
+            if (document.getElementById('dbOpenalex').checked) dbs.push('openalex');
+            return dbs;
+        }
+
+        // --- Validation Papers ---
+        function getValidationPapers() {
+            try {
+                return JSON.parse(localStorage.getItem('validationPapers') || '[]');
+            } catch { return []; }
+        }
+
+        function saveValidationPapers(papers) {
+            localStorage.setItem('validationPapers', JSON.stringify(papers));
+            updateValidationToggleLabel();
+        }
+
+        function updateValidationToggleLabel() {
+            const papers = getValidationPapers();
+            const toggle = document.getElementById('validationToggle');
+            const isOpen = document.getElementById('validationPanel').style.display !== 'none';
+            const prefix = isOpen ? '−' : '+';
+            if (papers.length === 0) {
+                toggle.textContent = `${prefix} Validation Papers (0)`;
+            } else if (window._lastDocs && window._lastDocs.length > 0) {
+                const found   = papers.filter(p => isFoundInResults(p, window._lastDocs)).length;
+                const missing = papers.length - found;
+                let label = `${prefix} Validation Papers (${papers.length})`;
+                if (found > 0)   label += `  ✔ ${found}`;
+                if (missing > 0) label += `  ✘ ${missing}`;
+                toggle.innerHTML =
+                    `${prefix} Validation Papers (${papers.length})` +
+                    ` &nbsp;<span style="color:#27ae60;font-weight:700;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg> ${found}</span>` +
+                    ` <span style="color:#e74c3c;font-weight:700;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> ${missing}</span>` +
+                    ` <span style="color:#888;font-size:0.85em;">of ${papers.length} reference papers</span>`;
+            } else {
+                toggle.textContent = `${prefix} Validation Papers (${papers.length})`;
+            }
+        }
+
+        function toggleValidation() {
+            const panel = document.getElementById('validationPanel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+            updateValidationToggleLabel();
+            renderValidationList(window._lastDocs);
+            saveFormState();
+        }
+
+        function addValidationPaper() {
+            const input = document.getElementById('validationTitle');
+            const title = input.value.trim();
+            if (!title) return;
+            const papers = getValidationPapers();
+            // Avoid duplicates (case-insensitive)
+            if (papers.some(p => p.toLowerCase() === title.toLowerCase())) {
+                input.value = '';
+                return;
+            }
+            papers.push(title);
+            saveValidationPapers(papers);
+            input.value = '';
+            renderValidationList();
+        }
+
+        function removeValidationPaper(index) {
+            const papers = getValidationPapers();
+            papers.splice(index, 1);
+            saveValidationPapers(papers);
+            renderValidationList();
+        }
+
+        // Human-readable labels for each exclusion reason bucket
+        const EXCL_REASON_LABELS = {
+            duplicates:          'Removed as duplicate',
+            year_range:          'Excluded by year filter',
+            doc_type:            'Excluded by document type filter',
+            language:            'Excluded by language filter',
+            exclude_terms:       'Excluded by Exclude Terms filter',
+            must_include_terms:  'Excluded by Include Terms filter',
+            include_venues:      'Excluded by Include Venues filter',
+            exclude_venues:      'Excluded by Exclude Venues filter',
+        };
+
+        function getDiagnostic(title) {
+            // Check excluded_docs first
+            let excl = {};
+            try { excl = JSON.parse(localStorage.getItem('lastExcludedDocs') || '{}'); } catch(e) {}
+            for (const [reason, docs] of Object.entries(excl)) {
+                if (Array.isArray(docs) && docs.some(d => titlesMatch(normalize(title), d.title || ''))) {
+                    return { type: 'excluded', label: EXCL_REASON_LABELS[reason] || reason.replace(/_/g, ' ') };
+                }
+            }
+            // Not in excluded — check if there's a close-but-not-matching candidate in raw results pool
+            const pool = window._lastDocsAll || [];
+            let bestScore = 0, bestTitle = '';
+            const n = normalize(title);
+            for (const d of pool) {
+                const dt = normalize(d.title || '');
+                if (!dt) continue;
+                const setA = new Set(n.split(' '));
+                const setB = new Set(dt.split(' '));
+                let common = 0;
+                setA.forEach(w => { if (setB.has(w)) common++; });
+                const score = common / Math.max(setA.size, setB.size);
+                if (score > bestScore) { bestScore = score; bestTitle = d.title || ''; }
+            }
+            if (bestScore >= 0.6) {
+                return { type: 'close', label: `Closest match (${Math.round(bestScore*100)}%): "${bestTitle}"` };
+            }
+            return { type: 'notfound', label: 'Not found in any database result' };
+        }
+
+        function renderValidationList(results) {
+            if (!results && window._lastDocs) results = window._lastDocs;
+            const papers = getValidationPapers();
+            const container = document.getElementById('validationList');
+            if (papers.length === 0) {
+                container.innerHTML = '<p style="color:#999; font-size:0.85rem;">No validation papers added yet.</p>';
+                return;
+            }
+            let html = '';
+            // If results provided, show summary
+            if (results) {
+                const found = papers.filter(p => isFoundInResults(p, results)).length;
+                const total = papers.length;
+                const missing = total - found;
+                html += `<div class="v-summary">Validation: <span style="color:#27ae60;font-weight:700;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg> ${found}</span> <span style="color:#e74c3c;font-weight:700;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> ${missing}</span> of ${total} reference papers</div>`;
+            }
+            papers.forEach((title, i) => {
+                let indicatorClass = 'v-neutral';
+                let statusBadge = '';
+                let sourcesHtml = '';
+                let diagnosticHtml = '';
+                if (results) {
+                    const foundSources = getFoundSources(title, results);
+                    if (foundSources.length > 0) {
+                        indicatorClass = 'v-found';
+                        statusBadge = `<span class="v-status-badge v-status-found">Found</span>`;
+                        sourcesHtml = `<div class="v-item-sources">${foundSources.map(s => `<span class="v-src-badge">${escapeHtml(s)}</span>`).join('')}</div>`;
+                    } else {
+                        indicatorClass = 'v-missing';
+                        statusBadge = `<span class="v-status-badge v-status-missing">Missing</span>`;
+                        const diag = getDiagnostic(title);
+                        const diagColor = diag.type === 'excluded' ? '#b45309' : diag.type === 'close' ? '#1d4ed8' : '#6b7280';
+                        const diagIcon  = diag.type === 'excluded' ? `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>` : diag.type === 'close' ? '≈' : 'ℹ';
+                        diagnosticHtml = `<div style="font-size:0.76rem;color:${diagColor};margin-top:0.25rem;padding-left:1.4rem;">${diagIcon} ${escapeHtml(diag.label)}</div>`;
+                    }
+                }
+                html += `<div class="validation-item">`;
+                html += `<div class="v-item-top">`;
+                html += `<span class="v-indicator ${indicatorClass}"></span>`;
+                html += `<span class="v-title">${escapeHtml(title)}</span>`;
+                html += statusBadge;
+                html += `<button class="v-remove" onclick="removeValidationPaper(${i})" title="Remove">&times;</button>`;
+                html += `</div>`;
+                html += sourcesHtml;
+                html += diagnosticHtml;
+                html += `</div>`;
+            });
+            container.innerHTML = html;
+            updateValidationToggleLabel();
+        }
+
+        function normalize(text) {
+            return (text || '')
+                .toLowerCase()
+                .normalize('NFKD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function titlesMatch(validationTitle, resultTitle) {
+            const a = normalize(validationTitle);
+            const b = normalize(resultTitle);
+            if (!a || !b) return false;
+
+            if (a === b) return true;
+
+            // Handle truncated/extended title variants by checking containment both ways —
+            // but guard against degenerate titles (e.g. "S" from a malformed OpenAlex record)
+            // trivially "matching" as a substring of any longer, unrelated title.
+            const MIN_CONTAINMENT_LEN = 12;
+            if (Math.min(a.length, b.length) >= MIN_CONTAINMENT_LEN && (a.includes(b) || b.includes(a))) return true;
+
+            const wordsA = a.split(' ');
+            const wordsB = b.split(' ');
+            const setA = new Set(wordsA);
+            const setB = new Set(wordsB);
+            let common = 0;
+            setA.forEach(w => { if (setB.has(w)) common++; });
+
+            const maxDen = Math.max(setA.size, setB.size) || 1;
+            const minDen = Math.min(setA.size, setB.size) || 1;
+            const overlapMax = common / maxDen;
+            const overlapMin = common / minDen;
+
+            // Keep a strict overall overlap, but allow high containment for subtitle differences.
+            return overlapMax > 0.85 || (common >= 4 && overlapMin > 0.9);
+        }
+
+        function isFoundInResults(validationTitle, docs) {
+            const norm = normalize(validationTitle);
+            if (!norm) return false;
+            return docs.some(doc => {
+                return titlesMatch(norm, doc.title || '');
+            });
+        }
+
+        function getFoundSources(validationTitle, docs) {
+            const norm = normalize(validationTitle);
+            if (!norm) return [];
+            const sources = new Set();
+            docs.forEach(doc => {
+                if (titlesMatch(norm, doc.title || '')) {
+                    const src = doc.source || 'Unknown';
+                    sources.add(src);
+                }
+            });
+            return Array.from(sources);
+        }
+
+        // ── Citation Snowballing ──────────────────────────────────────
+        let _snowballDois = [];
+        let _snowballDocs = [];  // docs added via snowballing (kept separately so they can be cleared)
+
+        function toggleSnowball() {
+            const panel = document.getElementById('snowballPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function updateSnowballToggleLabel() {
+            document.getElementById('snowballToggle').textContent =
+                `+ Citation Snowballing (${_snowballDois.length} seed${_snowballDois.length !== 1 ? 's' : ''})`;
+        }
+
+        function addSnowballDoi() {
+            let doi = (document.getElementById('snowballDoi').value || '').trim()
+                .replace(/^https?:\/\/doi\.org\//i, '').replace(/^doi:/i, '');
+            if (!doi) return;
+            if (_snowballDois.includes(doi)) { showToast('DOI already added.', 'warning'); return; }
+            _snowballDois.push(doi);
+            document.getElementById('snowballDoi').value = '';
+            renderSnowballDoiList();
+            updateSnowballToggleLabel();
+        }
+
+        document.getElementById('snowballDoi').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addSnowballDoi();
+        });
+
+        function removeSnowballDoi(doi) {
+            _snowballDois = _snowballDois.filter(d => d !== doi);
+            renderSnowballDoiList();
+            updateSnowballToggleLabel();
+        }
+
+        function renderSnowballDoiList() {
+            const container = document.getElementById('snowballDoiList');
+            if (_snowballDois.length === 0) { container.innerHTML = ''; return; }
+            container.innerHTML = _snowballDois.map(doi =>
+                `<span style="display:inline-flex;align-items:center;gap:0.3rem;background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.78rem;font-family:monospace;">
+                    ${escapeHtml(doi)}
+                    <button onclick="removeSnowballDoi('${escapeHtml(doi)}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.85rem;padding:0;line-height:1;" title="Remove"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg></button>
+                </span>`
+            ).join('');
+        }
+
+        async function runSnowballing() {
+            if (_snowballDois.length === 0) { showToast('Add at least one DOI or title first.', 'warning'); return; }
+            const btn = document.getElementById('snowballRunBtn');
+            const statusEl = document.getElementById('snowballStatus');
+            btn.disabled = true;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> Fetching…';
+            statusEl.innerHTML = '<em style="color:#6b7280;">Querying OpenAlex — this may take a few seconds…</em>';
+
+            const mode = document.getElementById('snowballMode').value;
+            try {
+                const resp = await fetch('/api/snowball', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ seeds: _snowballDois, mode })
+                });
+                const result = await resp.json();
+                if (result.error) { statusEl.innerHTML = `<span style="color:#dc2626;">Error: ${escapeHtml(result.error)}</span>`; return; }
+
+                const newDocs = result.docs || [];
+                _snowballDocs = newDocs;
+
+                // Show resolved titles for title-based seeds
+                const resolvedHtml = (result.resolved || []).map(r =>
+                    r.input !== r.resolved
+                        ? `<div style="font-size:0.78rem;color:#374151;"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.5" y1="9.5" x2="14" y2="14"/></svg> "${escapeHtml(r.input)}" → matched: <em>${escapeHtml(r.resolved)}</em></div>`
+                        : ''
+                ).join('');
+
+                // Merge into current results (deduplicate by DOI/title)
+                const existing = window._lastDocs || [];
+                const existingDois = new Set(existing.map(d => (d.doi||'').toLowerCase()).filter(Boolean));
+                const existingTitles = new Set(existing.map(d => (d.title||'').toLowerCase().replace(/\s+/g, ' ').trim()).filter(Boolean));
+                const merged = [...existing];
+                let added = 0;
+                for (const doc of newDocs) {
+                    const dDoi = (doc.doi||'').toLowerCase();
+                    const dTitle = (doc.title||'').toLowerCase().replace(/\s+/g, ' ').trim();
+                    if (dDoi && existingDois.has(dDoi)) continue;
+                    if (dTitle && existingTitles.has(dTitle)) continue;
+                    merged.push(doc);
+                    if (dDoi) existingDois.add(dDoi);
+                    if (dTitle) existingTitles.add(dTitle);
+                    added++;
+                }
+                window._lastDocs = merged;
+                window._lastDocsAll = merged;
+                _currentPage = 1;
+                renderResults(merged);
+                document.getElementById('viewToggleBar').style.display = 'flex';
+
+                // Persist merged results so Export and PRISMA pick up snowball additions
+                safeStoreResults(merged);
+
+                // Update PRISMA identification counts to include snowball additions
+                if (added > 0) {
+                    try {
+                        const pd = JSON.parse(localStorage.getItem('lastPrismaData') || '{}');
+                        if (pd.identification) {
+                            pd.identification.total_found  = (pd.identification.total_found  || 0) + added;
+                            pd.identification.retrieved    = (pd.identification.retrieved    || 0) + added;
+                            // Track snowball source in databases map for PRISMA Item 6
+                            const dbCounts = pd.identification.databases || {};
+                            const modeKey  = mode === 'forward'  ? 'Snowball↑Forward'
+                                           : mode === 'backward' ? 'Snowball↓Backward'
+                                           : 'Snowball↕Both';
+                            dbCounts[modeKey] = { found: added, retrieved: added,
+                                                  date: new Date().toISOString().slice(0,10) };
+                            pd.identification.databases = dbCounts;
+                            localStorage.setItem('lastPrismaData', JSON.stringify(pd));
+                        }
+                    } catch(e) { /* localStorage full or no prisma data yet — skip */ }
+                }
+
+                const errHtml = result.errors && result.errors.length
+                    ? `<br><span style="color:#b45309;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Warnings: ${result.errors.map(escapeHtml).join('; ')}</span>` : '';
+                const modeLabel = mode === 'forward' ? '↑ forward' : mode === 'backward' ? '↓ backward' : '↑↓ both directions';
+                statusEl.innerHTML = `${resolvedHtml}<span style="color:var(--c-success);font-weight:600;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#16a34a;"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> Done.</span> ${newDocs.length} papers retrieved via OpenAlex (${modeLabel}), <strong>${added} new</strong> added to results (${newDocs.length - added} duplicates skipped).${errHtml}`;
+                checkValidationPapers(merged);
+            } catch (err) {
+                statusEl.innerHTML = `<span style="color:#dc2626;">Network error: ${escapeHtml(err.message)}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> Run Snowballing';
+            }
+        }
+
+        function clearSnowballResults() {
+            if (_snowballDocs.length === 0) { showToast('No snowball results to clear.', 'warning'); return; }
+            const snowballSources = new Set(['Snowball↑Forward', 'Snowball↓Backward', 'Snowball↕Both']);
+            window._lastDocs = (window._lastDocs || []).filter(d => !snowballSources.has(d.source));
+            window._lastDocsAll = window._lastDocs;
+            const removedCount = _snowballDocs.length;
+            _snowballDocs = [];
+            _currentPage = 1;
+            renderResults(window._lastDocs);
+            // Sync back to localStorage
+            safeStoreResults(window._lastDocs);
+            try {
+                const pd = JSON.parse(localStorage.getItem('lastPrismaData') || '{}');
+                if (pd.identification) {
+                    pd.identification.total_found = Math.max(0, (pd.identification.total_found || 0) - removedCount);
+                    pd.identification.retrieved   = Math.max(0, (pd.identification.retrieved   || 0) - removedCount);
+                    const dbs = pd.identification.databases || {};
+                    delete dbs['Snowball↑Forward']; delete dbs['Snowball↓Backward']; delete dbs['Snowball↕Both'];
+                    pd.identification.databases = dbs;
+                    localStorage.setItem('lastPrismaData', JSON.stringify(pd));
+                }
+            } catch(e) {}
+            document.getElementById('snowballStatus').innerHTML = '<span style="color:#6b7280;">Snowball results cleared.</span>';
+        }
+
+        function checkValidationPapers(docs) {
+            const papers = getValidationPapers();
+            if (papers.length === 0) return;
+            // Open the panel if closed
+            const panel = document.getElementById('validationPanel');
+            panel.style.display = 'block';
+            updateValidationToggleLabel();
+            renderValidationList(docs);
+        }
+
+        // Allow Enter in validation input
+        document.getElementById('validationTitle').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addValidationPaper();
+        });
+
+        // --- Safe localStorage for large result sets ---
+        function safeStoreResults(docs) {
+            // Try storing as-is first
+            const json = JSON.stringify(docs);
+            try {
+                localStorage.setItem('lastSearchResults', json);
+                return;
+            } catch (e) { /* quota exceeded – fall through */ }
+
+            // Slim each doc: truncate abstract to 300 chars, drop keywords
+            const slim = docs.map(d => ({
+                source: d.source, title: d.title, authors: d.authors,
+                year: d.year, journal: d.journal, doi: d.doi, url: d.url,
+                docType: d.docType,
+                abstract: d.abstract ? d.abstract.substring(0, 300) : '',
+            }));
+            try {
+                localStorage.setItem('lastSearchResults', JSON.stringify(slim));
+                return;
+            } catch (e) { /* still too big – truncate list */ }
+
+            // Halve the list until it fits (min 200 entries)
+            let cut = slim;
+            while (cut.length > 200) {
+                cut = cut.slice(0, Math.floor(cut.length / 2));
+                try {
+                    localStorage.setItem('lastSearchResults', JSON.stringify(cut));
+                    console.warn(`lastSearchResults truncated to ${cut.length} entries to fit localStorage.`);
+                    return;
+                } catch (e) { /* keep trimming */ }
+            }
+            // Give up — clear stale data rather than crash
+            localStorage.removeItem('lastSearchResults');
+        }
+
+        // --- Persist form state across page navigation ---
+        function saveFormState() {
+            const state = {
+                keywords: document.getElementById('keywords').value,
+                rows: document.getElementById('rows').value,
+                dbHal: document.getElementById('dbHal').checked,
+                dbArxiv: document.getElementById('dbArxiv').checked,
+                dbIeee: document.getElementById('dbIeee').checked,
+                dbScopus: document.getElementById('dbScopus').checked,
+                dbInspec: document.getElementById('dbInspec').checked,
+                dbSciencedirect: document.getElementById('dbSciencedirect').checked,
+                dbSpringer: document.getElementById('dbSpringer').checked,
+                dbPubmed: document.getElementById('dbPubmed').checked,
+                dbAcm: document.getElementById('dbAcm').checked,
+                dbOpenalex: document.getElementById('dbOpenalex').checked,
+                yearFrom: document.getElementById('yearFrom').value,
+                yearTo: document.getElementById('yearTo').value,
+                excludeTerms: document.getElementById('excludeTerms').value,
+                includeTerms: document.getElementById('includeTerms').value,
+                includeVenues: document.getElementById('includeVenues').value,
+                excludeVenues: document.getElementById('excludeVenues').value,
+                docTypes: Array.from(document.querySelectorAll('.docTypeFilter:checked')).map(cb => cb.value),
+                languages: Array.from(document.querySelectorAll('.langFilter:checked')).map(cb => cb.value),
+                includeUnknownLanguage: document.getElementById('includeUnknownLanguage').checked,
+                includeTermsMode: document.getElementById('includeTermsMode').value,
+                excludeTermsMode: document.getElementById('excludeTermsMode').value,
+                includeVenuesMode: document.getElementById('includeVenuesMode').value,
+                excludeVenuesMode: document.getElementById('excludeVenuesMode').value,
+                filterPanelOpen: document.getElementById('filterPanel').style.display !== 'none',
+                validationPanelOpen: document.getElementById('validationPanel').style.display !== 'none',
+            };
+            localStorage.setItem('searchFormState', JSON.stringify(state));
+        }
+
+        // ── Export search_configuration.json ─────────────────────────
+        async function exportSearchConfig() {
+            const keywords  = document.getElementById('keywords').value.trim();
+            const databases = getSelectedDatabases();
+            const filters   = getFilters();
+            const vp        = getValidationPapers();
+            const rows      = 10000; // always fetch all results
+
+            const now = new Date();
+            const dateStr = now.getFullYear() + '-' +
+                String(now.getMonth()+1).padStart(2,'0') + '-' +
+                String(now.getDate()).padStart(2,'0');
+
+            const dbLabels = {
+                hal:'HAL Open Science', arxiv:'arXiv', ieee:'IEEE Xplore',
+                scopus:'Scopus', inspec:'Inspec (Engineering Village)',
+                sciencedirect:'ScienceDirect',
+                springer:'Springer Nature', pubmed:'PubMed', acm:'ACM Digital Library',
+                openalex:'OpenAlex'
+            };
+
+            const config = {
+                schema_version: '1.0',
+                tool: 'Review Sentinel Prime (RSP)',
+                exported_at: now.toISOString(),
+                query: {
+                    keywords: keywords,
+                    rows_per_page: rows,
+                },
+                databases: databases.map(function(db) {
+                    return { id: db, label: dbLabels[db] || db };
+                }),
+                inclusion_exclusion_criteria: {
+                    year_range: { from: filters.yearFrom || null, to: filters.yearTo || null },
+                    include_terms:  filters.includeTerms  || [],
+                    include_terms_mode: filters.includeTermsMode || 'all',
+                    exclude_terms:  filters.excludeTerms  || [],
+                    exclude_terms_mode: filters.excludeTermsMode || 'any',
+                    include_venues: filters.includeVenues || [],
+                    include_venues_mode: filters.includeVenuesMode || 'any',
+                    exclude_venues: filters.excludeVenues || [],
+                    exclude_venues_mode: filters.excludeVenuesMode || 'any',
+                    document_types: filters.docTypes      || [],
+                    languages:      filters.languages     || [],
+                },
+                validation_papers: vp,
+                snowball_seeds: (_snowballDois || []).slice(),
+            };
+
+            const json     = JSON.stringify(config, null, 2);
+            const blob     = new Blob([json], { type: 'application/json' });
+            const slug     = (keywords || 'search').substring(0,40).replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase();
+            const fileName = 'search_config_' + slug + '_' + dateStr + '.json';
+
+            if (typeof window.showSaveFilePicker === 'function') {
+                let fh;
+                try {
+                    fh = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
+                    });
+                } catch(e) { return; } // user cancelled
+                const w = await fh.createWritable();
+                await w.write(blob);
+                await w.close();
+                showToast('Config saved as ' + fh.name, 'success', 4000);
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a   = document.createElement('a');
+                a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Config downloaded as ' + fileName, 'success', 4000);
+            }
+        }
+
+        // ── Import search_configuration.json ─────────────────────────
+        function importSearchConfig() {
+            document.getElementById('importConfigInput').value = '';
+            document.getElementById('importConfigInput').click();
+        }
+
+        function handleConfigFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                var cfg;
+
+                // 1 — must be valid JSON
+                try {
+                    cfg = JSON.parse(e.target.result);
+                } catch(err) {
+                    showConfirmModal({
+                        icon: RSP_ICONS.warning,
+                        title: 'Invalid file',
+                        message: '"' + file.name + '" is not a valid JSON file and cannot be imported.',
+                        confirmLabel: 'Close',
+                        cancelLabel: false,
+                        onConfirm: function() {}
+                    });
+                    return;
+                }
+
+                // 2 — must look like a RSP search config
+                //     Required: schema_version, query.keywords, databases (array)
+                var issues = [];
+                if (!cfg.schema_version) {
+                    issues.push('missing "schema_version" field');
+                }
+                if (!cfg.query || typeof cfg.query.keywords !== 'string') {
+                    issues.push('missing or invalid "query.keywords"');
+                }
+                if (!Array.isArray(cfg.databases) || cfg.databases.length === 0) {
+                    issues.push('missing or empty "databases" list');
+                }
+                // Warn if it looks like a different RSP file (e.g. prisma_data.json)
+                if (cfg.tool && cfg.tool.indexOf('Review Sentinel Prime') === -1) {
+                    issues.push('"tool" field does not match Review Sentinel Prime (RSP)');
+                }
+
+                if (issues.length > 0) {
+                    showConfirmModal({
+                        icon: RSP_ICONS.warning,
+                        title: 'Incompatible file',
+                        message: '"' + file.name + '" does not appear to be a valid RSP search configuration.\n\nProblems found: ' + issues.join('; ') + '.\n\nPlease import a file exported via "Export Config (JSON)".',
+                        confirmLabel: 'Close',
+                        cancelLabel: false,
+                        onConfirm: function() {}
+                    });
+                    return;
+                }
+
+                applySearchConfig(cfg);
+            };
+            reader.readAsText(file);
+        }
+
+        function applySearchConfig(cfg) {
+            // Keywords & rows
+            const kw = (cfg.query && cfg.query.keywords) ? cfg.query.keywords : (cfg.keywords || '');
+            document.getElementById('keywords').value = kw;
+            if (cfg.query && cfg.query.rows_per_page) {
+                // rows_per_page from exported config is informational only
+            }
+
+            // Databases — uncheck all first, then tick the ones in the file
+            const dbMap = {
+                hal:'dbHal', arxiv:'dbArxiv', ieee:'dbIeee', scopus:'dbScopus',
+                inspec:'dbInspec', sciencedirect:'dbSciencedirect',
+                springer:'dbSpringer', pubmed:'dbPubmed', acm:'dbAcm',
+                openalex:'dbOpenalex'
+            };
+            Object.values(dbMap).forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.checked = false;
+            });
+            var dbList = (cfg.databases || []).map(function(d) {
+                return typeof d === 'string' ? d : d.id;
+            });
+            dbList.forEach(function(db) {
+                var el = document.getElementById(dbMap[db]);
+                if (el) el.checked = true;
+            });
+
+            // Inclusion / exclusion criteria
+            var ic = cfg.inclusion_exclusion_criteria || cfg.filters || {};
+            var yr = ic.year_range || {};
+            document.getElementById('yearFrom').value       = yr.from  || ic.yearFrom  || '';
+            document.getElementById('yearTo').value         = yr.to    || ic.yearTo    || '';
+            document.getElementById('includeTerms').value   = (ic.include_terms  || ic.includeTerms  || []).join(', ');
+            document.getElementById('includeTermsMode').value = ic.include_terms_mode || ic.includeTermsMode || 'all';
+            document.getElementById('excludeTerms').value   = (ic.exclude_terms  || ic.excludeTerms  || []).join(', ');
+            document.getElementById('excludeTermsMode').value = ic.exclude_terms_mode || ic.excludeTermsMode || 'any';
+            document.getElementById('includeVenues').value  = (ic.include_venues || ic.includeVenues || []).join(', ');
+            document.getElementById('includeVenuesMode').value = ic.include_venues_mode || ic.includeVenuesMode || 'any';
+            document.getElementById('excludeVenues').value  = (ic.exclude_venues || ic.excludeVenues || []).join(', ');
+            document.getElementById('excludeVenuesMode').value = ic.exclude_venues_mode || ic.excludeVenuesMode || 'any';
+
+            document.querySelectorAll('.docTypeFilter').forEach(function(cb) {
+                cb.checked = (ic.document_types || ic.docTypes || []).includes(cb.value);
+            });
+            document.querySelectorAll('.langFilter').forEach(function(cb) {
+                cb.checked = (ic.languages || []).includes(cb.value);
+            });
+
+            // Show filter panel if any criteria are set
+            var hasCriteria = (ic.year_range && (ic.year_range.from || ic.year_range.to)) ||
+                (ic.include_terms||ic.includeTerms||[]).length ||
+                (ic.exclude_terms||ic.excludeTerms||[]).length ||
+                (ic.include_venues||ic.includeVenues||[]).length ||
+                (ic.exclude_venues||ic.excludeVenues||[]).length ||
+                (ic.document_types||ic.docTypes||[]).length ||
+                (ic.languages||[]).length;
+            if (hasCriteria) {
+                document.getElementById('filterPanel').style.display = 'block';
+                document.getElementById('filterToggle').textContent = '\u2212 Hide Inclusion / Exclusion Criteria';
+            }
+
+            // Validation papers
+            var vp = cfg.validation_papers || cfg.validationPapers || [];
+            if (vp.length) {
+                saveValidationPapers(vp);
+                document.getElementById('validationPanel').style.display = 'block';
+                renderValidationList();
+            }
+            updateValidationToggleLabel();
+
+            // Snowballing seeds
+            var ss = cfg.snowball_seeds || cfg.snowballSeeds || [];
+            if (ss.length) {
+                _snowballDois = ss.slice();
+                renderSnowballDoiList();
+                updateSnowballToggleLabel();
+                document.getElementById('snowballPanel').style.display = 'block';
+            }
+
+            showToast('Search configuration loaded. Review settings and click Search Papers.', 'success', 5000);
+            document.getElementById('keywords').focus();
+        }
+
+        function confirmClearSearch() {
+            showConfirmModal({
+                icon: RSP_ICONS.sparkles,
+                title: 'Clear search?',
+                message: 'The search form, all current results, filters, and validation papers will be reset. This cannot be undone.',
+                confirmLabel: 'Yes, clear all',
+                cancelLabel: 'Keep results',
+                onConfirm: clearSearch
+            });
+        }
+
+        function isConnOk(api) {
+            try {
+                const raw = localStorage.getItem('connTest_' + api);
+                if (!raw) return false;
+                return JSON.parse(raw).state === 'ok';
+            } catch(e) { return false; }
+        }
+
+        function initDbCheckboxes() {
+            // No-key databases: always on when available. ACM is only on if its last connection test passed.
+            document.getElementById('dbHal').checked = true;
+            document.getElementById('dbArxiv').checked = true;
+            // API-key databases: on only if last connection test passed
+            document.getElementById('dbIeee').checked = isConnOk('ieee');
+            document.getElementById('dbScopus').checked = isConnOk('scopus');
+            document.getElementById('dbInspec').checked = isConnOk('inspec');
+            document.getElementById('dbSciencedirect').checked = isConnOk('sciencedirect');
+            document.getElementById('dbSpringer').checked = isConnOk('springer');
+            document.getElementById('dbPubmed').checked = isConnOk('pubmed');
+            document.getElementById('dbAcm').checked = isConnOk('acm');
+            document.getElementById('dbOpenalex').checked = true;
+        }
+
+        function clearSearch() {
+            document.getElementById('keywords').value = '';
+            document.getElementById('rows').value = '25';
+            document.getElementById('dbHal').checked = true;
+            document.getElementById('dbArxiv').checked = true;
+            document.getElementById('dbIeee').checked = isConnOk('ieee');
+            document.getElementById('dbScopus').checked = isConnOk('scopus');
+            document.getElementById('dbInspec').checked = isConnOk('inspec');
+            document.getElementById('dbSciencedirect').checked = isConnOk('sciencedirect');
+            document.getElementById('dbSpringer').checked = isConnOk('springer');
+            document.getElementById('dbPubmed').checked = isConnOk('pubmed');
+            document.getElementById('dbAcm').checked = isConnOk('acm');
+            document.getElementById('dbOpenalex').checked = true;
+            document.getElementById('yearFrom').value = '';
+            document.getElementById('yearTo').value = '';
+            document.getElementById('excludeTerms').value = '';
+            document.getElementById('excludeTermsMode').value = 'any';
+            document.getElementById('includeTerms').value = '';
+            document.getElementById('includeTermsMode').value = 'all';
+            document.getElementById('includeVenues').value = '';
+            document.getElementById('includeVenuesMode').value = 'any';
+            document.getElementById('excludeVenues').value = '';
+            document.getElementById('excludeVenuesMode').value = 'any';
+            document.querySelectorAll('.docTypeFilter').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.langFilter').forEach(cb => cb.checked = false);
+            document.getElementById('includeUnknownLanguage').checked = true;
+            document.getElementById('filterPanel').style.display = 'none';
+            document.getElementById('results').innerHTML = '';
+            const rsEl = document.getElementById('resultStats');
+            if (rsEl) rsEl.textContent = '';
+            document.getElementById('status').innerHTML = '';
+            document.getElementById('exportBar').style.display = 'none';
+            document.getElementById('viewToggleBar').style.display = 'none';
+            const pgBar = document.getElementById('paginationBar');
+            if (pgBar) pgBar.innerHTML = '';
+            window._lastDocs = null;
+            // Clear validation papers and results
+            localStorage.removeItem('validationPapers');
+            localStorage.removeItem('searchFormState');
+            localStorage.removeItem('lastSearchResults');
+            // Clear PRISMA data
+            localStorage.removeItem('lastPrismaData');
+            localStorage.removeItem('prismaManualSteps');
+            document.getElementById('validationList').innerHTML = '';
+            document.getElementById('validationPanel').style.display = 'none';
+            updateValidationToggleLabel();
+            saveFormState();
+        }
+
+        function restoreFormState() {
+            try {
+                const state = JSON.parse(localStorage.getItem('searchFormState'));
+                if (!state) return;
+                document.getElementById('keywords').value = state.keywords || '';
+                document.getElementById('rows').value = parseInt(state.rows) || 25;
+                document.getElementById('dbHal').checked = state.dbHal !== false;
+                document.getElementById('dbArxiv').checked = state.dbArxiv !== false;
+                document.getElementById('dbIeee').checked = state.dbIeee !== false;
+                document.getElementById('dbScopus').checked = state.dbScopus !== false;
+                document.getElementById('dbInspec').checked = state.dbInspec !== false;
+                document.getElementById('dbSciencedirect').checked = state.dbSciencedirect !== false;
+                document.getElementById('dbSpringer').checked = state.dbSpringer !== false;
+                document.getElementById('dbPubmed').checked = state.dbPubmed !== false;
+                document.getElementById('dbAcm').checked = state.dbAcm !== false;
+                document.getElementById('dbOpenalex').checked = state.dbOpenalex !== false;
+                document.getElementById('yearFrom').value = state.yearFrom || '';
+                document.getElementById('yearTo').value = state.yearTo || '';
+                document.getElementById('excludeTerms').value = state.excludeTerms || '';
+                document.getElementById('includeTerms').value = state.includeTerms || '';
+                document.getElementById('includeVenues').value = state.includeVenues || '';
+                document.getElementById('excludeVenues').value = state.excludeVenues || '';
+                // Restore checkboxes
+                document.querySelectorAll('.docTypeFilter').forEach(cb => {
+                    cb.checked = (state.docTypes || []).includes(cb.value);
+                });
+                document.querySelectorAll('.langFilter').forEach(cb => {
+                    cb.checked = (state.languages || []).includes(cb.value);
+                });
+                document.getElementById('includeUnknownLanguage').checked = state.includeUnknownLanguage !== false;
+                // Restore ALL/ANY match modes — a silent reset to the default
+                // changes which papers the next search keeps
+                document.getElementById('includeTermsMode').value = state.includeTermsMode || 'all';
+                document.getElementById('excludeTermsMode').value = state.excludeTermsMode || 'any';
+                document.getElementById('includeVenuesMode').value = state.includeVenuesMode || 'any';
+                document.getElementById('excludeVenuesMode').value = state.excludeVenuesMode || 'any';
+                // Restore filter panel visibility
+                const panel = document.getElementById('filterPanel');
+                const toggle = document.getElementById('filterToggle');
+                if (state.filterPanelOpen) {
+                    panel.style.display = 'block';
+                    toggle.textContent = '\u2212 Hide Inclusion / Exclusion Criteria';
+                } else {
+                    panel.style.display = 'none';
+                    toggle.textContent = '+ Show Inclusion / Exclusion Criteria';
+                }
+                // Restore validation panel visibility
+                const validationPanel = document.getElementById('validationPanel');
+                const validationToggle = document.getElementById('validationToggle');
+                if (state.validationPanelOpen) {
+                    validationPanel.style.display = 'block';
+                } else {
+                    validationPanel.style.display = 'none';
+                }
+                updateValidationToggleLabel();
+            } catch (e) {}
+        }
+
+        function restoreLastResults() {
+            try {
+                const docs = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
+                if (docs.length === 0) return;
+                const resultsEl = document.getElementById('results');
+                const statusEl = document.getElementById('status');
+                const savedRows = parseInt(document.getElementById('rows').value) || 25;
+                statusEl.innerHTML = `<span class="results-header">Showing ${docs.length} results from last search.</span>`;
+                window._lastDocs = docs;
+                window._lastDocsAll = docs;
+                _currentPage = 1;
+                _pageSize = Math.max(1, savedRows);
+                renderResults(docs);
+                renderExcludedPanel();
+                document.getElementById('viewToggleBar').style.display = 'flex';
+                document.getElementById('exportBar').style.display = 'flex';
+                checkValidationPapers(docs);
+            } catch (e) {}
+        }
+
+        // Save form state before navigating away
+        window.addEventListener('beforeunload', saveFormState);
+
+        // Restore on load
+        function applyPendingSearch() {
+            try {
+                const cfg = JSON.parse(localStorage.getItem('pendingSearch') || 'null');
+                if (!cfg) return false;
+                localStorage.removeItem('pendingSearch');
+                // Populate form from saved search config
+                document.getElementById('keywords').value = cfg.query || '';
+                document.getElementById('rows').value = cfg.pageSize || 25;
+                const allDbs = ['hal','arxiv','ieee','scopus','inspec','sciencedirect','springer','pubmed','acm','openalex'];
+                allDbs.forEach(db => {
+                    const el = document.getElementById('db' + db.charAt(0).toUpperCase() + db.slice(1));
+                    if (el) el.checked = (cfg.databases || []).includes(db);
+                });
+                const f = cfg.filters || {};
+                document.getElementById('yearFrom').value = f.yearFrom || '';
+                document.getElementById('yearTo').value   = f.yearTo   || '';
+                document.getElementById('excludeTerms').value   = (f.excludeTerms  || []).join(', ');
+                document.getElementById('excludeTermsMode').value = f.excludeTermsMode || 'any';
+                document.getElementById('includeTerms').value   = (f.includeTerms  || []).join(', ');
+                document.getElementById('includeTermsMode').value = f.includeTermsMode || 'all';
+                document.getElementById('includeVenues').value  = (f.includeVenues || []).join(', ');
+                document.getElementById('includeVenuesMode').value = f.includeVenuesMode || 'any';
+                document.getElementById('excludeVenues').value  = (f.excludeVenues || []).join(', ');
+                document.getElementById('excludeVenuesMode').value = f.excludeVenuesMode || 'any';
+                document.querySelectorAll('.docTypeFilter').forEach(cb => { cb.checked = (f.docTypes  || []).includes(cb.value); });
+                document.querySelectorAll('.langFilter').forEach(cb  => { cb.checked = (f.languages || []).includes(cb.value); });
+                document.getElementById('includeUnknownLanguage').checked = f.includeUnknownLanguage !== false;
+                if ((f.excludeTerms||[]).length || (f.includeTerms||[]).length ||
+                    (f.includeVenues||[]).length || (f.excludeVenues||[]).length ||
+                    f.yearFrom || f.yearTo) {
+                    document.getElementById('filterPanel').style.display = 'block';
+                    document.getElementById('filterToggle').textContent = '\u2212 Hide Inclusion / Exclusion Criteria';
+                }
+                // Restore validation papers
+                const vp = cfg.validationPapers || [];
+                if (vp.length) {
+                    localStorage.setItem('validationPapers', JSON.stringify(vp));
+                    document.getElementById('validationPanel').style.display = 'block';
+                    renderValidationList();
+                }
+                updateValidationToggleLabel();
+                // Restore snowball seeds saved with the search
+                const seeds = cfg.snowballSeeds || [];
+                if (seeds.length && typeof _snowballDois !== 'undefined') {
+                    _snowballDois = seeds.slice();
+                    if (typeof renderSnowballDoiList === 'function') renderSnowballDoiList();
+                }
+                return true;
+            } catch(e) { return false; }
+        }
+
+        const hasPending = applyPendingSearch();
+        if (!hasPending) {
+            const hasSavedState = !!localStorage.getItem('searchFormState');
+            if (!hasSavedState) initDbCheckboxes();
+            restoreFormState();
+            restoreLastResults();
+        } else {
+            // Clear stale last results and run fresh
+            localStorage.removeItem('lastSearchResults');
+            doSearch();
+        }
+
+        // Init on load
+        updateValidationToggleLabel();
+
+        // IEEE API key management
+        async function checkIeeeKey() {
+            try {
+                const resp = await fetch('/api/ieee-key');
+                const data = await resp.json();
+                const notice = document.getElementById('ieeeKeyNotice');
+                if (!data.configured && document.getElementById('dbIeee').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbIeee').addEventListener('change', checkIeeeKey);
+        checkIeeeKey();
+
+        // Scopus API key management
+        async function checkScopusKey() {
+            try {
+                const resp = await fetch('/api/scopus-key');
+                const data = await resp.json();
+                const notice = document.getElementById('scopusKeyNotice');
+                if (!data.configured && document.getElementById('dbScopus').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbScopus').addEventListener('change', checkScopusKey);
+        checkScopusKey();
+
+        // Inspec API key management
+        async function checkInspecKey() {
+            try {
+                const resp = await fetch('/api/inspec-key');
+                const data = await resp.json();
+                const notice = document.getElementById('inspecKeyNotice');
+                if (!data.configured && document.getElementById('dbInspec').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbInspec').addEventListener('change', checkInspecKey);
+        checkInspecKey();
+
+        // ScienceDirect API key management
+        async function checkSciencedirectKey() {
+            try {
+                const resp = await fetch('/api/sciencedirect-key');
+                const data = await resp.json();
+                const notice = document.getElementById('sciencedirectKeyNotice');
+                if (!data.configured && document.getElementById('dbSciencedirect').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbSciencedirect').addEventListener('change', checkSciencedirectKey);
+        checkSciencedirectKey();
+
+        // Springer Nature API key management
+        async function checkSpringerKey() {
+            try {
+                const resp = await fetch('/api/springer-key');
+                const data = await resp.json();
+                const notice = document.getElementById('springerKeyNotice');
+                if (!data.configured && document.getElementById('dbSpringer').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbSpringer').addEventListener('change', checkSpringerKey);
+        checkSpringerKey();
+
+        // PubMed API key management (optional)
+        async function checkPubmedKey() {
+            try {
+                const resp = await fetch('/api/pubmed-key');
+                const data = await resp.json();
+                const notice = document.getElementById('pubmedKeyNotice');
+                if (!data.configured && document.getElementById('dbPubmed').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbPubmed').addEventListener('change', checkPubmedKey);
+        checkPubmedKey();
+
+        // ACM Digital Library API key management
+        async function checkAcmKey() {
+            try {
+                const resp = await fetch('/api/acm-key');
+                const data = await resp.json();
+                const notice = document.getElementById('acmKeyNotice');
+                if (!data.configured && document.getElementById('dbAcm').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbAcm').addEventListener('change', checkAcmKey);
+        checkAcmKey();
+
+        function hideExportModal() {
+            document.getElementById('exportModal').style.display = 'none';
+        }
+
+        function exportReplicationPackage() {
+            const docs = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
+            if (docs.length === 0) {
+                showToast('No search results to export. Please run a search first.', 'warning');
+                return;
+            }
+
+            // Pre-fill sensible defaults
+            const keywords = document.getElementById('keywords').value.trim();
+            const now = new Date();
+            const dateStr = now.getFullYear() + '-' +
+                String(now.getMonth()+1).padStart(2,'0') + '-' +
+                String(now.getDate()).padStart(2,'0');
+            const slug = keywords.substring(0, 40).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'slr';
+
+            document.getElementById('exportPkgName').value  = slug + '-' + dateStr;
+            document.getElementById('exportFileName').value = 'replication_package_' + slug + '_' + dateStr;
+
+            const modal = document.getElementById('exportModal');
+            modal.style.display = 'flex';
+            document.getElementById('exportPkgName').focus();
+        }
+
+        /* ── Export image generators ─────────────────────────────────── */
+        function _renderChartsForExport(docs) {
+            // Render 3 Chart.js charts to offscreen canvases; animation:false = synchronous
+            const result = {};
+            if (!docs || !docs.length) return result;
+
+            // 1. Year chart
+            try {
+                const yearCounts = {};
+                docs.forEach(d => { const y = d.year || 'Unknown'; yearCounts[y] = (yearCounts[y]||0)+1; });
+                const yearLabels = Object.keys(yearCounts).sort();
+                const yearData   = yearLabels.map(l => yearCounts[l]);
+                const cY = document.createElement('canvas'); cY.width = 900; cY.height = 450;
+                const ch1 = new Chart(cY, { type:'bar', data:{ labels:yearLabels, datasets:[{ label:'Publications', data:yearData, backgroundColor:'rgba(52,152,219,0.7)', borderColor:'rgba(52,152,219,1)', borderWidth:1 }] }, options:{ animation:false, responsive:false, plugins:{ legend:{ display:true } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } }, x:{ title:{ display:true, text:'Year' } } } } });
+                result['chart_by_year.png'] = cY.toDataURL('image/png');
+                ch1.destroy();
+            } catch(e) {}
+
+            // 2. Venue chart (top 20)
+            try {
+                const venueCounts = {};
+                docs.forEach(d => { const v = d.journal || 'Unknown/Not specified'; venueCounts[v] = (venueCounts[v]||0)+1; });
+                const venueSorted = Object.entries(venueCounts).sort((a,b)=>b[1]-a[1]).slice(0,20);
+                const venueLabels = venueSorted.map(e => e[0].length>40 ? e[0].substring(0,37)+'...' : e[0]);
+                const venueData   = venueSorted.map(e => e[1]);
+                const cV = document.createElement('canvas'); cV.width = 900; cV.height = Math.max(400, venueLabels.length * 28);
+                const ch2 = new Chart(cV, { type:'bar', data:{ labels:venueLabels, datasets:[{ label:'Publications', data:venueData, backgroundColor:'rgba(39,174,96,0.7)', borderColor:'rgba(39,174,96,1)', borderWidth:1 }] }, options:{ animation:false, responsive:false, indexAxis:'y', plugins:{ legend:{ display:false } }, scales:{ x:{ beginAtZero:true, ticks:{ precision:0 }, title:{ display:true, text:'Number' } }, y:{ title:{ display:true, text:'Venue' } } } } });
+                result['chart_by_venue.png'] = cV.toDataURL('image/png');
+                ch2.destroy();
+            } catch(e) {}
+
+            // 3. Doc type chart
+            try {
+                const docTypeNames = { 'ART':'Journal Article','COMM':'Conference Paper','THESE':'Thesis / Dissertation','COUV':'Book Chapter','REPORT':'Technical Report','PREPRINT':'Preprint','OUV':'Book','HDR':'Habilitation','POSTER':'Poster','UNDEFINED':'Undefined','Preprint':'Preprint','Unknown':'Unknown' };
+                const typeCounts = {};
+                docs.forEach(d => { const raw = d.docType||'Unknown'; const t = docTypeNames[raw]||raw; typeCounts[t]=(typeCounts[t]||0)+1; });
+                const typeSorted = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1]);
+                const typeLabels = typeSorted.map(e=>e[0]);
+                const typeData   = typeSorted.map(e=>e[1]);
+                const typeColors = ['rgba(52,152,219,0.7)','rgba(231,76,60,0.7)','rgba(39,174,96,0.7)','rgba(243,156,18,0.7)','rgba(155,89,182,0.7)','rgba(26,188,156,0.7)','rgba(241,196,15,0.7)','rgba(230,126,34,0.7)'];
+                const cD = document.createElement('canvas'); cD.width = 900; cD.height = 450;
+                const ch3 = new Chart(cD, { type:'bar', data:{ labels:typeLabels, datasets:[{ label:'Publications', data:typeData, backgroundColor:typeLabels.map((_,i)=>typeColors[i%typeColors.length]), borderColor:typeLabels.map((_,i)=>typeColors[i%typeColors.length].replace('0.7','1')), borderWidth:1 }] }, options:{ animation:false, responsive:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } }, x:{ title:{ display:true, text:'Document Type' } } } } });
+                result['chart_by_doc_type.png'] = cD.toDataURL('image/png');
+                ch3.destroy();
+            } catch(e) {}
+
+            // 4. Keyword frequency (top 30, abstracts)
+            try {
+                const WC_STOP = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','with','as','by','from','that','this','these','those','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','may','might','must','shall','can','not','no','nor','so','yet','both','either','each','all','any','more','most','other','some','such','than','then','when','where','while','which','who','whom','whose','what','how','if','because','although','though','even','its','it','we','our','us','you','your','he','she','they','their','them','his','her','i','my','me','into','over','after','before','about','between','through','during','without','within','along','across','behind','among','study','paper','research','review','based','using','used','show','shows','showed','shown','also','well','two','three','four','five','first','second','third','one','new','different','large','small','high','low','result','results','method','methods','approach','approaches','data','analysis','proposed','present','presents','presented','provide','provides','provided','use','uses','found','find','findings','work','works','however','therefore','thus','since','given','set','sets','per','including','include','includes','included','several','various','many','much','number','numbers','due','effect','effects','able','significantly','significant','related','compared','comparing','compare','et','al','etc']);
+                const wcFreq = {};
+                docs.forEach(function(d) {
+                    if (!d.abstract) return;
+                    d.abstract.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/)
+                        .filter(function(w){ return w.length >= 3 && !WC_STOP.has(w) && !/^\d+$/.test(w); })
+                        .forEach(function(w){ wcFreq[w] = (wcFreq[w]||0)+1; });
+                });
+                const wcSorted = Object.entries(wcFreq).sort(function(a,b){ return b[1]-a[1]; }).slice(0,30);
+                if (wcSorted.length) {
+                    const WC_PAL = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#be185d','#15803d','#b45309','#1d4ed8'];
+                    const wcLabels = wcSorted.map(function(e){ return e[0]; });
+                    const wcData   = wcSorted.map(function(e){ return e[1]; });
+                    const cK = document.createElement('canvas'); cK.width = 900; cK.height = Math.max(450, wcLabels.length * 22 + 80);
+                    const ch4 = new Chart(cK, { type:'bar', data:{ labels:wcLabels, datasets:[{ label:'Frequency', data:wcData, backgroundColor:wcLabels.map(function(_,i){ return WC_PAL[i%WC_PAL.length]+'b3'; }), borderColor:wcLabels.map(function(_,i){ return WC_PAL[i%WC_PAL.length]; }), borderWidth:1 }] }, options:{ animation:false, responsive:false, indexAxis:'y', plugins:{ legend:{ display:false } }, scales:{ x:{ beginAtZero:true, ticks:{ precision:0 }, title:{ display:true, text:'Occurrences' } }, y:{ title:{ display:true, text:'Term' } } } } });
+                    result['chart_keyword_frequency.png'] = cK.toDataURL('image/png');
+                    ch4.destroy();
+                }
+            } catch(e) {}
+
+            return result;
+        }
+
+        function _prismaFlowToSVG(p) {
+            if (!p || !p.identification) return '';
+            const screening = p.screening || {};
+            const eligibility = p.eligibility || {};
+            const totalIdentified = p.identification.total_found || 0;
+            const retrieved = p.identification.retrieved || 0;
+            const databases = p.identification.databases || {};
+            const included = p.included || 0;
+            const duplicatesRemoved = screening.duplicates || 0;
+            const afterDedup = retrieved - duplicatesRemoved;
+            const screeningExcluded = Object.entries(screening).filter(([k,v]) => typeof v==='number' && k!=='duplicates');
+            const screeningTotal = screeningExcluded.reduce((s,[k,v])=>s+v,0);
+            const afterScreening = afterDedup - screeningTotal;
+            const eligibilityExcluded = Object.entries(eligibility).filter(([k,v]) => typeof v==='number');
+            const eligibilityTotal = eligibilityExcluded.reduce((s,[k,v])=>s+v,0);
+            const reasonLabels = { 'duplicates':'Duplicates','year_range':'Year range','doc_type':'Document type','language':'Language','exclude_terms':'Exclude terms','must_include_terms':'Must-include terms','include_venues':'Venue inclusion','exclude_venues':'Venue exclusion' };
+            const dbLabels = { 'hal':'HAL','arxiv':'arXiv','ieee':'IEEE Xplore','scopus':'Scopus','inspec':'Inspec','sciencedirect':'ScienceDirect','springer':'Springer Nature','pubmed':'PubMed','acm':'ACM' };
+            const dbEntries = Object.entries(databases);
+            const mainX=80, bw=300, bh=80, exclX=80+300+80, exclW=220, exclH=60, arrowGap=35, dbChipW=100, dbChipH=50, dbGap=12;
+            const w = exclX+exclW+40;
+            const _esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            const _box = (x,y,w,h,fill,border,label,title,detail) => { const lW=label.length*7+10; return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="${border}" stroke-width="2.5"/><rect x="${x+12}" y="${y-8}" width="${lW}" height="16" rx="3" fill="${border}"/><text x="${x+17}" y="${y+4}" class="label">${label}</text><text x="${x+w/2}" y="${y+38}" text-anchor="middle" class="title">${_esc(title)}</text><text x="${x+w/2}" y="${y+58}" text-anchor="middle" class="detail">${_esc(detail)}</text>`; };
+            const _varr = (x,y,len) => `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+len-5}" stroke="#555" stroke-width="2" marker-end="url(#ah)"/>`;
+            const _harr = (x1,y,x2) => `<line x1="${x1}" y1="${y}" x2="${x2-5}" y2="${y}" stroke="#e74c3c" stroke-width="2" marker-end="url(#ah-red)"/>`;
+            const _excl = (x,y,w,h,title,text) => { const maxLen=Math.floor(w/6); const t2=text.length>maxLen?text.substring(0,maxLen-2)+'...':text; return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#fdedec" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/><text x="${x+10}" y="${y+20}" class="excl-title">${_esc(title)}</text><text x="${x+10}" y="${y+40}" class="excl-text">${_esc(t2)}</text>`; };
+            let y=30, svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="900" viewBox="0 0 ${w} 900"><rect width="${w}" height="900" fill="#fff"/><defs><marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker><marker id="ah-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker></defs><style>text{font-family:'Segoe UI',Arial,sans-serif}.title{font-size:14px;font-weight:600;fill:#2c3e50}.count{font-size:24px;font-weight:700;fill:#2c3e50}.detail{font-size:11px;fill:#555}.label{font-size:9px;font-weight:700;fill:#fff;letter-spacing:0.5px}.excl-title{font-size:11px;font-weight:700;fill:#c0392b}.excl-text{font-size:10px;fill:#c0392b}.db-name{font-size:10px;font-weight:600;fill:#2c3e50}.db-count{font-size:14px;font-weight:700;fill:#3498db}</style>`;
+            svg += `<text x="${mainX+bw/2}" y="${y}" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#2c3e50;">PRISMA 2020 Flow Diagram</text>`; y+=25;
+            if (dbEntries.length) { const cols=Math.min(dbEntries.length,5),rows=Math.ceil(dbEntries.length/cols),gridW=cols*(dbChipW+dbGap)-dbGap,startX=mainX+bw/2-gridW/2; dbEntries.forEach(([db,counts],i)=>{ const col=i%cols,row=Math.floor(i/cols),cx=startX+col*(dbChipW+dbGap),cy=y+row*(dbChipH+dbGap); svg+=`<rect x="${cx}" y="${cy}" width="${dbChipW}" height="${dbChipH}" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/><text x="${cx+dbChipW/2}" y="${cy+18}" text-anchor="middle" class="db-name">${dbLabels[db]||db}</text><text x="${cx+dbChipW/2}" y="${cy+36}" text-anchor="middle" class="db-count">${counts.found}</text>`; }); y+=rows*(dbChipH+dbGap)+5; const midX=mainX+bw/2; svg+=_varr(midX,y,arrowGap); y+=arrowGap; }
+            svg+=_box(mainX,y,bw,bh,'#eaf5fc','#3498db','IDENTIFICATION',`Records identified: ${totalIdentified.toLocaleString()}`,`Retrieved: ${retrieved}`); y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
+            svg+=_box(mainX,y,bw,bh,'#fef9e7','#f39c12','DEDUPLICATION',`After dedup: ${afterDedup}`,`Duplicates removed: ${duplicatesRemoved}`); if(duplicatesRemoved>0){svg+=_harr(mainX+bw,y+bh/2,exclX);svg+=_excl(exclX,y+bh/2-exclH/2,exclW,exclH,`Removed (n=${duplicatesRemoved})`,'Matched by DOI or title');} y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
+            svg+=_box(mainX,y,bw,bh,'#fef9e7','#f39c12','SCREENING',`After screening: ${afterScreening}`,`Screened: ${afterDedup} | Excluded: ${screeningTotal}`); if(screeningTotal>0){svg+=_harr(mainX+bw,y+bh/2,exclX);const exT=screeningExcluded.map(([k,v])=>`${reasonLabels[k]||k}: ${v}`).join(', ');svg+=_excl(exclX,y+bh/2-exclH/2,exclW,exclH,`Excluded (n=${screeningTotal})`,exT);} y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
+            svg+=_box(mainX,y,bw,bh,'#fdebd0','#e67e22','ELIGIBILITY',`Assessed: ${afterScreening}`,`Excluded: ${eligibilityTotal}`); if(eligibilityTotal>0){svg+=_harr(mainX+bw,y+bh/2,exclX);const exT=eligibilityExcluded.map(([k,v])=>`${reasonLabels[k]||k}: ${v}`).join(', ');svg+=_excl(exclX,y+bh/2-exclH/2,exclW,exclH,`Excluded (n=${eligibilityTotal})`,exT);} y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
+            svg+=_box(mainX,y,bw,bh,'#d4efdf','#27ae60','INCLUDED',`Studies included: ${included}`,'Final set after automated filters'); y+=bh+20;
+            svg=svg.replace('height="900"',`height="${y}"`).replace(`0 0 ${w} 900`,`0 0 ${w} ${y}`);
+            return svg+'</svg>';
+        }
+
+        function _renderPrismaFlowPng(prisma) {
+            return new Promise(function(resolve) {
+                try {
+                    const svg = _prismaFlowToSVG(prisma);
+                    if (!svg) { resolve(null); return; }
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    img.onload = function() {
+                        canvas.width = img.width; canvas.height = img.height;
+                        ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+                        ctx.drawImage(img,0,0);
+                        resolve(canvas.toDataURL('image/png'));
+                        URL.revokeObjectURL(url);
+                    };
+                    img.onerror = function() { resolve(null); URL.revokeObjectURL(url); };
+                    img.src = url;
+                } catch(e) { resolve(null); }
+            });
+        }
+
+        async function _generateExportImages(docs, prisma) {
+            const imgs = _renderChartsForExport(docs);
+            const prismaUrl = await _renderPrismaFlowPng(prisma);
+            if (prismaUrl) imgs['prisma_flow_diagram.png'] = prismaUrl;
+            return imgs;
+        }
+        /* ────────────────────────────────────────────────────────────────── */
+
+        async function confirmExport() {
+            const pkgName  = document.getElementById('exportPkgName').value.trim();
+            const fileName = document.getElementById('exportFileName').value.trim();
+
+            if (!pkgName) {
+                document.getElementById('exportPkgName').focus();
+                document.getElementById('exportPkgName').style.borderColor = '#dc2626';
+                return;
+            }
+            if (!fileName) {
+                document.getElementById('exportFileName').focus();
+                document.getElementById('exportFileName').style.borderColor = '#dc2626';
+                return;
+            }
+
+            hideExportModal();
+
+            const keywords  = document.getElementById('keywords').value.trim();
+            const databases = getSelectedDatabases();
+            const filters   = getFilters();
+            const docs   = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
+            const prisma = JSON.parse(localStorage.getItem('lastPrismaData') || '{}');
+
+            const now = new Date();
+            const dateStr = now.getFullYear() + '-' +
+                String(now.getMonth()+1).padStart(2,'0') + '-' +
+                String(now.getDate()).padStart(2,'0') + '_' +
+                String(now.getHours()).padStart(2,'0') + '-' +
+                String(now.getMinutes()).padStart(2,'0') + '-' +
+                String(now.getSeconds()).padStart(2,'0');
+
+            // Resolve screening decisions: prefer server-side run data over localStorage
+            let _resolvedScreeningDecisions = {};
+            const _screeningRunId = localStorage.getItem('lastScreeningRunId');
+            if (_screeningRunId) {
+                try {
+                    const _sr = await fetch('/api/results/run/adhoc/' + encodeURIComponent(_screeningRunId));
+                    if (_sr.ok) {
+                        const _srData = await _sr.json();
+                        if (!_srData.error && _srData.screeningDecisions) {
+                            _resolvedScreeningDecisions = _srData.screeningDecisions;
+                        }
+                    }
+                } catch(e) { /* fall through to localStorage */ }
+            }
+            if (!Object.keys(_resolvedScreeningDecisions).length) {
+                try { _resolvedScreeningDecisions = JSON.parse(localStorage.getItem('screeningDecisions') || '{}'); } catch(e) {}
+            }
+            const _sd = _resolvedScreeningDecisions;
+
+            const payload = {
+                searchName:       pkgName,
+                keywords:         keywords,
+                rowsPerPage:      parseInt(document.getElementById('rows').value) || 25,
+                databases:        databases,
+                filters:          filters,
+                validationPapers: getValidationPapers(),
+                docs:             docs,
+                prisma:           prisma,
+                // Lets the server enrich the package from the canonical run
+                // record (full rawDocs, per-reason excluded lists, decisions)
+                runId:            (prisma && prisma.runId) || localStorage.getItem('lastScreeningRunId') || '',
+                executionDate:    dateStr,
+                includedDocs:     (() => {
+                    const included = docs.filter(d => {
+                        const id = d.doi ? 'doi:' + d.doi : 'title:' + (d.title || '').toLowerCase().replace(/\s+/g,'_').slice(0,80);
+                        return _sd[id] && _sd[id].decision === 'include';
+                    });
+                    return included.length > 0 ? included : docs;
+                })(),
+                dedupDocs:        docs,
+                excludedDocs:     (() => {
+                    return docs.filter(d => {
+                        const id = d.doi ? 'doi:' + d.doi : 'title:' + (d.title || '').toLowerCase().replace(/\s+/g,'_').slice(0,80);
+                        return _sd[id] && _sd[id].decision === 'exclude';
+                    }).map(d => {
+                        const id = d.doi ? 'doi:' + d.doi : 'title:' + (d.title || '').toLowerCase().replace(/\s+/g,'_').slice(0,80);
+                        return { ...d, exclusion_reason: (_sd[id] || {}).reason || '' };
+                    });
+                })(),
+                screeningDecisions: (() => {
+                    if (!Object.keys(_sd).length) return [];
+                    return docs
+                        .filter(d => {
+                            const id = d.doi ? 'doi:' + d.doi : 'title:' + (d.title || '').toLowerCase().replace(/\s+/g,'_').slice(0,80);
+                            return !!_sd[id];
+                        })
+                        .map(d => {
+                            const id = d.doi ? 'doi:' + d.doi : 'title:' + (d.title || '').toLowerCase().replace(/\s+/g,'_').slice(0,80);
+                            const dec = _sd[id] || {};
+                            return {
+                                title:     d.title   || '',
+                                authors:   Array.isArray(d.authors) ? d.authors.join('; ') : (d.authors || ''),
+                                year:      d.year    || '',
+                                source:    d.source  || '',
+                                doi:       d.doi     || '',
+                                decision:  dec.decision || '',
+                                reason:    dec.reason   || '',
+                                screened_at: dec.ts || dec.timestamp || '',
+                            };
+                        });
+                })(),
+                images: await _generateExportImages(docs, prisma),
+            };
+
+            const btn = document.querySelector('#exportBar button');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> Generating…';
+
+            try {
+                const resp = await fetch('/api/export-replication-package', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    showToast('Failed to generate replication package.', 'error');
+                    return;
+                }
+
+                const blob     = await resp.blob();
+                const zipName  = fileName.replace(/\.zip$/i, '') + '.zip';
+
+                if (typeof window.showSaveFilePicker === 'function') {
+                    // Modern Save-As dialog (Chrome / Edge)
+                    let fileHandle;
+                    try {
+                        fileHandle = await window.showSaveFilePicker({
+                            suggestedName: zipName,
+                            types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }],
+                        });
+                    } catch (pickerErr) {
+                        // User cancelled the picker — abort silently
+                        return;
+                    }
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    showToast('Saved to ' + fileHandle.name, 'success', 5000);
+                } else {
+                    // Fallback: trigger browser download (goes to default Downloads folder)
+                    const url = URL.createObjectURL(blob);
+                    const a   = document.createElement('a');
+                    a.href = url;
+                    a.download = zipName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showToast('Downloaded as ' + zipName + ' (saved to your Downloads folder)', 'success', 5000);
+                }
+            } catch(e) {
+                showToast('Error exporting package: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
+
+    </script>
+{% endblock %}

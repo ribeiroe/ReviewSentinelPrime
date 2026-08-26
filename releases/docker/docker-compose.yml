@@ -1,0 +1,29 @@
+# -------------------------------------------------------------------------------
+#  Review Sentinel Prime - docker-compose.yml
+#  Nothing to change here. Just double-click start-app.bat (Win) / start-app.command (Mac)
+# -------------------------------------------------------------------------------
+
+services:
+  reviewsentinel:
+    build:
+      context: ${APP_ROOT:-.}
+      dockerfile: ${DOCKERFILE:-Dockerfile}
+    container_name: reviewsentinel-app
+    ports:
+      # Browser address -> http://localhost:8090
+      - "8090:5000"
+    volumes:
+      # Your saved searches, API keys, and results are kept in this folder.
+      # They persist even after the app is stopped or updated.
+      - ./data:/app/data
+    # environment:
+    #   Optional - uncomment to enable survey/feedback emails and correct links in alert emails.
+    #   SURVEY_RECIPIENT_EMAIL: rsp.researchfeedback@gmail.com
+    #   APP_BASE_URL: http://localhost:8090
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

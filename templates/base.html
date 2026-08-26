@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Review Sentinel Prime{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/rsp.css') }}?v=9">
+  {% block head_extra %}{% endblock %}
+  <style>
+    /* ── Research participation badge ───────────────────────── */
+    .nav-badge {
+      display: inline-block;
+      width: 7px; height: 7px;
+      background: #e74c3c;
+      border-radius: 50%;
+      margin-left: 5px;
+      vertical-align: middle;
+      animation: rsp-pulse 1.8s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    .nav-badge.hidden { display: none; }
+    @keyframes rsp-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.45; transform: scale(0.7); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-layout">
+
+    <!-- ── Sidebar ───────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+
+      <a class="sidebar-brand" href="/">
+        <img src="{{ url_for('static', filename='images/logo.jpeg') }}" alt="Review Sentinel Prime" class="sidebar-logo">
+      </a>
+
+      <nav class="sidebar-nav" aria-label="Primary navigation">
+        <a href="/"       {% if request.path == '/' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.5" y1="9.5" x2="14" y2="14"/></svg></span>Search
+        </a>
+        <a href="/config" {% if request.path == '/config' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5a1 1 0 011-1h3.5l1.5 2H13a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V5z"/></svg></span>Saved Searches
+        </a>
+        <a href="/results" {% if request.path == '/results' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="8,2 14,5 8,8 2,5"/><polyline points="2,8 8,11 14,8"/><polyline points="2,11 8,14 14,11"/></svg></span>Results
+        </a>
+        <a href="/screening" {% if request.path == '/screening' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="2,3 14,3 9.5,8.5 9.5,13 6.5,13 6.5,8.5"/></svg></span>Screening
+        </a>
+        <a href="/charts" {% if request.path == '/charts' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="3.5" height="5" rx="0.5"/><rect x="6.25" y="5.5" width="3.5" height="8.5" rx="0.5"/><rect x="10.5" y="3" width="3.5" height="11" rx="0.5"/></svg></span>Charts
+        </a>
+        <a href="/prisma" {% if request.path == '/prisma' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="2.5" width="9" height="11" rx="1.5"/><path d="M6.5 2.5V1.5h3v1"/><line x1="6" y1="7" x2="10" y2="7"/><line x1="6" y1="9.5" x2="10" y2="9.5"/></svg></span>PRISMA
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/settings" {% if request.path == '/settings' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/><circle cx="5" cy="4" r="1.75"/><circle cx="10" cy="8" r="1.75"/><circle cx="6" cy="12" r="1.75"/></svg></span>Settings
+        </a>
+        <a href="/manual" {% if request.path == '/manual' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v9"/><path d="M2 4a1 1 0 011-1h3a1 1 0 011 1v9c-2-.5-3.5-.75-5-1V4z"/><path d="M14 4a1 1 0 00-1-1h-3a1 1 0 00-1 1v9c2-.5 3.5-.75 5-1V4z"/></svg></span>Manual
+        </a>
+        <a href="/feedback" id="feedbackSidebarLink"
+           {% if request.path == '/feedback' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 2.5h-11a1 1 0 00-1 1v7a1 1 0 001 1h3.5l2 2 2-2h3.5a1 1 0 001-1v-7a1 1 0 00-1-1z"/></svg></span>Feedback<span class="nav-badge" id="feedbackBadge"></span>
+        </a>
+        <a href="/survey" id="surveySidebarLink"
+           {% if request.path == '/survey' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg></span>Research Survey<span class="nav-badge" id="surveyBadge"></span>
+        </a>
+        <a href="/about" {% if request.path == '/about' %}class="active"{% endif %}>
+          <span class="nav-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><line x1="8" y1="7.5" x2="8" y2="11.5"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>About
+        </a>
+      </div>
+
+    </aside>
+
+    <!-- Mobile sidebar toggle + overlay -->
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ── Main content ──────────────────────────────────────── -->
+    <div class="main-content">
+
+      {% block content %}{% endblock %}
+
+      <!-- Footer -->
+      <footer class="app-footer" aria-label="Footer">
+        <span class="footer-copy">Review Sentinel Prime {{ rsp_version }} &copy; 2026</span>
+        <span class="footer-sep" aria-hidden="true">&bull;</span>
+        <a class="footer-support-link"
+           href="https://ko-fi.com/ribeirolabs"
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="Support RibeiroLabs on Ko-fi (opens in new tab)">
+          <span class="footer-support-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13s-5-3.2-5-7.1A2.9 2.9 0 018 4.2a2.9 2.9 0 015 1.7C13 9.8 8 13 8 13z"/></svg></span>
+          Support RibeiroLabs (optional)
+          <span class="footer-support-ext" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg></span>
+        </a>
+      </footer>
+
+    </div><!-- /.main-content -->
+
+  </div><!-- /.app-layout -->
+
+  <!-- ── Toast notifications ───────────────────────────────── -->
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ── Shared confirm modal ──────────────────────────────── -->
+  <div id="rspConfirmModal" role="dialog" aria-modal="true" aria-labelledby="rspModalTitle"
+       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:10px;padding:2rem 2.5rem;max-width:420px;width:90%;
+                box-shadow:0 8px 32px rgba(0,0,0,0.18);text-align:center;">
+      <div id="rspModalIcon" style="width:2.2rem;height:2.2rem;margin:0 auto 0.5rem;display:flex;align-items:center;justify-content:center;color:var(--c-text);"></div>
+      <h3 id="rspModalTitle" style="color:#2c3e50;margin-bottom:0.6rem;font-size:1.15rem;"></h3>
+      <p id="rspModalMessage" style="color:#666;font-size:0.92rem;margin-bottom:1.5rem;line-height:1.5;"></p>
+      <div style="display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap;">
+        <button id="rspModalCancel" class="btn btn-neutral">Cancel</button>
+        <button id="rspModalConfirm" class="btn btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Shared SVG icon set ───────────────────────────────────
+    const RSP_ICONS = (function() {
+      function svg(body) {
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+      }
+      return {
+        warning:     svg('<path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/>'),
+        mail:        svg('<rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/>'),
+        key:         svg('<circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/>'),
+        trash:       svg('<line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/>'),
+        sparkles:    svg('<path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/><path d="M5 10.5l.35 1.15L6.5 12l-1.15.35L5 13.5l-.35-1.15L3.5 12l1.15-.35z"/><line x1="6.5" y1="10" x2="10.5" y2="6"/>'),
+        checkCircle: svg('<circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/>'),
+        xCircle:     svg('<circle cx="8" cy="8" r="6.5"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/>'),
+        helpCircle:  svg('<circle cx="8" cy="8" r="6.5"/><path d="M6 6.2a2 2 0 013.8 1c0 1.5-2 1.5-2 3"/><circle cx="8" cy="12" r="0.5" fill="currentColor" stroke="none"/>'),
+        clipboard:    svg('<rect x="3.5" y="2.5" width="9" height="11" rx="1.5"/><path d="M6.5 2.5V1.5h3v1"/><line x1="6" y1="7" x2="10" y2="7"/><line x1="6" y1="9.5" x2="10" y2="9.5"/>'),
+        externalLink:svg('<path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/>'),
+      };
+    }());
+
+    // ── SMTP pre-flight check ────────────────────────────────
+    async function requireSmtp(onReady) {
+      try {
+        var resp = await fetch('/api/smtp-config');
+        var cfg  = await resp.json();
+        if (cfg.configured) { onReady(); return; }
+      } catch(e) { /* network error — fall through to show modal */ }
+      showConfirmModal({
+        icon: RSP_ICONS.mail,
+        title: 'Email not configured',
+        message: 'No valid SMTP configuration was found. Email sending is disabled until you set up an outgoing mail server in Settings.',
+        confirmLabel: 'Go to Settings',
+        cancelLabel:  'Cancel',
+        onConfirm: function() { window.location.href = '/settings#smtp'; }
+      });
+    }
+
+    // ── Shared confirm modal ─────────────────────────────────
+    function showConfirmModal(opts) {
+      document.getElementById('rspModalIcon').innerHTML    = opts.icon    || RSP_ICONS.warning;
+      document.getElementById('rspModalTitle').textContent   = opts.title   || 'Are you sure?';
+      document.getElementById('rspModalMessage').textContent = opts.message || '';
+      document.getElementById('rspModalConfirm').textContent = opts.confirmLabel || 'Confirm';
+      document.getElementById('rspModalConfirm').onclick = function () {
+        hideConfirmModal();
+        if (opts.onConfirm) opts.onConfirm();
+      };
+      var cancelBtn = document.getElementById('rspModalCancel');
+      if (opts.cancelLabel || opts.cancelLabel === undefined) {
+        cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+        cancelBtn.style.display = '';
+      } else {
+        cancelBtn.style.display = 'none';
+      }
+      var modal = document.getElementById('rspConfirmModal');
+      modal.style.display = 'flex';
+      document.getElementById('rspModalCancel').focus();
+    }
+    function hideConfirmModal() {
+      document.getElementById('rspConfirmModal').style.display = 'none';
+    }
+    document.getElementById('rspModalCancel').addEventListener('click', hideConfirmModal);
+    document.getElementById('rspConfirmModal').addEventListener('click', function (e) {
+      if (e.target === this) hideConfirmModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') hideConfirmModal();
+    });
+
+    // ── Image save helper ────────────────────────────────────
+    async function saveImageAs(dataUrl, suggestedName) {
+      if (typeof window.showSaveFilePicker === 'function') {
+        let fileHandle;
+        try {
+          fileHandle = await window.showSaveFilePicker({
+            suggestedName: suggestedName,
+            types: [{ description: 'PNG Image', accept: { 'image/png': ['.png'] } }],
+          });
+        } catch (e) { return; }
+        const resp = await fetch(dataUrl);
+        const arrayBuf = await resp.arrayBuffer();
+        const writable = await fileHandle.createWritable();
+        await writable.write(arrayBuf);
+        await writable.close();
+        showToast('Saved as ' + fileHandle.name, 'success', 4000);
+      } else {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = suggestedName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('Downloaded as ' + suggestedName, 'success', 4000);
+      }
+    }
+
+    // ── Toast ────────────────────────────────────────────────
+    function showToast(msg, type, duration) {
+      type = type || 'info';
+      duration = duration || 3500;
+      var c = document.getElementById('toastContainer');
+      var t = document.createElement('div');
+      t.className = 'toast toast-' + type;
+      t.textContent = msg;
+      c.appendChild(t);
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { t.classList.add('show'); });
+      });
+      setTimeout(function() {
+        t.classList.remove('show');
+        t.addEventListener('transitionend', function() { t.remove(); }, { once: true });
+      }, duration);
+    }
+
+    // ── Sidebar mobile toggle ─────────────────────────────────
+    function toggleSidebar() {
+      var sidebar = document.getElementById('sidebar');
+      var overlay = document.getElementById('sidebarOverlay');
+      var toggle  = document.getElementById('sidebarToggle');
+      var isOpen  = sidebar.classList.toggle('open');
+      overlay.classList.toggle('open', isOpen);
+      toggle.textContent = isOpen ? '✕' : '☰';
+    }
+    document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+    document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+
+    // ── Research participation badges ────────────────────────
+    (function() {
+      var badges = {
+        survey:   ['surveyBadge'],
+        feedback: ['feedbackBadge']
+      };
+      function applyBadge(key, ids) {
+        var dismissed = localStorage.getItem('rsp_visited_' + key);
+        ids.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.classList.toggle('hidden', !!dismissed);
+        });
+      }
+      applyBadge('survey',   badges.survey);
+      applyBadge('feedback', badges.feedback);
+
+      var path = window.location.pathname;
+      if (path === '/survey')   { localStorage.setItem('rsp_visited_survey',   '1'); applyBadge('survey',   badges.survey); }
+      if (path === '/feedback') { localStorage.setItem('rsp_visited_feedback', '1'); applyBadge('feedback', badges.feedback); }
+    }());
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

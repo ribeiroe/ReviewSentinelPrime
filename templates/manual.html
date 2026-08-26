@@ -1,0 +1,1355 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – User Manual{% endblock %}
+{% block head_extra %}
+<style>
+        .container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; box-sizing: border-box; }
+
+        .manual-section {
+            background: var(--c-surface);
+            padding: 1.5rem 2rem;
+            border-radius: var(--r-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--c-border);
+            margin-bottom: 1.5rem;
+        }
+        .manual-section h2 {
+            color: var(--c-text);
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            border-bottom: 2px solid var(--c-primary);
+            padding-bottom: 0.4rem;
+            letter-spacing: -0.01em;
+        }
+        .manual-section h3 {
+            color: var(--c-text-2);
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 1.1rem;
+            margin-bottom: 0.4rem;
+        }
+        .manual-section p { margin-bottom: 0.75rem; color: var(--c-text); font-size: var(--text-sm); }
+        .manual-section ul, .manual-section ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .manual-section li { margin-bottom: 0.4rem; font-size: var(--text-sm); color: var(--c-text); }
+        .manual-section code {
+            background: var(--c-primary-lt);
+            padding: 0.15rem 0.4rem;
+            border-radius: var(--r-sm);
+            font-size: 0.85rem;
+            color: var(--c-primary);
+            font-family: 'Cascadia Code', 'Fira Mono', monospace;
+        }
+        .tip {
+            background: var(--c-success-bg);
+            border-left: 4px solid var(--c-success);
+            padding: 0.75rem 1rem;
+            border-radius: var(--r-sm);
+            margin: 0.75rem 0;
+            font-size: var(--text-sm);
+        }
+        .warning {
+            background: var(--c-warning-bg);
+            border-left: 4px solid var(--c-warning);
+            padding: 0.75rem 1rem;
+            border-radius: var(--r-sm);
+            margin: 0.75rem 0;
+            font-size: var(--text-sm);
+        }
+        .info {
+            background: var(--c-primary-lt);
+            border-left: 4px solid var(--c-primary);
+            padding: 0.75rem 1rem;
+            border-radius: var(--r-sm);
+            margin: 0.75rem 0;
+            font-size: var(--text-sm);
+        }
+        .toc {
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            padding: 1.1rem 1.5rem;
+            border-radius: var(--r-lg);
+            margin-bottom: 1.5rem;
+        }
+        .toc h3 { margin-bottom: 0.5rem; color: var(--c-text); font-weight: 700; }
+        .toc ol { margin-left: 1.2rem; }
+        .toc li { margin-bottom: 0.35rem; font-size: var(--text-sm); }
+        .toc a { color: var(--c-primary); text-decoration: none; font-weight: 500; }
+        .toc a:hover { text-decoration: underline; }
+        .kbd {
+            display: inline-block;
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            border-radius: var(--r-sm);
+            padding: 0.1rem 0.45rem;
+            font-size: 0.82rem;
+            font-family: monospace;
+            color: var(--c-text-2);
+        }
+        .illustration {
+            margin: 1.2rem 0;
+            text-align: center;
+        }
+        .illustration svg {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid var(--c-border);
+            border-radius: var(--r-md);
+            background: #fafcfe;
+        }
+        .illustration .caption {
+            font-size: 0.78rem;
+            color: var(--c-text-3);
+            margin-top: 0.4rem;
+            font-style: italic;
+        }
+        .step-grid {
+            display: grid;
+            grid-template-columns: 40px 1fr;
+            gap: 0.6rem 0.8rem;
+            margin: 0.8rem 0;
+        }
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--c-primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.88rem;
+            flex-shrink: 0;
+        }
+        .step-text {
+            padding-top: 0.35rem;
+            font-size: var(--text-sm);
+            color: var(--c-text);
+        }
+        .db-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.8rem 0;
+            font-size: var(--text-sm);
+        }
+        .db-table th, .db-table td {
+            border: 1px solid var(--c-border);
+            padding: 0.5rem 0.8rem;
+            text-align: left;
+        }
+        .db-table th {
+            background: var(--c-bg);
+            font-weight: 600;
+            color: var(--c-text);
+        }
+        .db-table tr:nth-child(even) { background: #f8fafc; }
+        /* Inline button labels in prose */
+        .lbl {
+            display: inline-block;
+            padding: 0.1rem 0.45rem;
+            border-radius: var(--r-sm);
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #fff;
+            vertical-align: middle;
+        }
+        .lbl-blue   { background: var(--c-primary); }
+        .lbl-green  { background: var(--c-success); }
+        .lbl-red    { background: var(--c-danger); }
+        .lbl-orange { background: var(--c-warning); }
+        .lbl-purple { background: #7c3aed; }
+        .lbl-dark   { background: #1e293b; }
+        .lbl-grey   { background: var(--c-text-3); }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <!-- Table of Contents -->
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ol>
+                <li><a href="#overview">Overview &amp; Getting Started</a></li>
+                <li><a href="#search">Running a Search</a></li>
+                <li><a href="#query-syntax">Query Syntax Guide</a></li>
+                <li><a href="#databases">Supported Databases</a></li>
+                <li><a href="#filters">Filters &amp; Criteria</a></li>
+                <li><a href="#validation">Validation Papers</a></li>
+                <li><a href="#saved-searches">Saved Searches &amp; Scheduling</a></li>
+                <li><a href="#email-notifications">Email Notifications &amp; Diff</a></li>
+                <li><a href="#screening">T&amp;A Screening</a></li>
+                <li><a href="#results-hub">Results Hub</a></li>
+                <li><a href="#prisma">PRISMA Flow Diagram</a></li>
+                <li><a href="#charts">Charts &amp; Visualizations</a></li>
+                <li><a href="#export">Export &amp; Replication Package</a></li>
+                <li><a href="#settings">Settings &amp; API Keys</a></li>
+                <li><a href="#survey">Research Evaluation Survey</a></li>
+                <li><a href="#feedback">Bug Reports &amp; Feature Requests</a></li>
+                <li><a href="#workflow">SLR Workflow Best Practices</a></li>
+            </ol>
+        </div>
+
+        <!-- 1. Overview -->
+        <div class="manual-section" id="overview">
+            <h2>1. Overview &amp; Getting Started</h2>
+            <p><strong>Review Sentinel Prime (RSP)</strong> is a locally-run web application for systematic literature reviews (SLR). It helps researchers search, filter, monitor, and export scientific publications across 10 databases in a reproducible, PRISMA-compliant workflow.</p>
+
+            <div class="illustration">
+                <svg width="700" height="100" viewBox="0 0 700 100">
+                    <rect x="10" y="25" width="120" height="50" rx="6" fill="#eaf5fc" stroke="#3498db" stroke-width="2"/>
+                    <text x="70" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Search</text>
+                    <line x1="130" y1="50" x2="160" y2="50" stroke="#555" stroke-width="2" marker-end="url(#arrowM)"/>
+                    <rect x="160" y="25" width="120" height="50" rx="6" fill="#fef9e7" stroke="#f39c12" stroke-width="2"/>
+                    <text x="220" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Filter</text>
+                    <line x1="280" y1="50" x2="310" y2="50" stroke="#555" stroke-width="2" marker-end="url(#arrowM)"/>
+                    <rect x="310" y="25" width="120" height="50" rx="6" fill="#fdebd0" stroke="#e67e22" stroke-width="2"/>
+                    <text x="370" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Validate</text>
+                    <line x1="430" y1="50" x2="460" y2="50" stroke="#555" stroke-width="2" marker-end="url(#arrowM)"/>
+                    <rect x="460" y="25" width="120" height="50" rx="6" fill="#d4efdf" stroke="#27ae60" stroke-width="2"/>
+                    <text x="520" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Export</text>
+                    <line x1="580" y1="50" x2="610" y2="50" stroke="#555" stroke-width="2" marker-end="url(#arrowM)"/>
+                    <rect x="610" y="25" width="80" height="50" rx="6" fill="#f4ecf7" stroke="#8e44ad" stroke-width="2"/>
+                    <text x="650" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Publish</text>
+                    <defs><marker id="arrowM" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#555"/></marker></defs>
+                </svg>
+                <div class="caption">Figure 1: RSP workflow — Search → Filter → Validate → Export → Publish</div>
+            </div>
+
+            <h3>Key Features:</h3>
+            <ul>
+                <li>Search across 10 scientific databases simultaneously</li>
+                <li>Apply multi-level inclusion/exclusion criteria (year, type, language, terms, venues)</li>
+                <li>Validate completeness using known reference papers</li>
+                <li>Screen titles &amp; abstracts manually — with optional local-LLM suggestions (human-in-the-loop)</li>
+                <li>Capture a Review Protocol (research questions, registration, methods) that auto-completes PRISMA items</li>
+                <li>Auto-generate PRISMA 2020 flow diagrams and evidence checklists</li>
+                <li>Export PRISMA-aligned replication packages (ZIP)</li>
+                <li>Schedule recurring searches for ongoing monitoring</li>
+                <li>Visualize results with publication-ready charts</li>
+            </ul>
+
+            <h3>Navigation:</h3>
+            <p>Use the sidebar on the left of every page. Links are grouped logically:</p>
+            <ul>
+                <li><strong>Search</strong> — Run searches and view results</li>
+                <li><strong>Saved Searches</strong> — Create, manage, and schedule searches</li>
+                <li><strong>Results</strong> — Browse and download all local run snapshots</li>
+                <li><strong>Screening</strong> — Title &amp; Abstract (T&amp;A) paper screening with Include / Exclude / Unsure decisions</li>
+                <li><strong>Charts</strong> — Visualize search results</li>
+                <li><strong>PRISMA</strong> — View the flow diagram and checklist</li>
+                <li><strong>Settings</strong> — Configure API keys, SMTP email, run retention limits, and the AI Screening Assistant</li>
+                <li><strong>Manual</strong> — This page</li>
+                <li><strong>Feedback</strong> — Submit bug reports or feature requests</li>
+                <li><strong>Research Survey</strong> — Research evaluation questionnaire</li>
+                <li><strong>About</strong> — Version, credits, and optional support information</li>
+            </ul>
+        </div>
+
+        <!-- 2. Running a Search -->
+        <div class="manual-section" id="search">
+            <h2>2. Running a Search</h2>
+            <p>The <strong>Search</strong> page is the main interface for finding papers.</p>
+
+            <div class="illustration">
+                <svg width="700" height="225" viewBox="0 0 700 225">
+                    <!-- outer card -->
+                    <rect x="20" y="10" width="660" height="208" rx="8" fill="#fff" stroke="#ddd" stroke-width="1"/>
+                    <!-- Keywords label + input -->
+                    <text x="40" y="35" font-size="11" font-weight="600" fill="#2c3e50">Keywords</text>
+                    <rect x="40" y="42" width="620" height="28" rx="4" fill="#fff" stroke="#ddd" stroke-width="1"/>
+                    <text x="50" y="60" font-size="10" fill="#aaa">e.g. (deep learning OR neural network) AND protein folding</text>
+                    <!-- Query tips link -->
+                    <text x="40" y="84" font-size="9" fill="#2563eb">Query tips</text>
+                    <!-- Results per Page -->
+                    <text x="40" y="105" font-size="10" font-weight="600" fill="#2c3e50">Results per Page</text>
+                    <rect x="40" y="111" width="60" height="26" rx="4" fill="#fff" stroke="#ddd" stroke-width="1"/>
+                    <text x="60" y="128" font-size="10" fill="#333">25</text>
+                    <!-- Search Papers (blue) -->
+                    <rect x="110" y="111" width="130" height="26" rx="6" fill="#2563eb"/>
+                    <text x="175" y="128" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff">Search Papers</text>
+                    <!-- Live Search toggle (amber) -->
+                    <rect x="248" y="111" width="110" height="26" rx="6" fill="#d97706"/>
+                    <text x="303" y="128" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff">Live Search</text>
+                    <!-- Save Search (green) -->
+                    <rect x="366" y="111" width="110" height="26" rx="6" fill="#16a34a"/>
+                    <text x="421" y="128" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff">Save Search</text>
+                    <!-- Import Config (teal) -->
+                    <rect x="484" y="111" width="130" height="26" rx="6" fill="#0891b2"/>
+                    <text x="549" y="128" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff">Import Config (JSON)</text>
+                    <!-- Clear (red) -->
+                    <rect x="622" y="111" width="50" height="26" rx="6" fill="#dc2626"/>
+                    <text x="647" y="128" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff">Clear</text>
+                    <!-- Databases label -->
+                    <text x="40" y="160" font-size="10" font-weight="600" fill="#2c3e50">Databases</text>
+                    <!-- IEEE unchecked -->
+                    <rect x="40" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="55" y="176" font-size="9" fill="#333">IEEE</text>
+                    <!-- ACM DL checked (default) -->
+                    <rect x="95" y="167" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+                    <polyline points="97,172 99,174.5 103.5,168.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="110" y="176" font-size="9" fill="#333">ACM DL *</text>
+                    <!-- Scopus unchecked -->
+                    <rect x="160" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="175" y="176" font-size="9" fill="#333">Scopus</text>
+                    <!-- ScienceDirect unchecked -->
+                    <rect x="220" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="235" y="176" font-size="9" fill="#333">ScienceDirect</text>
+                    <!-- Springer unchecked -->
+                    <rect x="334" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="349" y="176" font-size="9" fill="#333">Springer</text>
+                    <!-- Inspec unchecked -->
+                    <rect x="408" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="423" y="176" font-size="9" fill="#333">Inspec</text>
+                    <!-- arXiv checked (default) -->
+                    <rect x="466" y="167" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+                    <polyline points="468,172 470,174.5 474.5,168.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="481" y="176" font-size="9" fill="#333">arXiv *</text>
+                    <!-- PubMed unchecked -->
+                    <rect x="524" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="539" y="176" font-size="9" fill="#333">PubMed</text>
+                    <!-- HAL checked (default) -->
+                    <rect x="590" y="167" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+                    <polyline points="592,172 594,174.5 598.5,168.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="605" y="176" font-size="9" fill="#333">HAL *</text>
+                    <!-- OpenAlex checked (default) -->
+                    <rect x="633" y="167" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+                    <polyline points="635,172 637,174.5 641.5,168.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="648" y="176" font-size="9" fill="#333">OpenAlex *</text>
+                    <!-- footnote -->
+                    <text x="40" y="196" font-size="8" fill="#888">* Checked by default — no API key required (HAL, arXiv, ACM DL, OpenAlex). The other databases require keys — configure them in Settings.</text>
+                    <!-- Filter link -->
+                    <text x="40" y="210" font-size="9" fill="#2563eb">+ Show Inclusion / Exclusion Criteria</text>
+                    <text x="285" y="210" font-size="9" fill="#2563eb">+ Validation Papers (0)</text>
+                </svg>
+                <div class="caption">Figure 2: The Search interface — keywords field, action buttons row, database checkboxes (HAL, arXiv, ACM DL, and OpenAlex checked by default), and collapsible filter / validation panels</div>
+            </div>
+
+            <h3>Step-by-step:</h3>
+            <div class="step-grid">
+                <div><span class="step-num">1</span></div>
+                <div class="step-text">Type your query in the keywords box using Boolean operators (<strong>OR</strong>, <strong>AND</strong>, parentheses). Click <strong>Query tips</strong> below the field for a quick guide.</div>
+                <div><span class="step-num">2</span></div>
+                <div class="step-text">Set <strong>Results per Page</strong> (default 25). This controls only how many papers are shown per page — RSP always retrieves up to <strong>10,000 records per database</strong> regardless of this setting.</div>
+                <div><span class="step-num">3</span></div>
+                <div class="step-text">Select which <strong>databases</strong> to search. <strong>HAL</strong>, <strong>arXiv</strong>, <strong>ACM DL</strong>, and <strong>OpenAlex</strong> are checked by default (no API key required); enable the others once you have their API keys configured in Settings. Saved-search state also restores previous database selections automatically.</div>
+                <div><span class="step-num">4</span></div>
+                <div class="step-text">Optionally, click <em>"+ Show Inclusion / Exclusion Criteria"</em> to add filters. The filter panel open/closed state now persists across refreshes.</div>
+                <div><span class="step-num">5</span></div>
+                <div class="step-text">Click <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polygon points="9,2 2,9 7.5,9 7,14 14,7 8.5,7"/></svg> Search Papers</strong> (or press <span class="kbd">Enter</span>). A live <strong>progress panel</strong> appears, showing each database as it completes along with an elapsed timer. Alternatively, activate the <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polygon points="9,2 2,9 7.5,9 7,14 14,7 8.5,7"/></svg> Live Search</strong> mode toggle to switch to <em>Offline Filter</em> mode — this re-applies filters against a local cache without hitting the network.</div>
+                <div><span class="step-num">6</span></div>
+                <div class="step-text">Results appear below. Use the <strong>▌▌ Cards</strong> / <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg> List</strong> toggle to switch between card and compact list views.</div>
+            </div>
+
+            <h3>Live progress panel:</h3>
+            <p>While the search runs, a progress panel shows each database being queried in real time. A <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><polyline points="8,5 8,8 10.5,8"/></svg> elapsed timer tracks total search time. Errors (e.g., missing API key, rate limit) are shown inline per database without stopping the overall search.</p>
+            <p>Each database row shows <strong>X found, Y retrieved</strong> once it completes:</p>
+            <ul>
+                <li><strong>Found</strong> — total matching records reported by the API for your query</li>
+                <li><strong>Retrieved</strong> — records actually downloaded (limited by your <em>Max results</em> setting). Retrieved will always be ≤ found.</li>
+                <li><strong>Partial retrieval warning</strong> — if a database found more records than its API allowed RSP to download (a pagination limit, not your settings), the row shows an amber warning such as <em>"Only 5,000 of 12,340 records retrieved (API pagination limit)"</em>. For a systematic review, treat this as a signal to narrow the query for that database — the identification count is otherwise incomplete.</li>
+            </ul>
+
+            <h3>Understanding results:</h3>
+            <p>Each paper shows:</p>
+            <ul>
+                <li><strong>Title</strong> (clickable link to source)</li>
+                <li><strong>Authors</strong>, <strong>Year</strong>, <strong>Venue</strong></li>
+                <li><strong>Source badge</strong> — colored label showing which database found it</li>
+                <li><strong>DOI</strong> (if available)</li>
+                <li><strong>Abstract preview</strong> (first 300 characters)</li>
+                <li><strong>Keyword tags</strong> (if provided by the database)</li>
+            </ul>
+
+            <h3>View toggle (Cards / List):</h3>
+            <p>After results load, a <strong>View:</strong> toggle bar appears above the results:</p>
+            <ul>
+                <li><strong>▌▌ Cards</strong> — Full card layout with abstract, keywords, and a blue "<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M7 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9"/><polyline points="10,2 14,2 14,6"/><line x1="14" y1="2" x2="7" y2="9"/></svg> View Paper" button (default)</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg> List</strong> — Compact table (Source | Title | Year | Link). Click any title to expand inline details.</li>
+            </ul>
+
+            <h3>Buttons explained:</h3>
+            <ul>
+                <li><strong class="lbl lbl-blue"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polygon points="9,2 2,9 7.5,9 7,14 14,7 8.5,7"/></svg> Search Papers</strong> — Execute the search against all selected databases in real time</li>
+                <li><strong class="lbl lbl-orange"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polygon points="9,2 2,9 7.5,9 7,14 14,7 8.5,7"/></svg> Live Search</strong> — Toggle between <em>Live Search</em> (hits the network) and <em>Offline Filter</em> (re-filters the local cache without a network call). Useful for iterating filter criteria quickly.</li>
+                <li><strong class="lbl lbl-green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M13 13H3V3h7.5L13 5.5V13z"/><path d="M5 3v4h6V3"/><rect x="6" y="9" width="4" height="4"/></svg> Save Search</strong> — Save current configuration to Saved Searches</li>
+                <li><strong class="lbl lbl-dark"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M1 4h5l1.5 2H15v8H1z"/></svg> Import Config (JSON)</strong> — Reload all settings from a previously exported <code>search_configuration.json</code> file</li>
+                <li><strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="2,4 14,4"/><path d="M5 4V2h6v2"/><rect x="3" y="4" width="10" height="10" rx="1"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg> Clear</strong> — Reset all fields and results after confirmation</li>
+            </ul>
+            <p>After a search completes, an export bar appears below the result count:</p>
+            <ul>
+                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="8" y1="2" x2="8" y2="14"/><path d="M2 5l6-3 6 3v7l-6 3-6-3z"/><polyline points="2,5 8,8 14,5"/></svg> Export Replication Package (ZIP)</strong> — Build and download the full PRISMA-aligned replication package</li>
+                <li><strong class="lbl lbl-dark"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M13 13H3V3h7.5L13 5.5V13z"/><path d="M5 3v4h6V3"/><rect x="6" y="9" width="4" height="4"/></svg> Export Config (JSON)</strong> — Download a <code>search_configuration.json</code> you can import later to replay this exact search</li>
+                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z"/><polyline points="9,2 9,6 13,6"/></svg> Print to PDF</strong> — Open a print-ready page of all results; use browser <em>Print → Save as PDF</em></li>
+            </ul>
+
+            <div class="tip">
+                <strong>Tip:</strong> Your search state (keywords, filters, results) is automatically preserved in your browser. Navigate away and come back — everything stays as you left it.
+            </div>
+        </div>
+
+        <!-- 3. Query Syntax -->
+        <div class="manual-section" id="query-syntax">
+            <h2>3. Query Syntax Guide</h2>
+            <p>RSP uses <strong>Boolean query syntax</strong> — the same syntax accepted by academic databases. Queries are passed directly to each database without modification.</p>
+
+            <h3>Operators:</h3>
+            <ul>
+                <li><code>OR</code> — return papers containing <em>either</em> term: <code>deep learning OR neural network</code></li>
+                <li><code>AND</code> — require <em>both</em> terms: <code>machine learning AND software testing</code></li>
+                <li><strong>Parentheses</strong> — group logic: <code>(deep learning OR neural network) AND protein folding</code></li>
+                <li><strong>Quotes</strong> — exact phrase: <code>"systematic literature review"</code></li>
+                <li><code>NOT</code> / <code>AND NOT</code> — exclude a term: <code>machine learning AND NOT medical</code></li>
+            </ul>
+
+            <div class="illustration">
+                <svg width="660" height="120" viewBox="0 0 660 120">
+                    <rect x="10" y="5" width="640" height="110" rx="6" fill="#f8f9fa" stroke="#eee" stroke-width="1"/>
+                    <text x="30" y="30" font-size="11" font-weight="600" fill="#2c3e50">Examples:</text>
+                    <text x="30" y="50" font-size="10" fill="#333" font-family="monospace">deep learning OR neural network</text>
+                    <text x="360" y="50" font-size="9" fill="#888">→ papers with either term</text>
+                    <text x="30" y="70" font-size="10" fill="#333" font-family="monospace">(software testing OR code review) AND automation</text>
+                    <text x="430" y="70" font-size="9" fill="#888">→ grouped logic</text>
+                    <text x="30" y="90" font-size="10" fill="#333" font-family="monospace">"systematic literature review" AND software</text>
+                    <text x="420" y="90" font-size="9" fill="#888">→ exact phrase + term</text>
+                    <text x="30" y="110" font-size="10" fill="#333" font-family="monospace">machine learning AND NOT medical</text>
+                    <text x="360" y="110" font-size="9" fill="#888">→ exclude specific terms</text>
+                </svg>
+                <div class="caption">Figure 3: Query syntax examples</div>
+            </div>
+
+            <div class="tip">
+                <strong>Tip:</strong> A <strong>Query tips</strong> toggle appears directly below the keywords field on both the Search and Saved Searches pages. Click it for a quick-reference guide without leaving the page.
+            </div>
+
+            <div class="warning">
+                <strong>Note:</strong> Commas are not supported as query separators. Use <code>OR</code> to combine terms. If you enter a comma, an inline error message will prompt you to correct the query before searching.
+            </div>
+        </div>
+
+        <!-- 4. Supported Databases -->
+        <div class="manual-section" id="databases">
+            <h2>4. Supported Databases</h2>
+            <p>RSP searches across 10 major scientific databases. Some require API keys (free to obtain).</p>
+
+            <table class="db-table">
+                <thead>
+                    <tr><th>Database</th><th>Coverage</th><th>API Key?</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>IEEE Xplore</strong></td><td>Engineering, CS, Electronics</td><td><strong>Required</strong></td><td>Free developer key from IEEE</td></tr>
+                    <tr><td><strong>ACM Digital Library</strong></td><td>Computing, software engineering, HCI</td><td>Not required</td><td>ACM has no public API and its website blocks automated server-side access (Cloudflare). RSP reports this explicitly in the search progress panel — collect ACM results manually if the block applies</td></tr>
+                    <tr><td><strong>Scopus</strong></td><td>Multi-disciplinary (Elsevier)</td><td><strong>Required</strong></td><td>Largest abstract/citation database</td></tr>
+                    <tr><td><strong>ScienceDirect</strong></td><td>Full-text journals (Elsevier)</td><td><strong>Required</strong></td><td>Same Elsevier key as Scopus</td></tr>
+                    <tr><td><strong>Springer Nature</strong></td><td>STM journals &amp; books</td><td><strong>Required</strong></td><td>Free key from Springer developer portal</td></tr>
+                    <tr><td><strong>Inspec</strong></td><td>Physics, EE, CS, IT</td><td><strong>Required</strong></td><td>Engineering Village (Elsevier)</td></tr>
+                    <tr><td><strong>PubMed</strong></td><td>Biomedical, life sciences</td><td>Optional</td><td>Works without key; key improves rate limits</td></tr>
+                    <tr><td><strong>arXiv</strong></td><td>Physics, Math, CS, Biology, Finance</td><td>Not required</td><td>Preprints; has rate limiting</td></tr>
+                    <tr><td><strong>HAL Open Science</strong></td><td>Multi-disciplinary (French national archive)</td><td>Not required</td><td>Supports language/type filters server-side</td></tr>
+                    <tr><td><strong>OpenAlex</strong></td><td>Multi-disciplinary open catalogue (250M+ works)</td><td>Not required</td><td>Free and open; also powers the Snowballing feature</td></tr>
+                </tbody>
+            </table>
+
+            <div class="info">
+                <strong>Setting up API keys:</strong> Go to <strong>Settings</strong> → enter your key for each database → click <strong>Save Key</strong>. Keys are stored locally in the <code>data/</code> folder. See section 11 for details.
+            </div>
+        </div>
+
+        <!-- 5. Filters -->
+        <div class="manual-section" id="filters">
+            <h2>5. Filters &amp; Criteria</h2>
+            <p>Click <strong>"+ Show Inclusion / Exclusion Criteria"</strong> on the Search page to expand the filter panel. Filters refine your results <em>after</em> retrieval from each database. They are applied in sequence — each step narrows the result set further.</p>
+
+            <div class="illustration">
+                <svg width="660" height="180" viewBox="0 0 660 180">
+                    <rect x="10" y="5" width="640" height="170" rx="6" fill="#fff" stroke="#eee" stroke-width="1"/>
+                    <text x="30" y="28" font-size="11" font-weight="600" fill="#2c3e50">Filters Applied in Sequence:</text>
+                    <!-- Year -->
+                    <rect x="30" y="38" width="130" height="30" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
+                    <text x="95" y="57" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">Year Range</text>
+                    <line x1="160" y1="53" x2="178" y2="53" stroke="#555" stroke-width="1.5" marker-end="url(#arrowM)"/>
+                    <!-- Doc type -->
+                    <rect x="178" y="38" width="130" height="30" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
+                    <text x="243" y="57" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">Document Type</text>
+                    <line x1="308" y1="53" x2="326" y2="53" stroke="#555" stroke-width="1.5" marker-end="url(#arrowM)"/>
+                    <!-- Language -->
+                    <rect x="326" y="38" width="110" height="30" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
+                    <text x="381" y="57" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">Language</text>
+                    <line x1="436" y1="53" x2="454" y2="53" stroke="#555" stroke-width="1.5" marker-end="url(#arrowM)"/>
+                    <!-- Exclude Terms (applied before Include Terms in _apply_post_filters) -->
+                    <rect x="454" y="38" width="135" height="30" rx="4" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="521" y="57" text-anchor="middle" font-size="9" font-weight="600" fill="#b91c1c">Exclude Terms</text>
+                    <!-- Row 2 -->
+                    <rect x="30" y="88" width="135" height="30" rx="4" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+                    <text x="97" y="107" text-anchor="middle" font-size="9" font-weight="600" fill="#15803d">Include Terms</text>
+                    <line x1="165" y1="103" x2="183" y2="103" stroke="#555" stroke-width="1.5" marker-end="url(#arrowM)"/>
+                    <rect x="183" y="88" width="135" height="30" rx="4" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+                    <text x="250" y="107" text-anchor="middle" font-size="9" font-weight="600" fill="#15803d">Include Venues</text>
+                    <line x1="318" y1="103" x2="336" y2="103" stroke="#555" stroke-width="1.5" marker-end="url(#arrowM)"/>
+                    <rect x="336" y="88" width="135" height="30" rx="4" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="403" y="107" text-anchor="middle" font-size="9" font-weight="600" fill="#b91c1c">Exclude Venues</text>
+                    <!-- Legend -->
+                    <rect x="30" y="138" width="12" height="12" rx="2" fill="#eaf5fc" stroke="#3498db" stroke-width="1"/>
+                    <text x="48" y="149" font-size="9" fill="#555">Screening filter</text>
+                    <rect x="160" y="138" width="12" height="12" rx="2" fill="#dcfce7" stroke="#22c55e" stroke-width="1"/>
+                    <text x="178" y="149" font-size="9" fill="#555">Inclusion filter</text>
+                    <rect x="290" y="138" width="12" height="12" rx="2" fill="#fee2e2" stroke="#ef4444" stroke-width="1"/>
+                    <text x="308" y="149" font-size="9" fill="#555">Exclusion filter</text>
+                    <text x="30" y="168" font-size="9" fill="#888" font-style="italic">Filters are applied left-to-right, top-to-bottom. Each step reduces the result set.</text>
+                </svg>
+                <div class="caption">Figure 4: Filter pipeline — screening, inclusion, and exclusion criteria applied in sequence</div>
+            </div>
+
+            <h3>Year Range</h3>
+            <p>Set "From" and/or "To" year to limit publications to a time window. Leave empty for all years.</p>
+            <p>Example: From <code>2018</code> To <code>2024</code> — only papers published between 2018 and 2024.</p>
+
+            <h3>Document Types</h3>
+            <p>Check one or more to include only those types:</p>
+            <ul>
+                <li><strong>Articles</strong> — Peer-reviewed journal papers</li>
+                <li><strong>Conference</strong> — Conference proceedings</li>
+                <li><strong>Thesis</strong> — PhD/Master dissertations</li>
+                <li><strong>Book chapter</strong> — Chapters in edited volumes</li>
+                <li><strong>Report</strong> — Technical/research reports</li>
+                <li><strong>Preprint</strong> — Non-peer-reviewed preprints</li>
+            </ul>
+            <p>Leave all unchecked → include all types.</p>
+
+            <h3>Language</h3>
+            <p>Select languages to include. Applies primarily to HAL. Leave unchecked for all languages.</p>
+
+            <!-- Four colored filter cards illustration -->
+            <div class="illustration">
+                <svg width="660" height="295" viewBox="0 0 660 295">
+                    <rect x="10" y="5" width="640" height="285" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+                    <text x="30" y="28" font-size="11" font-weight="600" fill="#2c3e50">Inclusion / Exclusion Criteria — color-coded filter cards:</text>
+
+                    <!-- Include Terms card -->
+                    <rect x="30" y="40" width="290" height="105" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+                    <!-- green check icon -->
+                    <circle cx="48" cy="60" r="8" fill="#22c55e"/>
+                    <polyline points="43,60 46,63.5 53,54.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="62" y="64" font-size="10" font-weight="700" fill="#15803d">Include Terms</text>
+                    <!-- ALL/ANY badge -->
+                    <rect x="154" y="52" width="50" height="15" rx="3" fill="#fff" stroke="#86efac" stroke-width="1"/>
+                    <text x="179" y="63" text-anchor="middle" font-size="8" font-weight="700" fill="#15803d">ALL (AND)</text>
+                    <!-- help text -->
+                    <text x="44" y="82" font-size="8" fill="#6b7280">Only papers whose title/abstract contain</text>
+                    <text x="44" y="93" font-size="8" fill="#6b7280">these terms are kept.</text>
+                    <!-- input -->
+                    <rect x="44" y="102" width="264" height="24" rx="4" fill="#fff" stroke="#86efac" stroke-width="1"/>
+                    <text x="54" y="118" font-size="8" fill="#9ca3af">e.g. machine learning, neural network</text>
+
+                    <!-- Exclude Terms card -->
+                    <rect x="340" y="40" width="290" height="105" rx="8" fill="#fff1f2" stroke="#fecdd3" stroke-width="1.5"/>
+                    <!-- red X icon -->
+                    <circle cx="358" cy="60" r="8" fill="#ef4444"/>
+                    <line x1="352" y1="54" x2="364" y2="66" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><line x1="364" y1="54" x2="352" y2="66" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+                    <text x="372" y="64" font-size="10" font-weight="700" fill="#b91c1c">Exclude Terms</text>
+                    <rect x="466" y="52" width="50" height="15" rx="3" fill="#fff" stroke="#fca5a5" stroke-width="1"/>
+                    <text x="491" y="63" text-anchor="middle" font-size="8" font-weight="700" fill="#b91c1c">ANY (OR)</text>
+                    <text x="354" y="82" font-size="8" fill="#6b7280">Papers whose title/abstract contain these</text>
+                    <text x="354" y="93" font-size="8" fill="#6b7280">terms are removed from results.</text>
+                    <rect x="354" y="102" width="264" height="24" rx="4" fill="#fff" stroke="#fca5a5" stroke-width="1"/>
+                    <text x="364" y="118" font-size="8" fill="#9ca3af">e.g. survey, review, grey literature</text>
+
+                    <!-- Include Venues card -->
+                    <rect x="30" y="160" width="290" height="105" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+                    <circle cx="48" cy="180" r="8" fill="#22c55e"/>
+                    <polyline points="43,180 46,183.5 53,174.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="62" y="184" font-size="10" font-weight="700" fill="#15803d">Include Venues</text>
+                    <rect x="154" y="172" width="50" height="15" rx="3" fill="#fff" stroke="#86efac" stroke-width="1"/>
+                    <text x="179" y="183" text-anchor="middle" font-size="8" font-weight="700" fill="#15803d">ANY (OR)</text>
+                    <text x="44" y="202" font-size="8" fill="#6b7280">Only papers from these venues are kept.</text>
+                    <text x="44" y="213" font-size="8" fill="#6b7280">Leave empty to include all venues.</text>
+                    <rect x="44" y="222" width="264" height="24" rx="4" fill="#fff" stroke="#86efac" stroke-width="1"/>
+                    <text x="54" y="238" font-size="8" fill="#9ca3af">e.g. TSE, ICSE, JSS, TOSEM, EMSE</text>
+
+                    <!-- Exclude Venues card -->
+                    <rect x="340" y="160" width="290" height="105" rx="8" fill="#fff1f2" stroke="#fecdd3" stroke-width="1.5"/>
+                    <circle cx="358" cy="180" r="8" fill="#ef4444"/>
+                    <line x1="352" y1="174" x2="364" y2="186" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><line x1="364" y1="174" x2="352" y2="186" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+                    <text x="372" y="184" font-size="10" font-weight="700" fill="#b91c1c">Exclude Venues</text>
+                    <rect x="466" y="172" width="50" height="15" rx="3" fill="#fff" stroke="#fca5a5" stroke-width="1"/>
+                    <text x="491" y="183" text-anchor="middle" font-size="8" font-weight="700" fill="#b91c1c">ANY (OR)</text>
+                    <text x="354" y="202" font-size="8" fill="#6b7280">Papers from these venues are removed</text>
+                    <text x="354" y="213" font-size="8" fill="#6b7280">from results.</text>
+                    <rect x="354" y="222" width="264" height="24" rx="4" fill="#fff" stroke="#fca5a5" stroke-width="1"/>
+                    <text x="364" y="238" font-size="8" fill="#9ca3af">e.g. workshop, poster, preprint</text>
+
+                    <text x="30" y="280" font-size="8.5" fill="#6b7280" font-style="italic">Green cards = inclusion filters (keep papers matching criteria). Red cards = exclusion filters (remove papers matching criteria).</text>
+                </svg>
+                <div class="caption">Figure 5: The four color-coded filter cards — green for inclusion, red for exclusion. Each card has an ALL (AND) / ANY (OR) match mode dropdown inline with the label.</div>
+            </div>
+
+            <h3>Include Terms <span style="display:inline-block;background:#f0fdf4;border:1px solid #86efac;color:#15803d;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;vertical-align:middle;">green</span></h3>
+            <p>Comma-separated keywords. Only papers whose <strong>title or abstract</strong> contain these terms are kept in the results.</p>
+            <p>Matching is <strong>case-insensitive and whole-word</strong>: the term <code>art</code> matches "art" but not "art<em>ificial</em>". Multi-word terms match as phrases, and surrounding quotes are accepted — <code>"machine learning"</code> and <code>machine learning</code> behave the same.</p>
+            <p>Example: <code>machine learning, neural network</code></p>
+            <p><strong>Match mode:</strong></p>
+            <ul>
+                <li><code>ALL (AND)</code> — paper must contain <em>every</em> listed term (default)</li>
+                <li><code>ANY (OR)</code> — paper must contain <em>at least one</em> of the listed terms</li>
+            </ul>
+
+            <h3>Exclude Terms <span style="display:inline-block;background:#fff1f2;border:1px solid #fca5a5;color:#b91c1c;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;vertical-align:middle;">red</span></h3>
+            <p>Comma-separated keywords. Papers whose <strong>title or abstract</strong> match these terms are <strong>removed</strong>. The same case-insensitive, whole-word matching as Include Terms applies.</p>
+            <p>Example: <code>survey, review, grey literature</code></p>
+            <p><strong>Match mode:</strong></p>
+            <ul>
+                <li><code>ALL (AND)</code> — paper is removed only if it contains <em>all</em> listed terms</li>
+                <li><code>ANY (OR)</code> — paper is removed if it contains <em>any</em> of the listed terms (default)</li>
+            </ul>
+
+            <h3>Include Venues <span style="display:inline-block;background:#f0fdf4;border:1px solid #86efac;color:#15803d;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;vertical-align:middle;">green</span></h3>
+            <p>Comma-separated journal/conference name fragments. Only papers from <strong>matching venues</strong> are kept. Matching is case-insensitive and partial, against the <strong>publication venue name only</strong> (journal or conference) — the name of the source <em>database</em> is never considered, so a fragment like <code>IEEE</code> matches "IEEE Transactions on Software Engineering" but does not blanket-match every record retrieved from IEEE Xplore. Leave empty to include all venues.</p>
+            <p>Example: <code>TSE, ICSE, JSS, TOSEM, EMSE</code></p>
+            <p><strong>Match mode:</strong> <code>ALL (AND)</code> requires the venue name to contain every fragment; <code>ANY (OR)</code> keeps papers whose venue matches at least one fragment (default).</p>
+
+            <h3>Exclude Venues <span style="display:inline-block;background:#fff1f2;border:1px solid #fca5a5;color:#b91c1c;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;vertical-align:middle;">red</span></h3>
+            <p>Comma-separated journal/conference name fragments. Papers from <strong>matching venues</strong> are removed. Like Include Venues, only the publication venue name is matched — to exclude an entire database (e.g. all of arXiv), uncheck that database in <strong>Select Databases</strong> instead.</p>
+            <p>Example: <code>workshop, poster, preprint</code></p>
+            <p><strong>Match mode:</strong> same logic as Exclude Terms — <code>ALL (AND)</code> removes only if all fragments match; <code>ANY (OR)</code> removes if any fragment matches (default).</p>
+
+            <div class="tip">
+                <strong>Tip:</strong> Defaults differ per card: <strong>Include Terms</strong> defaults to <strong>ALL (AND)</strong> (every term must appear), while <strong>Exclude Terms</strong>, <strong>Include Venues</strong>, and <strong>Exclude Venues</strong> default to <strong>ANY (OR)</strong>. Keep Include Venues on ANY when listing multiple distinct venues (e.g. <code>TSE, ICSE</code>) — no paper can be in <em>all</em> of them simultaneously.</div>
+
+            <div class="tip">
+                <strong>Tip:</strong> Apply filters progressively. After each change, check your Validation Papers to ensure no relevant papers were accidentally excluded.
+            </div>
+        </div>
+
+        <!-- 6. Validation Papers -->
+        <div class="manual-section" id="validation">
+            <h2>6. Validation Papers</h2>
+            <p>Validation Papers let you verify that your search criteria are comprehensive enough by tracking whether known-relevant papers appear in your results.</p>
+
+            <div class="illustration">
+                <svg width="500" height="130" viewBox="0 0 500 130">
+                    <rect x="10" y="5" width="480" height="120" rx="6" fill="#fff" stroke="#eee" stroke-width="1"/>
+                    <text x="30" y="28" font-size="11" font-weight="600" fill="#2c3e50">Validation Papers (3/4 found)</text>
+                    <!-- Found items -->
+                    <circle cx="40" cy="50" r="6" fill="#27ae60"/>
+                    <text x="55" y="54" font-size="10" fill="#333">A Survey on Deep Learning in Software Engineering</text>
+                    <text x="420" y="54" font-size="9" font-weight="600" fill="#27ae60">Found</text>
+                    <circle cx="40" cy="72" r="6" fill="#27ae60"/>
+                    <text x="55" y="76" font-size="10" fill="#333">Machine Learning for Code Review</text>
+                    <text x="420" y="76" font-size="9" font-weight="600" fill="#27ae60">Found</text>
+                    <circle cx="40" cy="94" r="6" fill="#27ae60"/>
+                    <text x="55" y="98" font-size="10" fill="#333">Automated Test Generation: A Systematic Review</text>
+                    <text x="420" y="98" font-size="9" font-weight="600" fill="#27ae60">Found</text>
+                    <!-- Missing item -->
+                    <circle cx="40" cy="116" r="6" fill="#e74c3c"/>
+                    <text x="55" y="120" font-size="10" fill="#333">Neural Bug Detection with Graph Networks</text>
+                    <text x="420" y="120" font-size="9" font-weight="600" fill="#e74c3c">Missing</text>
+                </svg>
+                <div class="caption">Figure 6: Validation panel — green = found in results, red = missing (criteria may be too restrictive)</div>
+            </div>
+
+            <h3>How to use:</h3>
+            <div class="step-grid">
+                <div><span class="step-num">1</span></div>
+                <div class="step-text">Click <strong>"+ Validation Papers"</strong> to expand the panel</div>
+                <div><span class="step-num">2</span></div>
+                <div class="step-text">Paste a known paper title and click <strong>Add</strong></div>
+                <div><span class="step-num">3</span></div>
+                <div class="step-text">Repeat for all reference papers you want to track (5–15 recommended)</div>
+                <div><span class="step-num">4</span></div>
+                <div class="step-text">Run a search — the panel shows green (found) or red (missing) for each</div>
+                <div><span class="step-num">5</span></div>
+                <div class="step-text">If papers turn red after adding filters, your criteria may be too strict</div>
+            </div>
+
+            <div class="tip">
+                <strong>Tip:</strong> Title matching is fuzzy — minor punctuation variations still match. Validation papers are saved with your search configuration when you use "Save Search".
+                The validation panel open/closed state now also persists across refreshes and saved search restores.
+            </div>
+        </div>
+
+        <!-- 7. Saved Searches -->
+        <div class="manual-section" id="saved-searches">
+            <h2>7. Saved Searches &amp; Scheduling</h2>
+
+            <h3>Saving from the Search page:</h3>
+            <ol>
+                <li>Configure your search (keywords, databases, filters)</li>
+                <li>Click the green <strong>Save Search</strong> button</li>
+                <li>Enter a name, choose a schedule, and confirm</li>
+                <li>All settings (query, databases, filters, validation papers, and panel visibility state) are saved</li>
+            </ol>
+
+            <h3>Managing Saved Searches:</h3>
+            <p>Navigate to <strong>Saved Searches</strong> to view and manage all your searches. Each card shows the query, databases, schedule, last run status, and — for scheduled searches — a live countdown to the next run.</p>
+
+            <div class="illustration">
+                <svg width="660" height="120" viewBox="0 0 660 120">
+                    <rect x="10" y="5" width="640" height="110" rx="6" fill="#fff" stroke="#eee" stroke-width="1"/>
+                    <!-- info section -->
+                    <text x="30" y="28" font-size="11" font-weight="600" fill="#2c3e50">My SLR: Deep Learning in SE</text>
+                    <text x="30" y="44" font-size="9" fill="#888">(deep learning OR neural network) AND software engineering | arXiv, HAL</text>
+                    <!-- schedule row with countdown -->
+                    <text x="30" y="60" font-size="8" fill="#555">Schedule:</text>
+                    <rect x="88" y="50" width="68" height="14" rx="3" fill="#d5f5e3"/>
+                    <text x="122" y="61" text-anchor="middle" font-size="7" font-weight="700" fill="#1e8449"> Every 1 days</text>
+                    <!-- countdown badge -->
+                    <rect x="164" y="50" width="82" height="14" rx="3" fill="#eaf4fb" stroke="#aed6f1" stroke-width="1"/>
+                    <text x="205" y="61" text-anchor="middle" font-size="7" font-weight="700" fill="#2471a3">14h 32m 07s</text>
+                    <text x="252" y="60" font-size="8" fill="#555">  Last run: 5/10/2026, 09:15</text>
+                    <rect x="540" y="51" width="36" height="13" rx="2" fill="#27ae60"/>
+                    <text x="558" y="61" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">OK</text>
+                    <!-- divider -->
+                    <line x1="20" y1="77" x2="650" y2="77" stroke="#f0f0f0" stroke-width="1"/>
+                    <!-- Action buttons -->
+                    <rect x="430" y="84" width="62" height="18" rx="3" fill="#f39c12"/>
+                    <text x="461" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Run Now</text>
+                    <rect x="500" y="84" width="54" height="18" rx="3" fill="#95a5a6"/>
+                    <text x="527" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Edit</text>
+                    <rect x="562" y="84" width="58" height="18" rx="3" fill="#e74c3c"/>
+                    <text x="591" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff"> Delete</text>
+                </svg>
+                <div class="caption">Figure 7: A scheduled saved search — schedule badge, live countdown timer, last run status, and action buttons</div>
+            </div>
+
+            <ul>
+                <li><strong class="lbl lbl-orange"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polygon points="5,3 13,8 5,13"/></svg> Run Now</strong> — Execute the search immediately and store results</li>
+                <li><strong class="lbl lbl-grey"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M11 2l3 3-9 9H2v-3z"/><line x1="9" y1="4" x2="12" y2="7"/></svg> Edit</strong> — Modify query, databases, filters, schedule, or notification email</li>
+                <li><strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="2,4 14,4"/><path d="M5 4V2h6v2"/><rect x="3" y="4" width="10" height="10" rx="1"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg> Delete</strong> — Remove the saved search and its history</li>
+            </ul>
+
+            <h3>Scheduling:</h3>
+            <p>Set a schedule when creating or editing a search:</p>
+            <ul>
+                <li><strong>Manual</strong> — only runs when you click "Run Now"</li>
+                <li><strong>Every N hours</strong> — e.g., every 6 hours</li>
+                <li><strong>Every N days</strong> — e.g., every 2 days</li>
+                <li><strong>Every N months</strong> — N calendar months after the last run (e.g. a run on 15 March with "Every 1 month" next fires on 15 April)</li>
+            </ul>
+            <p>All intervals are <strong>anchored to the last run</strong>, so restarting the application does not reset the countdown.</p>
+
+            <h3>Countdown Timer:</h3>
+            <p>Every scheduled search displays a live <strong>countdown timer</strong> showing exactly how long until the next automatic run:</p>
+            <ul>
+                <li>The timer is anchored to the real <code>lastRun</code> timestamp stored on the server (or <code>createdAt</code> if the search has never run), so it is always accurate — even after refreshing the page or navigating away and returning.</li>
+                <li>Format adapts to the remaining time — e.g., <code>2d 4h 11m</code> for days, <code>5h 30m 12s</code> for hours, <code>48m 07s</code> for minutes.</li>
+                <li>When the countdown reaches zero it switches to <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><polyline points="8,5 8,8 10.5,8"/></svg> Running soon…</strong> in amber.</li>
+                <li>The page polls the server every <strong>30 seconds</strong> in the background. If a scheduled run fires while the page is open, the timer resets automatically to the new interval — no page refresh required.</li>
+            </ul>
+
+            <div class="tip">
+                <strong>Tip:</strong> The countdown resets correctly after every run. If you click <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polygon points="5,3 13,8 5,13"/></svg> Run Now</strong> and then refresh the page, the timer restarts from the full interval based on the new <code>lastRun</code> timestamp.
+            </div>
+
+            <div class="warning">
+                <strong>Note:</strong> Scheduled searches only run while the application is running. If a run was due while the app was stopped, it fires shortly after the next startup (anchored to the stored last-run time) instead of waiting a full interval.
+            </div>
+        </div>
+
+        <!-- 8. Email Notifications -->
+        <div class="manual-section" id="email-notifications">
+            <h2>8. Email Notifications &amp; Diff</h2>
+            <p>RSP can automatically email you after each scheduled run with a summary of what changed since the previous run.</p>
+
+            <h3>Enabling notifications:</h3>
+            <div class="step-grid">
+                <div><span class="step-num">1</span></div>
+                <div class="step-text">When creating or editing a saved search, set the schedule to any automatic interval (not Manual)</div>
+                <div><span class="step-num">2</span></div>
+                <div class="step-text">Enter an email address in the <strong>Notify by email</strong> field</div>
+                <div><span class="step-num">3</span></div>
+                <div class="step-text">Configure SMTP in <strong>Settings</strong> (host, port, username, password)</div>
+            </div>
+
+            <h3>What the email contains:</h3>
+            <ul>
+                <li><strong>Run timestamp</strong> — when the search was executed</li>
+                <li><strong>Change summary</strong> — e.g. "+3 new, -1 removed" or "No changes since last run"</li>
+                <li><strong>New papers highlighted in green</strong> — rows with a <span style="background:#d4efdf;color:#1e8449;padding:0.1rem 0.4rem;border-radius:3px;font-size:0.82rem;font-weight:600;">NEW</span> badge</li>
+                <li><strong>Removed papers section</strong> — papers that were in the previous run but not this one</li>
+                <li><strong>CSV attachment</strong> — full result list with a Status column (<code>new</code>, <code>existing</code>, <code>removed</code>)</li>
+            </ul>
+
+            <h3>SMTP configuration:</h3>
+            <p>Go to <strong>Settings</strong> → <em>Email / SMTP</em> section and fill in:</p>
+            <ul>
+                <li><strong>Host</strong> — e.g. <code>smtp.gmail.com</code></li>
+                <li><strong>Port</strong> — typically <code>587</code> (TLS) or <code>465</code> (SSL)</li>
+                <li><strong>Username</strong> — your email address</li>
+                <li><strong>Password</strong> — your email password or App Password</li>
+            </ul>
+
+            <div class="warning">
+                <strong>Gmail users:</strong> You must use a Google <em>App Password</em> (not your regular password). Enable 2-step verification on your account first, then generate an App Password at <code>myaccount.google.com/apppasswords</code>.
+            </div>
+
+            <div class="tip">
+                <strong>Tip:</strong> On the first run, all papers are labelled "first run" in the CSV — there is no previous run to compare against. From the second run onward, the diff comparison is active.
+            </div>
+        </div>
+
+        <!-- 9. T&A Screening -->
+        <div class="manual-section" id="screening">
+            <h2>9. T&amp;A Screening</h2>
+            <p>The <strong>Screening</strong> page provides a structured Title &amp; Abstract screening workflow. It lets you review papers one by one and record an <strong>Include</strong>, <strong>Exclude</strong>, or <strong>Unsure</strong> decision for each — the standard first screening step in a Systematic Literature Review.</p>
+
+            <div class="illustration">
+                <svg width="660" height="228" viewBox="0 0 660 228">
+                    <!-- run picker card -->
+                    <rect x="20" y="10" width="620" height="80" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+                    <text x="40" y="34" font-size="11" font-weight="600" fill="#2c3e50">Title &amp; Abstract Screening</text>
+                    <text x="40" y="50" font-size="9" fill="#888">Select a saved run to screen, or continue from the last search loaded in memory.</text>
+                    <text x="40" y="66" font-size="9" font-weight="600" fill="#2c3e50">Available runs</text>
+                    <rect x="40" y="72" width="220" height="10" rx="2" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>
+                    <rect x="276" y="68" width="120" height="18" rx="5" fill="#2563eb"/>
+                    <text x="336" y="81" text-anchor="middle" font-size="8.5" font-weight="600" fill="#fff">Open Selected Run</text>
+                    <rect x="404" y="68" width="130" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="469" y="81" text-anchor="middle" font-size="8.5" font-weight="600" fill="#475569">Use Last Search (memory)</text>
+
+                    <!-- decision panel -->
+                    <rect x="20" y="103" width="620" height="112" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+                    <text x="40" y="124" font-size="10" font-weight="600" fill="#2c3e50">Paper 3 / 42</text>
+                    <text x="400" y="124" font-size="9" fill="#888">← Prev  |  Next →</text>
+                    <rect x="540" y="112" width="84" height="16" rx="5" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+                    <text x="582" y="123.5" text-anchor="middle" font-size="8" font-weight="600" fill="#475569">✦ Ask AI</text>
+                    <text x="40" y="140" font-size="10" font-weight="700" fill="#1e293b">Machine Learning for Automated Code Review: A Survey</text>
+                    <text x="40" y="153" font-size="8.5" fill="#6b7280">Smith, J. et al. · 2023 · ICSE</text>
+                    <!-- AI suggestion box (shown when the assistant is enabled) -->
+                    <rect x="40" y="160" width="584" height="20" rx="5" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1"/>
+                    <text x="48" y="173" font-size="8" fill="#4c1d95"><tspan font-weight="700">AI suggests: Include</tspan> (confidence 88%) — directly addresses the review topic</text>
+                    <rect x="540" y="162.5" width="76" height="15" rx="4" fill="#2563eb"/>
+                    <text x="578" y="173" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Accept suggestion</text>
+                    <!-- decision buttons -->
+                    <rect x="40" y="188" width="90" height="18" rx="5" fill="#16a34a"/>
+                    <text x="85" y="201" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff">Include</text>
+                    <rect x="138" y="188" width="90" height="18" rx="5" fill="#dc2626"/>
+                    <text x="183" y="201" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff">Exclude</text>
+                    <rect x="236" y="188" width="90" height="18" rx="5" fill="#d97706"/>
+                    <text x="281" y="201" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff">? Unsure</text>
+                    <!-- right side action buttons -->
+                    <rect x="490" y="188" width="70" height="18" rx="5" fill="#dc2626"/>
+                    <text x="525" y="201" text-anchor="middle" font-size="8" font-weight="600" fill="#fff">Reset All</text>
+                    <rect x="568" y="188" width="72" height="18" rx="5" fill="#7c3aed"/>
+                    <text x="604" y="201" text-anchor="middle" font-size="8" font-weight="600" fill="#fff">Export CSV</text>
+                </svg>
+                <div class="caption">Figure 8: Screening page — run picker (top card) and the decision panel with Include / Exclude / Unsure buttons. The purple AI suggestion box and "Ask AI" button appear only when the AI Screening Assistant is enabled in Settings.</div>
+            </div>
+
+            <h3>Loading papers to screen:</h3>
+            <p>The Screening page opens with a run picker. Two options are available:</p>
+            <ul>
+                <li><strong class="lbl lbl-blue">Open Selected Run</strong> — Choose a saved run from the dropdown and click to load it. This loads the filtered paper list from that saved snapshot.</li>
+                <li><strong class="lbl lbl-grey">Use Last Search (memory)</strong> — Loads papers from the most recent search held in your browser's memory (no saved run required).</li>
+            </ul>
+
+            <h3>Making screening decisions:</h3>
+            <div class="step-grid">
+                <div><span class="step-num">1</span></div>
+                <div class="step-text">Each paper is shown with its title, authors, year, venue, and abstract. Review each paper's title and abstract carefully.</div>
+                <div><span class="step-num">2</span></div>
+                <div class="step-text">Click one of the three decision buttons: <strong class="lbl lbl-green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg> Include</strong>, <strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> Exclude</strong>, or <strong class="lbl lbl-orange">? Unsure</strong>. The active decision is highlighted with a deeper colour.</div>
+                <div><span class="step-num">3</span></div>
+                <div class="step-text">Navigate with the <strong>← Prev</strong> / <strong>Next →</strong> arrow buttons. A progress counter (e.g. <em>Paper 3 / 42</em>) tracks where you are.</div>
+                <div><span class="step-num">4</span></div>
+                <div class="step-text">Decisions are saved automatically in your browser as you go — you can leave the page and return without losing progress.</div>
+            </div>
+
+            <h3>Action buttons:</h3>
+            <ul>
+                <li><strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="2,4 14,4"/><path d="M5 4V2h6v2"/><rect x="3" y="4" width="10" height="10" rx="1"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg> Reset All</strong> — Clear all decisions after confirmation (irreversible)</li>
+                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10.5 11.5,6.5"/><path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg> Export CSV</strong> — Download a CSV of all papers with their screening decision (<code>include</code>, <code>exclude</code>, <code>unsure</code>, or <code>undecided</code>)</li>
+            </ul>
+
+            <div class="tip">
+                <strong>Tip:</strong> Use the <strong>Unsure</strong> category for borderline papers — you can review them separately or in a second pass. The Export CSV will include all decisions so you can filter and audit later.
+            </div>
+
+            <h3>AI Screening Assistant (optional):</h3>
+            <p>When enabled in <a href="/settings#aiAssistant">Settings → AI Screening Assistant</a>, two extra controls appear:</p>
+            <ul>
+                <li><strong>Ask AI</strong> (decision panel) — asks the configured local LLM to suggest Include / Exclude / Unsure for the current paper, with a one-sentence reason and a confidence score. The suggestion appears in a purple box; nothing is saved until you click <strong>Accept suggestion</strong> or decide manually.</li>
+                <li><strong>AI-suggest unscreened</strong> (toolbar) — fetches suggestions for every unscreened paper in batches, so they are already waiting as you step through the queue.</li>
+            </ul>
+            <p>Decisions accepted from a suggestion are recorded with <em>AI-assisted</em> provenance and the model name. The PRISMA checklist (item 8, Selection process) automatically discloses how many decisions were AI-assisted and by which model — the disclosure most journals now require. The prompt sent to the LLM includes your Review Protocol research questions and eligibility criteria, so filling in the protocol first improves suggestion quality.</p>
+
+            <div class="info">
+                <strong>Workflow note:</strong> T&amp;A Screening is typically done after running a search and reviewing the PRISMA numbers. Use it to document manual screening decisions that are not automatically applied by RSP's filter criteria.
+            </div>
+        </div>
+
+        <!-- 10. Results Hub -->
+        <div class="manual-section" id="results-hub">
+            <h2>10. Results Hub</h2>
+            <p>The <strong>Results</strong> page is a central archive of all local run snapshots — both ad-hoc searches you ran from the Search page and scheduled automatic runs triggered by saved searches.</p>
+
+            <div class="illustration">
+                <svg width="660" height="170" viewBox="0 0 660 170">
+                    <rect x="20" y="10" width="620" height="150" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+                    <text x="40" y="34" font-size="12" font-weight="700" fill="#1e293b">Search Results Hub</text>
+                    <text x="40" y="50" font-size="9" fill="#888">Browse, review, and download local result snapshots from ad-hoc and saved runs.</text>
+                    <line x1="30" y1="60" x2="630" y2="60" stroke="#e2e8f0" stroke-width="1"/>
+
+                    <!-- run item 1 (saved) -->
+                    <rect x="36" y="68" width="52" height="16" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1"/>
+                    <text x="62" y="80" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1d4ed8">Saved</text>
+                    <text x="96" y="79" font-size="9.5" font-weight="600" fill="#1e293b">My SLR Search · machine learning AND software testing</text>
+                    <text x="96" y="92" font-size="8" fill="#6b7280">23 May 2026, 09:14 · 142 papers</text>
+                    <rect x="555" y="68" width="82" height="18" rx="5" fill="#7c3aed"/>
+                    <text x="596" y="81" text-anchor="middle" font-size="8" font-weight="600" fill="#fff">Download ZIP</text>
+                    <line x1="30" y1="110" x2="630" y2="110" stroke="#f1f5f9" stroke-width="1"/>
+
+                    <!-- run item 2 (ad-hoc) -->
+                    <rect x="36" y="118" width="50" height="16" rx="3" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="1"/>
+                    <text x="61" y="130" text-anchor="middle" font-size="7.5" font-weight="700" fill="#374151">Ad-hoc</text>
+                    <text x="94" y="129" font-size="9.5" font-weight="600" fill="#1e293b">Ad-hoc search · deep learning OR neural network</text>
+                    <text x="94" y="142" font-size="8" fill="#6b7280">20 May 2026, 15:37 · 89 papers</text>
+                    <rect x="555" y="118" width="82" height="18" rx="5" fill="#7c3aed"/>
+                    <text x="596" y="131" text-anchor="middle" font-size="8" font-weight="600" fill="#fff">Download ZIP</text>
+                </svg>
+                <div class="caption">Figure 9: Results Hub — each run shows its type badge, query, timestamp, paper count, and a Download ZIP button</div>
+            </div>
+
+            <h3>Run types:</h3>
+            <ul>
+                <li><strong>Saved</strong> <span style="display:inline-block;background:#dbeafe;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;vertical-align:middle;">blue badge</span> — Run was triggered by a saved search (manual "Run Now" or automatic schedule)</li>
+                <li><strong>Ad-hoc</strong> <span style="display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;vertical-align:middle;">grey badge</span> — Run was done directly from the Search page without saving</li>
+            </ul>
+
+            <h3>Each entry shows:</h3>
+            <ul>
+                <li>Run name and truncated query string</li>
+                <li>Timestamp — date and time the search was executed</li>
+                <li>Paper count — total papers in the result set</li>
+                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10.5 11.5,6.5"/><path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg> Download ZIP</strong> — Download the full PRISMA-aligned replication package for that run</li>
+            </ul>
+
+            <div class="info">
+                <strong>Run retention:</strong> RSP stores a configurable number of recent snapshots locally. Older runs are automatically pruned once the limit is reached. Adjust the limit in <strong>Settings → Run Retention</strong>.
+            </div>
+
+            <div class="tip">
+                <strong>Tip:</strong> Use the Results Hub to compare snapshots over time if you are running scheduled searches. Each ZIP is a self-contained replication package — ideal for open science deposits.
+            </div>
+        </div>
+
+        <!-- 11. PRISMA -->
+        <div class="manual-section" id="prisma">
+            <h2>11. PRISMA Flow Diagram</h2>
+            <p>The <strong>PRISMA</strong> page automatically generates a PRISMA 2020-compliant flow diagram and interactive evidence checklist based on your last search results.</p>
+
+            <div class="illustration">
+                <svg width="560" height="360" viewBox="0 0 560 360">
+                    <rect x="5" y="5" width="550" height="350" rx="6" fill="#fafcfe" stroke="#eee" stroke-width="1"/>
+                    <!-- DB chips row -->
+                    <rect x="30" y="15" width="80" height="40" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
+                    <text x="70" y="32" text-anchor="middle" font-size="8" font-weight="600" fill="#2c3e50">arXiv</text>
+                    <text x="70" y="46" text-anchor="middle" font-size="11" font-weight="700" fill="#3498db">142</text>
+                    <rect x="120" y="15" width="80" height="40" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
+                    <text x="160" y="32" text-anchor="middle" font-size="8" font-weight="600" fill="#2c3e50">HAL</text>
+                    <text x="160" y="46" text-anchor="middle" font-size="11" font-weight="700" fill="#3498db">89</text>
+                    <rect x="210" y="15" width="80" height="40" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
+                    <text x="250" y="32" text-anchor="middle" font-size="8" font-weight="600" fill="#2c3e50">IEEE</text>
+                    <text x="250" y="46" text-anchor="middle" font-size="11" font-weight="700" fill="#3498db">210</text>
+                    <text x="330" y="37" font-size="9" fill="#888">↑ click to see papers</text>
+                    <!-- Identification -->
+                    <rect x="110" y="70" width="200" height="50" rx="6" fill="#eaf5fc" stroke="#3498db" stroke-width="2.5"/>
+                    <rect x="120" y="61" width="76" height="17" rx="3" fill="#3498db"/>
+                    <text x="158" y="73" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">IDENTIFICATION</text>
+                    <text x="210" y="91" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">Records identified</text>
+                    <text x="210" y="107" text-anchor="middle" font-size="15" font-weight="700" fill="#2c3e50">441</text>
+                    <line x1="210" y1="120" x2="210" y2="135" stroke="#555" stroke-width="1.5" marker-end="url(#am)"/>
+                    <!-- Deduplication -->
+                    <rect x="110" y="135" width="200" height="50" rx="6" fill="#fef9e7" stroke="#f39c12" stroke-width="2.5"/>
+                    <rect x="120" y="126" width="82" height="17" rx="3" fill="#f39c12"/>
+                    <text x="161" y="138" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">DEDUPLICATION</text>
+                    <text x="210" y="156" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">After duplicates removed</text>
+                    <text x="210" y="172" text-anchor="middle" font-size="15" font-weight="700" fill="#2c3e50">386</text>
+                    <!-- Removed card (right side) -->
+                    <line x1="310" y1="160" x2="336" y2="160" stroke="#e74c3c" stroke-width="1.5" marker-end="url(#amr)"/>
+                    <rect x="337" y="140" width="130" height="55" rx="6" fill="#fdedec" stroke="#e74c3c" stroke-width="2"/>
+                    <rect x="347" y="131" width="52" height="16" rx="3" fill="#e74c3c"/>
+                    <text x="373" y="143" text-anchor="middle" font-size="7" font-weight="700" fill="#fff">REMOVED</text>
+                    <text x="402" y="161" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">55</text>
+                    <text x="402" y="176" text-anchor="middle" font-size="8" fill="#922b21">Duplicate records</text>
+                    <text x="402" y="188" text-anchor="middle" font-size="7" fill="#888">↑ click for list</text>
+                    <line x1="210" y1="185" x2="210" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#am)"/>
+                    <!-- Screening -->
+                    <rect x="110" y="200" width="200" height="50" rx="6" fill="#fef9e7" stroke="#f39c12" stroke-width="2.5"/>
+                    <rect x="120" y="191" width="64" height="17" rx="3" fill="#f39c12"/>
+                    <text x="152" y="203" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">SCREENING</text>
+                    <text x="210" y="221" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">After screening</text>
+                    <text x="210" y="237" text-anchor="middle" font-size="15" font-weight="700" fill="#2c3e50">350</text>
+                    <line x1="210" y1="250" x2="210" y2="265" stroke="#555" stroke-width="1.5" marker-end="url(#am)"/>
+                    <!-- Included -->
+                    <rect x="110" y="265" width="200" height="50" rx="6" fill="#d4efdf" stroke="#27ae60" stroke-width="2.5"/>
+                    <rect x="120" y="256" width="60" height="17" rx="3" fill="#27ae60"/>
+                    <text x="150" y="268" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">INCLUDED</text>
+                    <text x="210" y="286" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">Studies included</text>
+                    <text x="210" y="302" text-anchor="middle" font-size="15" font-weight="700" fill="#2c3e50">350</text>
+                    <text x="210" y="318" text-anchor="middle" font-size="7.5" fill="#888" font-style="italic">↑ click any card for paper list</text>
+                    <defs>
+                        <marker id="am" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#555"/></marker>
+                        <marker id="amr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#e74c3c"/></marker>
+                    </defs>
+                </svg>
+                <div class="caption">Figure 10: PRISMA flow diagram — all stage cards and excluded side cards are clickable to show the paper list</div>
+            </div>
+
+            <h3>Features:</h3>
+            <ul>
+                <li><strong>Auto-generated</strong> from your latest search — all filter stages are visualised automatically</li>
+                <li><strong>Per-database chips</strong> at the top — click any database chip to see its retrieved papers in the panel below</li>
+                <li><strong>Clickable stage cards</strong> — click any main flow box (Identification, Deduplication, Screening, Eligibility, Included) to open the paper list panel with Cards / List view toggle</li>
+                <li><strong>Clickable removed/excluded cards</strong> — the red side boxes (Duplicates removed, Screening excluded, Eligibility excluded) are also clickable and show the actual papers that were removed at that stage</li>
+                <li><strong>Sub-criteria pills</strong> below each stage show which filters were active and how many papers each removed</li>
+                <li><strong>Manual Review Steps</strong> — add post-inclusion steps (full-text review, snowballing, etc.) that appear as new boxes in the flow and can also remove papers</li>
+                <li><strong>Export Diagram as PNG</strong> — captures the full rendered diagram exactly as it appears on screen</li>
+                <li><strong>Review Protocol form</strong> — capture review-level facts no search can infer (research questions, rationale, outcomes, registration record, reviewer team, synthesis and risk-of-bias methods, funding, competing interests). Saved server-side, exported as <code>03_protocol/review_protocol.json</code> in the replication package, and used to auto-complete the corresponding checklist items</li>
+                <li><strong>PRISMA 2020 Evidence Checklist</strong> — interactive 27-item checklist (39 entries including sub-items) with AUTO (up to 27 entries auto-assessed from your search data and Review Protocol, including a drafted structured abstract and process-limitations statement) and MANUAL (12 entries requiring study-content analysis) modes, with progress bar and localStorage persistence</li>
+            </ul>
+
+            <h3>Clickable cards — paper list panel:</h3>
+            <p>Clicking any flow card opens a <strong>Paper Panel</strong> below the diagram showing all papers at that stage. The panel supports:</p>
+            <ul>
+                <li><strong>▌▌ Cards</strong> — Full card layout with title, authors, year, abstract preview, DOI and a "<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M7 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9"/><polyline points="10,2 14,2 14,6"/><line x1="14" y1="2" x2="7" y2="9"/></svg> View Paper" button</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg> List</strong> — Compact table with expandable rows</li>
+                <li><strong>Pagination</strong> — 20 papers per page with Prev / Next navigation</li>
+            </ul>
+            <div class="info">
+                <strong>Note:</strong> Excluded paper lists (Duplicates, Screening, Eligibility cards) are populated when a search is run with the current version of RSP. If you see "No paper details available", run a new search to enable this feature.
+            </div>
+
+            <h3>Adding manual review steps:</h3>
+            <p>Below the diagram, the <strong>Manual Review Steps</strong> panel lets you add steps that occur after automated filtering (e.g., manual full-text review by two researchers, backward snowballing). Each step specifies:</p>
+            <ul>
+                <li><strong>Step name</strong> — e.g. "Manual Full-Text Review"</li>
+                <li><strong>Added</strong> — papers added at this step (e.g. from snowballing)</li>
+                <li><strong>Removed</strong> — papers excluded at this step</li>
+                <li><strong>Description</strong> — optional note (e.g. "Reviewed by 2 independent researchers")</li>
+            </ul>
+            <p>Steps appear as new purple cards in the flow diagram, with a red side card if any papers were removed. Use the ↑ ↓ arrows to reorder steps, and <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg> to remove them.</p>
+
+            <h3>PRISMA 2020 Evidence Checklist:</h3>
+            <p>All 27 official PRISMA 2020 items (39 entries including sub-items) are listed with two modes:</p>
+            <ul>
+                <li><span style="background:#eaf5fc;color:#1a5276;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #aed6f1;">AUTO</span> — up to 27 entries assessed from your search data and Review Protocol: eligibility criteria, per-database sources with search dates and retrieval warnings, search strategy, selection process (including AI-assistance disclosure), excluded studies with sample citations per reason, plus auto-drafted structured-abstract and process-limitations statements. Items marked <em>partial</em> show your draft with a notes box — review, edit, and check off.</li>
+                <li><span style="background:#fef9e7;color:#7d6608;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #f9e79f;">MANUAL</span> — the remaining entries require reading study content (risk-of-bias results, per-study outcomes, synthesis results, interpretation) — check the box and type your response in the text area</li>
+            </ul>
+            <p>A progress bar shows how many items have been addressed. Notes are saved automatically to your browser (localStorage) and persist across page refreshes. Use <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg> Reset inputs</strong> to clear all manual entries, or <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export PNG</strong> to download the checklist as an image.</p>
+        </div>
+
+        <!-- 12. Charts -->
+        <div class="manual-section" id="charts">
+            <h2>12. Charts &amp; Visualizations</h2>
+            <p>After running a search, the <strong>Charts</strong> page shows visual summaries of your results.</p>
+
+            <h3>Available charts:</h3>
+            <ol>
+                <li><strong>Publications per Year</strong> — Bar chart with trend line (green = increasing, red = decreasing) and average line. Displayed taller than default for better year-by-year readability.</li>
+                <li><strong>Abstract Keyword Frequency</strong> — Horizontal bar chart of the most frequent terms extracted from paper abstracts. Use the <em>Source</em> dropdown to filter by database and the <em>Top N</em> dropdown to change how many terms are shown.</li>
+                <li><strong>Publications per Venue</strong> — Horizontal bar chart showing the top 20 publishing venues (journals and conferences).</li>
+                <li><strong>Publications per Document Type</strong> — Bar chart breaking down results by article, conference paper, preprint, etc.</li>
+            </ol>
+
+            <h3>Expanding a chart:</h3>
+            <p>Each chart card has a <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M10 2h4v4M14 2l-5 5M6 14H2v-4M2 14l5-5"/></svg></strong> expand button in the top-right corner. Clicking it opens the chart fullscreen in a modal overlay. Close with <strong>&times;</strong>, click the dark backdrop, or press <span class="kbd">Escape</span>.</p>
+
+            <h3>Exporting:</h3>
+            <p>Each chart has an <strong>Export as PNG</strong> button that downloads a publication-ready image.</p>
+
+            <div class="tip">
+                <strong>Tip:</strong> Charts reflect the last search you ran. Run a new search to update the charts.
+            </div>
+        </div>
+
+        <!-- 13. Export -->
+        <div class="manual-section" id="export">
+            <h2>13. Export &amp; Replication Package</h2>
+            <p>RSP can generate a complete, PRISMA-aligned SLR Replication Package for open science repositories.</p>
+
+            <h3>Export as ZIP:</h3>
+            <p>After running a search, an <strong class="lbl lbl-purple">Export Replication Package (ZIP)</strong> button appears. The ZIP is named <code>&lt;search_name&gt;_&lt;date&gt;.zip</code> and contains the following structure:</p>
+
+            <div class="illustration">
+                <svg width="500" height="410" viewBox="0 0 500 410">
+                    <rect x="10" y="5" width="480" height="398" rx="6" fill="#f8f9fa" stroke="#eee" stroke-width="1"/>
+                    <text x="30" y="28" font-size="11" font-weight="600" fill="#2c3e50">&lt;search_name&gt;_&lt;date&gt;/</text>
+                    <!-- 01_search_strategy -->
+                    <text x="30" y="50" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">01_search_strategy/</text>
+                    <text x="50" y="64" font-size="9" fill="#555" font-family="monospace">├── search_strategy.txt</text>
+                    <text x="50" y="77" font-size="9" fill="#555" font-family="monospace">├── search_strings_per_database.txt</text>
+                    <text x="50" y="90" font-size="9" fill="#555" font-family="monospace">├── filters_and_constraints.txt</text>
+                    <text x="50" y="103" font-size="9" fill="#555" font-family="monospace">├── search_configuration.json</text>
+                    <text x="50" y="116" font-size="9" fill="#555" font-family="monospace">└── search_metadata.json</text>
+                    <!-- 02_data -->
+                    <text x="30" y="135" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">02_data/</text>
+                    <text x="50" y="149" font-size="9" fill="#555" font-family="monospace">├── initial_search_results.csv</text>
+                    <text x="50" y="162" font-size="9" fill="#555" font-family="monospace">├── deduplicated_records.csv</text>
+                    <text x="50" y="175" font-size="9" fill="#555" font-family="monospace">├── included_studies.csv</text>
+                    <text x="50" y="188" font-size="9" fill="#555" font-family="monospace">├── excluded_studies.csv</text>
+                    <text x="50" y="201" font-size="9" fill="#555" font-family="monospace">├── screening_decisions.csv (if T&amp;A screening performed)</text>
+                    <text x="50" y="214" font-size="9" fill="#555" font-family="monospace">└── prisma_data.json</text>
+                    <!-- 03_protocol -->
+                    <text x="30" y="233" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">03_protocol/</text>
+                    <text x="50" y="247" font-size="9" fill="#555" font-family="monospace">├── protocol.md</text>
+                    <text x="50" y="260" font-size="9" fill="#555" font-family="monospace">└── review_protocol.json (if Review Protocol filled in)</text>
+                    <!-- 04_images -->
+                    <text x="30" y="279" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">04_images/</text>
+                    <text x="50" y="293" font-size="9" fill="#555" font-family="monospace">└── prisma_flow_diagram.svg (+ chart/PRISMA PNGs if captured)</text>
+                    <!-- 05_evidence_checklist -->
+                    <text x="30" y="312" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">05_evidence_checklist/</text>
+                    <text x="50" y="326" font-size="9" fill="#555" font-family="monospace">└── PRISMA_evidence_checklist.txt</text>
+                    <!-- root files -->
+                    <text x="30" y="346" font-size="9" fill="#555" font-family="monospace">README.md</text>
+                    <text x="30" y="361" font-size="9" fill="#27ae60" font-family="monospace" font-weight="600">search_configuration.json  ← import directly into RSP</text>
+                </svg>
+                <div class="caption">Figure 11: Replication package folder structure</div>
+            </div>
+
+            <h3>Key files explained:</h3>
+            <ul>
+                <li><strong>01_search_strategy/search_configuration.json</strong> — Machine-readable record of the full search setup (query, databases, filters, validation papers, results summary). Same format as the <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M13 13H3V3h7.5L13 5.5V13z"/><path d="M5 3v4h6V3"/><rect x="6" y="9" width="4" height="4"/></svg> Export Config (JSON)</strong> button.</li>
+                <li><strong>search_configuration.json</strong> (root) — Identical importable copy. Drag this directly onto the <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M1 4h5l1.5 2H15v8H1z"/></svg> Import Config (JSON)</strong> button on the Search page to replay the exact search.</li>
+                <li><strong>02_data/initial_search_results.csv</strong> — All papers retrieved before deduplication and filtering.</li>
+                <li><strong>02_data/deduplicated_records.csv</strong> — Papers after duplicate removal.</li>
+                <li><strong>02_data/included_studies.csv</strong> — Final included papers after all filters.</li>
+                <li><strong>02_data/excluded_studies.csv</strong> — Papers removed by filters, with exclusion reasons.</li>
+                <li><strong>02_data/screening_decisions.csv</strong> — Per-paper Title &amp; Abstract screening decisions with reasons (included when screening was performed; pulled from the server run record even if your browser copy is missing).</li>
+                <li><strong>02_data/prisma_data.json</strong> — PRISMA stage counts in JSON for programmatic use.</li>
+                <li><strong>03_protocol/protocol.md</strong> — Prose description of the search protocol (IC/EC criteria).</li>
+                <li><strong>03_protocol/review_protocol.json</strong> — Machine-readable Review Protocol (research questions, registration, reviewer team, synthesis/RoB methods) when filled in on the PRISMA page.</li>
+                <li><strong>04_images/</strong> — Server-generated <code>prisma_flow_diagram.svg</code> (always included, T&amp;A screening stage included when performed) plus chart and PRISMA PNG exports if captured before export.</li>
+                <li><strong>05_evidence_checklist/PRISMA_evidence_checklist.txt</strong> — Auto-assessed PRISMA 2020 compliance checklist.</li>
+                <li><strong>README.md</strong> — Human-readable summary of the package for open science repositories.</li>
+            </ul>
+
+            <h3>PRISMA &amp; Checklist PNG export:</h3>
+            <p>On the PRISMA page:</p>
+            <ul>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export Diagram as PNG</strong> — captures the entire rendered flow diagram exactly as it appears on screen (including all cards, excluded side cards, sub-criteria pills, and manual steps) at 2× resolution for crisp print quality</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export PNG</strong> (Checklist card) — exports the PRISMA 2020 Evidence Checklist as a PNG image</li>
+            </ul>
+
+            <div class="tip">
+                <strong>Tip:</strong> The diagram PNG captures what is currently visible — if you have added Manual Review Steps, they appear in the export too. The PNG is also auto-saved to your browser on page load so the Replication Package ZIP can include it.
+            </div>
+
+            <div class="tip">
+                <strong>Tip:</strong> The root-level <code>search_configuration.json</code> can be dropped directly into the <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M1 4h5l1.5 2H15v8H1z"/></svg> Import Config (JSON)</strong> button on the Search page to instantly reload all search settings and replay the exact same search.
+            </div>
+        </div>
+
+        <!-- 14. Settings -->
+        <div class="manual-section" id="settings">
+            <h2>14. Settings &amp; API Keys</h2>
+            <p>The <strong>Settings</strong> page is organised into four collapsible sections — click a section header to expand or collapse it:</p>
+            <ul>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/></svg> Database API Keys</strong> — Configure keys for each database that requires one</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Email Notifications (SMTP)</strong> — Configure outgoing mail for scheduled-run alerts and survey/feedback submissions</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Run Retention (Local Storage)</strong> — Set how many saved and ad-hoc run snapshots are kept locally; run cleanup immediately</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI Screening Assistant (Local LLM)</strong> — Point RSP at a local LLM (e.g. Ollama) or any OpenAI-compatible endpoint to get Include/Exclude/Unsure suggestions during Title &amp; Abstract screening. Suggestions are never applied automatically: you review and accept each one, and accepted decisions record the model name so PRISMA item 8 can disclose the automation tool. With a local Ollama instance, titles and abstracts never leave your computer. Cloud providers also work through their OpenAI-compatible endpoints — OpenAI (<code>https://api.openai.com</code>), Anthropic Claude (<code>https://api.anthropic.com</code>), and Google Gemini (<code>https://generativelanguage.googleapis.com/v1beta/openai</code>) — but note that titles and abstracts are then sent to that provider</li>
+            </ul>
+
+            <div class="info">
+                <strong>Quick access:</strong> When a Feedback submission (or a Survey submission that could not be delivered) cannot be sent, the modal includes a <em>"Configure SMTP in Settings"</em> button. Clicking it takes you directly to Settings and automatically expands the SMTP section so you can set it up without hunting for it.
+            </div>
+
+            <div class="info">
+                <strong>Run retention quick access:</strong> Open <a href="/settings#runRetention">Settings → Run Retention</a> to set how many saved and ad-hoc run snapshots are kept locally and to run cleanup immediately.
+            </div>
+
+            <h3>For each database that requires a key:</h3>
+            <div class="step-grid">
+                <div><span class="step-num">1</span></div>
+                <div class="step-text">Obtain a free API key from the database's developer portal (links are shown on each card)</div>
+                <div><span class="step-num">2</span></div>
+                <div class="step-text">Go to <strong>Settings</strong> → expand <em>Database API Keys</em> → find the database card</div>
+                <div><span class="step-num">3</span></div>
+                <div class="step-text">Paste your key into the input field. The <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</strong> button activates as soon as text is detected, and stays active for databases that already have a saved key — testing with an empty field verifies the stored key.</div>
+                <div><span class="step-num">4</span></div>
+                <div class="step-text">Click <strong>Save Key</strong>. The key is saved immediately and a connection test runs automatically — the card turns <span style="color:#1e8449;font-weight:600;">green</span> on success or <span style="color:#c0392b;font-weight:600;">red</span> on failure, and a <strong>Last checked</strong> timestamp is displayed. You can also click <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</strong> at any time to re-run the check with the stored key.</div>
+            </div>
+
+            <div class="info">
+                <strong>How Test Connection works:</strong> All API tests run through the app's backend server to avoid browser security restrictions (CORS). Results include the exact error code and a direct link to the provider's developer portal if your key is rejected. Every card preserves the last result and timestamp so you can see which services were verified most recently.
+            </div>
+
+            <div class="info">
+                <strong>Automatic connection checks:</strong> When you open the Settings page, databases that do <em>not</em> require a key — <strong>HAL</strong>, <strong>arXiv</strong>, <strong>PubMed</strong> (optional key), and <strong>ACM Digital Library</strong> (optional key) — are tested automatically in the background every time the page loads. Their cards update with a live result and a fresh <strong>Last checked</strong> timestamp without any button click. Key-required databases (IEEE, Scopus, etc.) are also auto-tested on page load when a key is already saved, and again automatically after you click <strong>Save Key</strong> — so you always see the result immediately without a separate click.
+            </div>
+
+            <h3>Where to get keys:</h3>
+            <table class="db-table">
+                <thead><tr><th>Service</th><th>How to obtain</th><th>Required?</th></tr></thead>
+                <tbody>
+                    <tr><td>IEEE Xplore</td><td>Register at <code>developer.ieee.org</code></td><td>Required</td></tr>
+                    <tr><td>ACM Digital Library</td><td>No key needed; optional institutional key from <code>dl.acm.org</code>. Note: ACM blocks automated server-side access, so searches may return an explicit error instead of results</td><td>Not required</td></tr>
+                    <tr><td>Scopus</td><td>Register at <code>dev.elsevier.com</code></td><td>Required</td></tr>
+                    <tr><td>Inspec (Engineering Village)</td><td>Register at <code>dev.elsevier.com</code> (same key as Scopus)</td><td>Required</td></tr>
+                    <tr><td>ScienceDirect</td><td>Register at <code>dev.elsevier.com</code> (same key as Scopus)</td><td>Required</td></tr>
+                    <tr><td>Springer Nature</td><td>Register at <code>dev.springernature.com</code></td><td>Required</td></tr>
+                    <tr><td>PubMed</td><td>Register at <code>ncbi.nlm.nih.gov/account/</code></td><td>Optional — works without key at lower rate limits</td></tr>
+                </tbody>
+            </table>
+
+            <div class="tip">
+                <strong>Tip:</strong> Keys are stored locally in the <code>data/</code> folder on your computer. They are never sent anywhere except to the respective API endpoints when running a search or test. For safety, a saved key is never displayed back in full — the input shows a masked preview (e.g. <code>Saved: vcah...yhnv</code>); to replace a key, simply type the new one and save.
+            </div>
+        </div>
+
+        <!-- 15. Survey -->
+        <div class="manual-section" id="survey">
+            <h2>15. Research Evaluation Survey</h2>
+            <p>The <strong>Research Survey</strong> page contains a structured research evaluation questionnaire designed for academic user studies assessing RSP's usability and impact.</p>
+
+            <h3>Survey structure:</h3>
+            <ul>
+                <li><strong>Section A — Participant Background:</strong> Optional demographic info (role, experience, field)</li>
+                <li><strong>Section B — System Usability (SUS):</strong> 10 questions on a 1–5 Likert scale, based on Brooke (1996)</li>
+                <li><strong>Section C — Perceived Usefulness &amp; Ease of Use:</strong> 8 questions on a 1–7 scale, based on TAM/UTAUT</li>
+                <li><strong>Section D — Impact on Research Quality:</strong> 7 questions on transparency, reproducibility, and bias</li>
+                <li><strong>Section E — Feature-Specific Evaluation:</strong> 5 questions rating individual features</li>
+                <li><strong>Section F — Open Feedback:</strong> 5 free-text questions for qualitative insights</li>
+            </ul>
+
+            <h3>How it works:</h3>
+            <ul>
+                <li>A progress bar at the top tracks how many Likert questions have been answered (30 total)</li>
+                <li>All required questions must be answered before submission</li>
+                <li>Clicking <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> Submit Survey</strong> validates the form and sends the responses to the study's response collector:
+                    <ul>
+                        <li>Responses are recorded regardless of whether SMTP is configured, so participants can submit on a fresh installation</li>
+                        <li><strong>SMTP configured</strong> — the study owner additionally receives an email with the full response attached as a CSV</li>
+                        <li><strong>If the submission cannot be delivered</strong> — a modal offers <em>"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Open in My Email App"</em> (opens Outlook, Apple Mail, Gmail, etc. with all responses pre-filled) or <em>"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg> Configure SMTP in Settings"</em> so nothing is lost</li>
+                    </ul>
+                </li>
+                <li>Clicking <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 107-7"/></svg> Start Over</strong> resets all fields after confirmation</li>
+            </ul>
+
+            <div class="tip">
+                <strong>Tip:</strong> The survey is designed for ethics-approved user studies. All responses are anonymous unless the participant voluntarily provides identifying information.
+            </div>
+        </div>
+
+        <!-- 16. Feedback -->
+        <div class="manual-section" id="feedback">
+            <h2>16. Bug Reports &amp; Feature Requests</h2>
+            <p>The <strong>Feedback</strong> page lets users report issues or propose new ideas for RSP.</p>
+
+            <h3>Submission types:</h3>
+            <ul>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="9" r="3.5"/><path d="M6 5.5a2 2 0 014 0v1.5"/><line x1="4.5" y1="7.5" x2="2.5" y2="5.5"/><line x1="11.5" y1="7.5" x2="13.5" y2="5.5"/><line x1="4.5" y1="10" x2="2" y2="10"/><line x1="11.5" y1="10" x2="14" y2="10"/><line x1="4.5" y1="12.5" x2="2.5" y2="14"/><line x1="11.5" y1="12.5" x2="13.5" y2="14"/></svg> Bug Report</strong> — Report something that isn't working as expected. Additional fields appear for steps to reproduce, expected behaviour, and actual behaviour.</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 2a4 4 0 014 4c0 2-1 3-1.5 4h-5C5 9 4 8 4 6a4 4 0 014-4z"/><line x1="6.5" y1="10" x2="9.5" y2="10"/><line x1="7" y1="11.5" x2="9" y2="11.5"/><line x1="7.5" y1="13" x2="8.5" y2="13"/></svg> Feature Request</strong> — Propose a new feature or improvement. The bug-specific fields are hidden.</li>
+            </ul>
+
+            <h3>Form fields:</h3>
+            <ul>
+                <li><strong>Title / Short Summary</strong> (required) — A brief description of the issue or idea</li>
+                <li><strong>Detailed Description</strong> (required) — Full explanation</li>
+                <li><strong>Steps to Reproduce</strong> (bug only) — How to trigger the issue</li>
+                <li><strong>Expected Behaviour</strong> (bug only) — What should happen</li>
+                <li><strong>Actual Behaviour</strong> (bug only) — What actually happens</li>
+                <li><strong>Impact / Priority</strong> — Low, Medium, or High</li>
+                <li><strong>Your Email</strong> (optional) — For follow-up communication</li>
+            </ul>
+
+            <h3>Buttons:</h3>
+            <ul>
+                <li><strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 107-7"/></svg> Start Over</strong> — Resets all fields after confirmation</li>
+                <li><strong class="lbl lbl-blue"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> Submit</strong> — Validates required fields, then submits the report:
+                    <ul style="margin-top:0.4rem;">
+                        <li>The report is recorded in the project&rsquo;s issue-collection form <strong>regardless of whether SMTP is configured</strong>, so feedback works on a fresh installation</li>
+                        <li><strong>SMTP configured</strong> — the maintainer additionally receives an email copy of the report</li>
+                        <li><strong>If no delivery method is available</strong> — a modal appears offering: <em>&ldquo;<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Open in My Email App&rdquo;</em> (opens your default email client with the report pre-filled) or <em>&ldquo;<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg> Configure SMTP in Settings&rdquo;</em> (takes you to Settings with the SMTP section auto-expanded)</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 17. Workflow -->
+        <div class="manual-section" id="workflow">
+            <h2>17. SLR Workflow Best Practices</h2>
+            <p>Follow this recommended workflow for a systematic literature review using RSP:</p>
+
+            <div class="illustration">
+                <svg width="660" height="280" viewBox="0 0 660 280">
+                    <rect x="5" y="5" width="650" height="270" rx="6" fill="#fafcfe" stroke="#eee" stroke-width="1"/>
+                    <!-- Step 1 -->
+                    <circle cx="50" cy="35" r="16" fill="#3498db"/>
+                    <text x="50" y="40" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">1</text>
+                    <text x="80" y="40" font-size="10" font-weight="600" fill="#2c3e50">Define research questions and keywords</text>
+                    <!-- Step 2 -->
+                    <circle cx="50" cy="70" r="16" fill="#3498db"/>
+                    <text x="50" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">2</text>
+                    <text x="80" y="75" font-size="10" font-weight="600" fill="#2c3e50">Add 5–15 Validation Papers (known relevant papers)</text>
+                    <!-- Step 3 -->
+                    <circle cx="50" cy="105" r="16" fill="#3498db"/>
+                    <text x="50" y="110" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">3</text>
+                    <text x="80" y="110" font-size="10" font-weight="600" fill="#2c3e50">Run broad search (no filters)</text>
+                    <!-- Step 4 -->
+                    <circle cx="50" cy="140" r="16" fill="#f39c12"/>
+                    <text x="50" y="145" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">4</text>
+                    <text x="80" y="145" font-size="10" font-weight="600" fill="#2c3e50">Check validation: all green? If not, broaden query</text>
+                    <!-- Step 5 -->
+                    <circle cx="50" cy="175" r="16" fill="#f39c12"/>
+                    <text x="50" y="180" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">5</text>
+                    <text x="80" y="180" font-size="10" font-weight="600" fill="#2c3e50">Add filters progressively (year → type → language → include/exclude terms → venues)</text>
+                    <!-- Step 6 -->
+                    <circle cx="50" cy="210" r="16" fill="#f39c12"/>
+                    <text x="50" y="215" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">6</text>
+                    <text x="80" y="215" font-size="10" font-weight="600" fill="#2c3e50">After each filter: re-check validation. Any red? → loosen criteria</text>
+                    <!-- Step 7 -->
+                    <circle cx="50" cy="245" r="16" fill="#27ae60"/>
+                    <text x="50" y="250" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">7</text>
+                    <text x="80" y="250" font-size="10" font-weight="600" fill="#2c3e50">Save search → Review PRISMA &amp; checklist → Add manual steps → Export package</text>
+                    <!-- Phase labels -->
+                    <text x="590" y="40" font-size="9" fill="#3498db" font-weight="600">PLAN</text>
+                    <text x="590" y="75" font-size="9" fill="#3498db" font-weight="600">PLAN</text>
+                    <text x="590" y="110" font-size="9" fill="#3498db" font-weight="600">SEARCH</text>
+                    <text x="590" y="145" font-size="9" fill="#f39c12" font-weight="600">REFINE</text>
+                    <text x="590" y="180" font-size="9" fill="#f39c12" font-weight="600">REFINE</text>
+                    <text x="590" y="215" font-size="9" fill="#f39c12" font-weight="600">REFINE</text>
+                    <text x="590" y="250" font-size="9" fill="#27ae60" font-weight="600">PUBLISH</text>
+                </svg>
+                <div class="caption">Figure 12: Recommended SLR workflow with RSP</div>
+            </div>
+
+            <h3>Key principles:</h3>
+            <ul>
+                <li><strong>Start broad, then narrow</strong> — Begin with no filters, add criteria progressively</li>
+                <li><strong>Always validate</strong> — Use validation papers as your ground truth after every change</li>
+                <li><strong>Monitor PRISMA</strong> — Click the stage cards and excluded cards to inspect exactly which papers were removed at each stage</li>
+                <li><strong>Document post-inclusion steps</strong> — Use Manual Review Steps on the PRISMA page to capture full-text review and snowballing in the flow diagram</li>
+                <li><strong>Complete the checklist</strong> — Fill in all 12 MANUAL items on the PRISMA Evidence Checklist before exporting</li>
+                <li><strong>Save early, save often</strong> — Save your search configuration for reproducibility</li>
+                <li><strong>Export everything</strong> — The replication package ensures your review is fully reproducible</li>
+            </ul>
+
+            <h3>Performance notes:</h3>
+            <ul>
+                <li>Retrieval is capped at 10,000 records per database, and some APIs impose lower pagination ceilings — RSP shows an amber partial-retrieval warning in the progress panel when a database could not deliver everything it found. Narrow the query for that database if completeness matters</li>
+                <li>arXiv has rate limiting — a 3-second delay between result pages is applied automatically; avoid rapid consecutive searches</li>
+                <li>HAL supports more server-side filters (language, doc type, year) which are faster than post-filtering</li>
+                <li>Searches stream results database by database via SSE — you see progress live as each database completes</li>
+            </ul>
+
+            <h3>Data storage:</h3>
+            <ul>
+                <li><strong>Search form state &amp; results</strong> — browser localStorage (persists across navigation)</li>
+                <li><strong>Excluded paper lists</strong> — browser localStorage (<code>lastExcludedDocs</code>) — enables clickable PRISMA excluded cards</li>
+                <li><strong>PRISMA manual steps &amp; checklist notes</strong> — browser localStorage (persists across page refreshes)</li>
+                <li><strong>Validation papers</strong> — browser localStorage</li>
+                <li><strong>Saved searches &amp; history</strong> — server-side JSON files in <code>data/</code> folder</li>
+                <li><strong>API keys</strong> — server-side files in <code>data/</code> folder (never leave your machine)</li>
+            </ul>
+
+            <div class="info">
+                <strong>Need help?</strong> RSP is designed to be self-explanatory. Each page includes contextual hints. If you encounter issues, restart the application with <code>python app.py</code> and check the terminal for error messages.
+            </div>
+            <div class="info">
+                <strong>Community support:</strong> RSP is free and will remain free. If it helps your work, optional support is available via the footer link and on the About page.
+            </div>
+        </div>
+    </div>
+{% endblock %}

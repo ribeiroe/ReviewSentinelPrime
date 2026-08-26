@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – About{% endblock %}
+{% block head_extra %}
+<style>
+        .container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; box-sizing: border-box; }
+
+        .about-hero {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .about-hero h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--c-text);
+            margin-bottom: 0.4rem;
+        }
+        .about-hero .version-badge {
+            display: inline-block;
+            background: var(--c-primary);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        .about-hero p {
+            color: var(--c-text-2);
+            font-size: 0.95rem;
+            margin-top: 0.4rem;
+        }
+
+        /* Cards use global .card class; these add layout only */
+        .about-card {
+            padding: 1.75rem 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .about-card h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--c-text);
+            margin-bottom: 1rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid var(--c-border);
+        }
+        .about-card p { line-height: 1.7; margin-bottom: 1rem; color: var(--c-text); }
+        .about-card p:last-child { margin-bottom: 0; }
+        .about-card a { color: var(--c-primary); text-decoration: none; }
+        .about-card a:hover { text-decoration: underline; }
+        .about-card ul { margin: 0.5rem 0 1rem 1.5rem; line-height: 1.8; color: var(--c-text); }
+
+        .credit-box {
+            background: var(--c-primary-lt);
+            border-left: 4px solid var(--c-primary);
+            padding: 1.1rem 1.4rem;
+            border-radius: var(--r-md);
+            margin: 1.25rem 0;
+        }
+        .credit-box p { margin-bottom: 0.35rem; color: var(--c-text); }
+        .credit-box .authors { font-weight: 700; font-size: 1rem; color: var(--c-text); }
+
+        .citation-source + .citation-source { margin-top: 2rem; padding-top: 1.75rem; border-top: 1px solid var(--c-border); }
+        .citation-source-title { font-size: 1.02rem; font-weight: 700; color: var(--c-text); margin-bottom: 1rem; }
+        .citation-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--c-text-3);
+            margin-bottom: 0.4rem;
+        }
+        .citation-label:not(:first-child) { margin-top: 1.1rem; }
+        .citation-authors { font-weight: 600; color: var(--c-text); margin-bottom: 0; }
+        .citation-authors + .citation-authors { margin-top: 0.2rem; }
+        .citation-intro { color: var(--c-text-2); margin-bottom: 0; }
+
+        .bibtex-box {
+            background: #1e1e2e;
+            border-radius: var(--r-md);
+            padding: 1rem 1.25rem;
+            margin: 0.6rem 0 0;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            overflow-x: auto;
+            color: #cdd6f4;
+            white-space: pre;
+        }
+        .bibtex-box .bx-key { color: #a6adc8; }
+        .bibtex-box .bx-str { color: #a6e3a1; }
+        .bibtex-box .bx-link { color: #89b4fa; text-decoration: none; }
+        .bibtex-box .bx-link:hover { text-decoration: underline; }
+
+        code {
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            padding: 0.15rem 0.4rem;
+            border-radius: var(--r-sm);
+            font-size: 0.88rem;
+            color: var(--c-text);
+        }
+        blockquote {
+            background: var(--c-bg);
+            border-left: 3px solid var(--c-border);
+            padding: 0.9rem 1.2rem;
+            margin: 1rem 0;
+            font-style: italic;
+            color: var(--c-text-2);
+            border-radius: 0 var(--r-sm) var(--r-sm) 0;
+        }
+
+        .tech-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .tech-tag {
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            border-radius: var(--r-sm);
+            padding: 0.3rem 0.75rem;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--c-text-2);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.6rem;
+            margin-top: 0.75rem;
+        }
+        .feature-item {
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            border-radius: var(--r-md);
+            padding: 0.65rem 0.9rem;
+            font-size: var(--text-sm);
+            color: var(--c-text);
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .feature-item .fi-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .feature-item .fi-icon svg { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+
+        <div class="about-hero">
+            <h1>Review Sentinel <span style="color:var(--c-danger);">Prime</span> <span class="version-badge">{{ rsp_version }}</span></h1>
+            <p>A locally-run, browser-based research tool for systematic literature reviews &amp; replication packages — no cloud account required</p>
+        </div>
+
+        <div class="card about-card">
+            <h2>What RSP Does</h2>
+            <p>Review Sentinel Prime extends the original Replication Package Builder with a full browser-based interface and automation features:</p>
+            <div class="feature-grid">
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.5" y1="9.5" x2="14" y2="14"/></svg></span> Boolean search across 10 databases</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="8" height="8" rx="1"/><line x1="6" y1="1.5" x2="6" y2="4"/><line x1="10" y1="1.5" x2="10" y2="4"/><line x1="6" y1="12" x2="6" y2="14.5"/><line x1="10" y1="12" x2="10" y2="14.5"/><line x1="1.5" y1="6" x2="4" y2="6"/><line x1="1.5" y1="10" x2="4" y2="10"/><line x1="12" y1="6" x2="14.5" y2="6"/><line x1="12" y1="10" x2="14.5" y2="10"/></svg></span> Boolean query syntax with in-page tips</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg></span> Live search progress &amp; elapsed timer</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg></span> Save &amp; schedule recurring searches</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg></span> Email notifications with diff comparison</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="2,3 14,3 9.5,8.5 9.5,13 6.5,13 6.5,8.5"/></svg></span> Title &amp; Abstract screening (T&amp;A)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg></span> AI screening assistant (local LLM, human-in-the-loop)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="3.5" height="5" rx="0.5"/><rect x="6.25" y="5.5" width="3.5" height="8.5" rx="0.5"/><rect x="10.5" y="3" width="3.5" height="11" rx="0.5"/></svg></span> Interactive charts (year, keywords, venue, type)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="2.5" width="9" height="11" rx="1.5"/><path d="M6.5 2.5V1.5h3v1"/><line x1="6" y1="7" x2="10" y2="7"/><line x1="6" y1="9.5" x2="10" y2="9.5"/></svg></span> PRISMA 2020 flow diagram &amp; evidence checklist</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-9 9H2v-3z"/><line x1="9" y1="4" x2="12" y2="7"/></svg></span> Review Protocol form (auto-completes PRISMA items)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2l9 5.5-4.5 1.5-1.5 4.5z"/></svg></span> Clickable stage &amp; excluded-paper cards</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="3" r="1.75"/><circle cx="5" cy="13" r="1.75"/><circle cx="11" cy="8.5" r="1.75"/><line x1="5" y1="4.75" x2="5" y2="11.25"/><path d="M5 4.75C5 6.5 6 7 8 7.5s3 1 3 1"/></svg></span> Snowballing / other sources integration</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6" r="1.5"/><polyline points="2,12.5 6,8 9,11 11.5,8.5 14,12.5"/></svg></span> PNG export (flow diagram &amp; checklist)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="8,2 14,5 8,8 2,5"/><polyline points="2,8 8,11 14,8"/><polyline points="2,11 8,14 14,11"/></svg></span> Cards &amp; List view toggle</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="14,5.5 8,9 2,5.5"/><line x1="8" y1="9" x2="8" y2="14"/><path d="M14 5.5L8 2 2 5.5v5L8 14l6-3.5z"/><line x1="11" y1="3.75" x2="11" y2="7.25"/></svg></span> CSV &amp; replication package ZIP export</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 5.5A3 3 0 0111 7c0 3.5 1.5 5 1.5 5h-9s1.5-1.5 1.5-5a3 3 0 01.5-1.5"/><path d="M7 12.5a1 1 0 002 0"/><line x1="8" y1="2" x2="8" y2="4"/></svg></span> New / removed paper diff between runs</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="2,3 14,3 9.5,8.5 9.5,13 6.5,13 6.5,8.5"/></svg></span> Include / Exclude terms &amp; venues (ANY/ALL)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12l1.5-5.5H13.5L12 12z"/><path d="M1.5 6.5V5a1 1 0 011-1h3.5l1.5 2H2.5"/></svg></span> Export / Import full search config (JSON)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/></svg></span> API key management &amp; SMTP config</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v9"/><path d="M2 4a1 1 0 011-1h3a1 1 0 011 1v9c-2-.5-3.5-.75-5-1V4z"/><path d="M14 4a1 1 0 00-1-1h-3a1 1 0 00-1 1v9c2-.5 3.5-.75 5-1V4z"/></svg></span> Built-in user manual</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg></span> Validation papers (completeness check)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13,2.5 8.5,8.5 11.5,8.5 3,13.5 7.5,7.5 4.5,7.5 13,2.5"/></svg></span> Live / Offline filter mode (cached re-filtering)</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12l1.5-5.5H13.5L12 12z"/><path d="M1.5 6.5V5a1 1 0 011-1h3.5l1.5 2H2.5"/></svg></span> Results Hub — browse &amp; download run snapshots</div>
+                <div class="feature-item"><span class="fi-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="4" rx="1"/><rect x="2" y="9" width="12" height="4" rx="1"/><circle cx="5" cy="5" r="0.75" fill="currentColor" stroke="none"/><circle cx="5" cy="11" r="0.75" fill="currentColor" stroke="none"/></svg></span> Docker one-click deployment</div>
+            </div>
+        </div>
+
+        <div class="card about-card">
+            <h2>Origins</h2>
+            <p>
+                <strong>Review Sentinel Prime (RSP)</strong> builds upon the work of the
+                <a href="https://github.com/zemacedo99/Replication-Package-Builder" target="_blank" rel="noopener">Replication Package Builder</a>,
+                a tool designed to compile scientific publications from multiple academic databases
+                (IEEE Xplore, ACM Digital Library, Scopus, ScienceDirect, HAL Open Science, Springer Nature, Inspec, PubMed, arXiv, and more)
+                to support Systematic Literature Reviews and Mappings.
+            </p>
+            <p>
+                The original tool was used to produce the
+                <a href="https://zenodo.org/records/13763171" target="_blank" rel="noopener">Replication Package for a Systematic Literature Mapping of Agility in Safety-Critical Software Development within the Aerospace Industry</a>
+                (DOI: <a href="https://doi.org/10.5281/zenodo.13763171" target="_blank" rel="noopener">10.5281/zenodo.13763171</a>).
+            </p>
+            <p>
+                RSP (2026) extends this vision with a lightweight, locally-run web interface
+                that allows researchers — regardless of coding experience — to search databases,
+                schedule automated runs, and manage results entirely in the browser.
+            </p>
+        </div>
+
+        <div class="card about-card">
+            <h2>Credits &amp; Acknowledgments</h2>
+            <p>Review Sentinel Prime brings together work from three distinct sources. Each is credited and cited separately below to avoid confusion.</p>
+
+            <div class="citation-source">
+                <p class="citation-source-title">1. This application — Review Sentinel Prime (RSP)</p>
+
+                <div class="citation-label">Author</div>
+                <p class="citation-authors">J. Eduardo Ferreira Ribeiro</p>
+
+                <div class="citation-label">Contributor</div>
+                <p class="citation-authors">Nuno Pessoa Soares</p>
+
+                <div class="citation-label">How to Cite</div>
+                <p class="citation-intro">If RSP helped produce a paper, thesis, or report, please cite it as:</p>
+                <div class="bibtex-box">@software{<span class="bx-key">ribeiro2026rsp</span>,
+  <span class="bx-key">author</span>  = <span class="bx-str">{Ferreira Ribeiro, J. Eduardo and Pessoa Soares, Nuno}</span>,
+  <span class="bx-key">title</span>   = <span class="bx-str">{Review Sentinel Prime (RSP)}</span>,
+  <span class="bx-key">year</span>    = <span class="bx-str">{2026}</span>,
+  <span class="bx-key">version</span> = <span class="bx-str">{{ '{' }}{{ rsp_version }}{{ '}' }}</span>
+}</div>
+            </div>
+
+            <div class="citation-source">
+                <p class="citation-source-title">2. Original tool RSP is built upon — Replication Package Builder</p>
+
+                <div class="citation-label">Authors</div>
+                <p class="citation-authors">J. Eduardo Ferreira Ribeiro</p>
+                <p class="citation-authors">J. Antonio Dantas Macedo</p>
+
+                <div class="citation-label">Suggested Acknowledgment</div>
+                <blockquote>
+                    "We want to thank J. Eduardo Ferreira Ribeiro and J. Antonio Dantas Macedo for
+                    their substantial contributions in developing and providing the Replication Package Builder,
+                    upon which Review Sentinel Prime (RSP) is based."
+                </blockquote>
+
+                <div class="citation-label">How to Cite</div>
+                <p class="citation-intro">Please reference the original repository:</p>
+                <div class="bibtex-box">@misc{<span class="bx-key">ribeiro2024replicationpackagebuilder</span>,
+  <span class="bx-key">author</span> = <span class="bx-str">{Ferreira Ribeiro, J. Eduardo and Dantas Macedo, J. Antonio}</span>,
+  <span class="bx-key">title</span>  = <span class="bx-str">{Replication Package Builder}</span>,
+  <span class="bx-key">year</span>   = <span class="bx-str">{2024}</span>,
+  <span class="bx-key">url</span>    = <a class="bx-link" href="https://github.com/zemacedo99/Replication-Package-Builder" target="_blank" rel="noopener">{https://github.com/zemacedo99/Replication-Package-Builder}</a>
+}</div>
+            </div>
+
+            <div class="citation-source">
+                <p class="citation-source-title">3. Example dataset produced using the original tool</p>
+                <p class="citation-intro" style="margin-bottom: 0.75rem;">
+                    This is a published research dataset created <em>using</em> the Replication Package Builder —
+                    its authors are the researchers of that study, not the authors of the tool itself.
+                </p>
+
+                <div class="citation-label">Authors</div>
+                <p class="citation-authors">J. Eduardo Ferreira Ribeiro, J. Gabriel Silva, A. Aguiar</p>
+
+                <div class="citation-label">How to Cite</div>
+                <div class="bibtex-box">@dataset{<span class="bx-key">ribeiro2024replicationpackage</span>,
+  <span class="bx-key">author</span>    = <span class="bx-str">{Ferreira Ribeiro, J. Eduardo and Gabriel Silva, J. and Aguiar, A.}</span>,
+  <span class="bx-key">title</span>     = <span class="bx-str">{Replication Package for a Systematic Literature Mapping of Agility in
+             Safety-Critical Software Development within the Aerospace Industry}</span>,
+  <span class="bx-key">year</span>      = <span class="bx-str">{2024}</span>,
+  <span class="bx-key">publisher</span> = <span class="bx-str">{Zenodo}</span>,
+  <span class="bx-key">doi</span>       = <a class="bx-link" href="https://doi.org/10.5281/zenodo.13763171" target="_blank" rel="noopener">{10.5281/zenodo.13763171}</a>
+}</div>
+            </div>
+        </div>
+
+        <div class="card about-card">
+            <h2>Tech Stack</h2>
+            <p>RSP runs entirely on your local machine — no cloud account required. The only outbound connections are the literature database APIs, the optional SMTP server for email notifications, and the response forms used by the Feedback and Survey pages.</p>
+            <div class="tech-grid">
+                <span class="tech-tag">Python 3.12</span>
+                <span class="tech-tag">Flask 3.1</span>
+                <span class="tech-tag">APScheduler 3.10</span>
+                <span class="tech-tag">Jinja2</span>
+                <span class="tech-tag">Chart.js 4.4</span>
+                <span class="tech-tag">html2canvas 1.4.1</span>
+                <span class="tech-tag">Local JSON storage</span>
+                <span class="tech-tag">smtplib (email)</span>
+                <span class="tech-tag">Inter (Google Fonts)</span>
+                <span class="tech-tag">requests 2.32</span>
+                <span class="tech-tag">Docker &amp; Compose</span>
+                <span class="tech-tag">Ollama / OpenAI-compatible LLM (optional)</span>
+            </div>
+        </div>
+
+        <div class="card about-card">
+            <h2>License &amp; Feedback</h2>
+            <p>
+                <strong>Review Sentinel Prime (RSP) itself is released under the GNU General Public License v3.0</strong> (see <code>LICENSE</code> in the repository).
+            </p>
+            <p>
+                The upstream Replication Package Builder it builds upon is released under the
+                <a href="https://github.com/zemacedo99/Replication-Package-Builder/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>.
+                The associated dataset on Zenodo is licensed under
+                <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0 International (CC BY 4.0)</a>.
+            </p>
+            <p>
+                RSP's only AI-using stage is the optional AI Screening Assistant. Its output is probabilistic and can be
+                wrong &mdash; all suggestions must be reviewed and verified by the reviewer before use in any publication.
+                RSP is a research support tool, not intended for clinical, legal, employment, or other regulated
+                decision-making, and is provided as-is under the GPLv3 without warranty.
+            </p>
+            <p>
+                Found a bug or have a feature request?
+                Use the <a href="/feedback">Feedback page</a>.
+            </p>
+        </div>
+
+        <div class="card about-card">
+            <h2>Support Free Research Tools</h2>
+            <p>
+                Review Sentinel Prime is free and will remain free. If this tool saves you time or helps your research,
+                you can optionally support RibeiroLabs.
+            </p>
+            <p>
+                Donations help cover development, maintenance, and hosting costs so we can keep building free tools for
+                students, researchers, and professionals. Donating unlocks no features, no early access, no priority,
+                and comes with no support commitment — it is a voluntary donation only.
+            </p>
+            <p>
+                <a class="btn btn-neutral" href="https://ko-fi.com/ribeirolabs" target="_blank" rel="noopener noreferrer" aria-label="Support RibeiroLabs on Ko-fi (opens in new tab)">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13s-5-3.2-5-7.1A2.9 2.9 0 018 4.2a2.9 2.9 0 015 1.7C13 9.8 8 13 8 13z"/></svg>
+                    Support RibeiroLabs on Ko-fi
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg>
+                </a>
+            </p>
+            <p style="font-size:0.85rem;color:var(--c-text-3);margin-top:0.2rem;">No paywall. No feature lock. Donations are always voluntary.</p>
+        </div>
+
+    </div>
+{% endblock %}
+

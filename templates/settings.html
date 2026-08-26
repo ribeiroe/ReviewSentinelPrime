@@ -1,0 +1,1676 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – Settings{% endblock %}
+{% block head_extra %}
+<style>
+        .container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; box-sizing: border-box; }
+        h1 { text-align: center; margin-bottom: 0.5rem; color: #2c3e50; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 2rem; }
+
+
+        .card {
+            background: #fff;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            color: #2c3e50;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 2px solid var(--c-primary);
+            padding-bottom: 0.4rem;
+        }
+        .card p.desc {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .api-key-row {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+        .api-key-row label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 120px;
+            color: #2c3e50;
+        }
+        .api-key-row input {
+            flex: 1;
+            font-family: monospace;
+        }
+
+        .status-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .status-badge.configured { background: #d4efdf; color: #1e8449; }
+        .status-badge.not-configured { background: #fdedec; color: #c0392b; }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .alert {
+            padding: 0.7rem 1rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        .alert-success { background: #d4efdf; color: #1e8449; border: 1px solid #a9dfbf; }
+        .alert-error { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+
+        .last-checked {
+            font-size: 0.8rem;
+            color: #555;
+            margin-top: 0.75rem;
+        }
+
+        .help-link {
+            font-size: 0.8rem;
+            color: #3498db;
+            text-decoration: none;
+        }
+        .help-link:hover { text-decoration: underline; }
+
+        .quick-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin-bottom: 1rem;
+        }
+        .quick-link-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.78rem;
+            color: #1f3b5b;
+            background: #eef4fb;
+            border: 1px solid #d3e1f1;
+            border-radius: 999px;
+            padding: 0.24rem 0.56rem;
+            text-decoration: none;
+        }
+        .quick-link-chip:hover {
+            background: #e3edf8;
+            text-decoration: none;
+        }
+
+        .key-info {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 0.3rem;
+        }
+
+        .db-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #1a3a5c;
+            color: #fff;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 0;
+            margin-top: 1.25rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .db-group-header:hover { background: #16304f; }
+        .db-group-header h2 { margin: 0; font-size: 1.05rem; color: #fff; border: none; padding: 0; }
+        .db-group-chevron {
+            font-size: 1rem;
+            transition: transform 0.25s;
+            display: inline-block;
+        }
+        .db-group-chevron.open { transform: rotate(180deg); }
+        .db-group-body {
+            display: none;
+            margin-bottom: 1.5rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .db-group-body.open { display: flex; flex-direction: column; gap: 1rem; }
+        .db-group-body .card {
+            border-radius: 8px;
+            border: 1px solid #d0d7e2;
+            margin-bottom: 0;
+            border-left: 5px solid #d0d7e2;
+            transition: border-left-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .card.card--error {
+            border-left-color: #e74c3c !important;
+            background: #fff5f5 !important;
+            box-shadow: 0 0 0 2px rgba(231,76,60,0.18), 0 2px 8px rgba(0,0,0,0.08) !important;
+        }
+        .card.card--error h2 { color: #c0392b; }
+        .card.card--ok {
+            border-left-color: #27ae60 !important;
+            background: #f6fffa !important;
+            box-shadow: 0 0 0 2px rgba(39,174,96,0.15), 0 2px 8px rgba(0,0,0,0.08) !important;
+        }
+        .card.card--ok h2 { color: #1e8449; }
+        .header-warn-badge {
+            display: inline-block;
+            background: #e74c3c;
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            margin-left: 0.75rem;
+            vertical-align: middle;
+            line-height: 1.5;
+            animation: badge-pulse 1.4s ease-in-out infinite;
+            box-shadow: 0 0 0 3px rgba(231,76,60,0.25);
+        }
+        @keyframes badge-pulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(231,76,60,0.25); }
+            50%       { box-shadow: 0 0 0 7px rgba(231,76,60,0.08); }
+        }
+
+        /* ── SMTP form ──────────────────────────────────────────────── */
+        .smtp-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem 1.25rem;
+            margin-top: 1rem;
+        }
+        .smtp-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .smtp-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #475569;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .smtp-optional {
+            font-weight: 400;
+            font-size: 0.72rem;
+            color: #94a3b8;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .smtp-hint {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+        .smtp-hint a { color: #3498db; text-decoration: none; }
+        .smtp-hint a:hover { text-decoration: underline; }
+        .smtp-form input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: #0f172a;
+            background: #fff;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* ── Run retention settings ───────────────────────────── */
+        .retention-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem 1.25rem;
+            margin-top: 1rem;
+        }
+        .retention-stats {
+            margin-top: 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.75rem 0.9rem;
+            font-size: 0.84rem;
+            color: #475569;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem 0.8rem;
+        }
+        .retention-stat-pill {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.2rem 0.45rem;
+        }
+        .retention-stat-pill strong { color: #0f172a; }
+        .retention-last-cleanup {
+            margin-top: 0.55rem;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        @media (max-width: 560px) {
+            .smtp-form { grid-template-columns: 1fr; }
+            .retention-form { grid-template-columns: 1fr; }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+
+        <!-- Database API Keys (collapsible group) -->
+        <div class="db-group-header" onclick="toggleGroup('dbGroupBody')" id="dbGroupHeader">
+            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/></svg> Database API Keys <span id="dbWarningBadge" class="header-warn-badge" style="display:none;"></span></h2>
+            <span class="db-group-chevron" id="dbGroupBodyChevron">&#9660;</span>
+        </div>
+        <div class="db-group-body" id="dbGroupBody">
+
+        <!-- IEEE Xplore API Key -->
+        <div class="card">
+            <h2>IEEE Xplore API Key</h2>
+            <p class="desc">Required to search the IEEE Xplore database. Get a free API key from 
+                <a href="https://developer.ieee.org/" target="_blank" rel="noopener" class="help-link">developer.ieee.org</a>
+            </p>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="text" id="ieeeKey" placeholder="Enter your IEEE Xplore API key" oninput="updateTestBtn('ieeeKey','ieeeTestBtn')">
+                <span id="ieeeStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="ieeeInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveIeeeKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" id="ieeeTestBtn" onclick="testIeeeKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearIeeeKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="ieeeSuccess"></div>
+            <div class="alert alert-error" id="ieeeError"></div>
+            <p class="last-checked" id="ieeeLastChecked"></p>
+        </div>
+
+        <!-- ACM Digital Library -->
+        <div class="card">
+            <h2>ACM Digital Library</h2>
+            <p class="desc">No API key required — ACM DL metadata search is freely accessible. An optional institutional key can be provided for enhanced access.</p>
+            <div class="api-key-row">
+                <label>API Key (optional):</label>
+                <input type="text" id="acmKey" placeholder="Optional — institutional API key">
+                <span id="acmStatus" class="status-badge configured">No key needed</span>
+            </div>
+            <p class="key-info" id="acmInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveAcmKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" onclick="testAcmKey(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearAcmKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="acmSuccess"></div>
+            <div class="alert alert-error" id="acmError"></div>
+            <p class="last-checked" id="acmLastChecked"></p>
+        </div>
+
+        <!-- Scopus API Key -->
+        <div class="card">
+            <h2>Scopus API Key (Elsevier)</h2>
+            <p class="desc">Required to search the Scopus database. Get a free API key from 
+                <a href="https://dev.elsevier.com/" target="_blank" rel="noopener" class="help-link">dev.elsevier.com</a>
+            </p>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="text" id="scopusKey" placeholder="Enter your Scopus API key" oninput="updateTestBtn('scopusKey','scopusTestBtn')">
+                <span id="scopusStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="scopusInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveScopusKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" id="scopusTestBtn" onclick="testScopusKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearScopusKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="scopusSuccess"></div>
+            <div class="alert alert-error" id="scopusError"></div>
+            <p class="last-checked" id="scopusLastChecked"></p>
+        </div>
+
+        <!-- ScienceDirect API Key -->
+        <div class="card">
+            <h2>ScienceDirect API Key (Elsevier)</h2>
+            <p class="desc">Required to search the ScienceDirect database. Get an API key from 
+                <a href="https://dev.elsevier.com/" target="_blank" rel="noopener" class="help-link">dev.elsevier.com</a>
+            </p>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="text" id="sciencedirectKey" placeholder="Enter your ScienceDirect API key" oninput="updateTestBtn('sciencedirectKey','sciencedirectTestBtn')">
+                <span id="sciencedirectStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="sciencedirectInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveSciencedirectKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" id="sciencedirectTestBtn" onclick="testSciencedirectKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearSciencedirectKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="sciencedirectSuccess"></div>
+            <div class="alert alert-error" id="sciencedirectError"></div>
+            <p class="last-checked" id="sciencedirectLastChecked"></p>
+        </div>
+
+        <!-- Springer Nature API Key -->
+        <div class="card">
+            <h2>Springer Nature API Key</h2>
+            <p class="desc">Required to search Springer Nature journals and books. Get your API key from 
+                <a href="https://dev.springernature.com/" target="_blank" rel="noopener" class="help-link">dev.springernature.com</a>
+            </p>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="text" id="springerKey" placeholder="Enter your Springer Nature API key" oninput="updateTestBtn('springerKey','springerTestBtn')">
+                <span id="springerStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="springerInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveSpringerKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" id="springerTestBtn" onclick="testSpringerKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearSpringerKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="springerSuccess"></div>
+            <div class="alert alert-error" id="springerError"></div>
+            <p class="last-checked" id="springerLastChecked"></p>
+        </div>
+
+        <!-- Inspec (Engineering Village) API Key -->
+        <div class="card">
+            <h2>Inspec (Engineering Village) API Key</h2>
+            <p class="desc">Required to search the Inspec database via Engineering Village. Get an API key from 
+                <a href="https://dev.elsevier.com/" target="_blank" rel="noopener" class="help-link">dev.elsevier.com</a>
+            </p>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="text" id="inspecKey" placeholder="Enter your Inspec / Engineering Village API key" oninput="updateTestBtn('inspecKey','inspecTestBtn')">
+                <span id="inspecStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="inspecInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveInspecKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" id="inspecTestBtn" onclick="testInspecKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearInspecKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="inspecSuccess"></div>
+            <div class="alert alert-error" id="inspecError"></div>
+            <p class="last-checked" id="inspecLastChecked"></p>
+        </div>
+
+        <!-- PubMed API Key -->
+        <div class="card">
+            <h2>PubMed API Key</h2>
+            <p class="desc">Optional but recommended for higher rate limits. Get your free API key from 
+                <a href="https://www.ncbi.nlm.nih.gov/account/settings/" target="_blank" rel="noopener" class="help-link">NCBI Account Settings</a>
+            </p>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="text" id="pubmedKey" placeholder="Enter your PubMed/NCBI API key (optional)">
+                <span id="pubmedStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="pubmedInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="savePubmedKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" onclick="testPubmedKey(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearPubmedKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="pubmedSuccess"></div>
+            <div class="alert alert-error" id="pubmedError"></div>
+            <p class="last-checked" id="pubmedLastChecked"></p>
+        </div>
+
+        <!-- arXiv -->
+        <div class="card">
+            <h2>arXiv</h2>
+            <p class="desc">No API key required — arXiv is freely and openly accessible.</p>
+            <div class="api-key-row">
+                <label>Status:</label>
+                <span class="status-badge configured">No key needed</span>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-teal" onclick="testArxivConnection(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+            </div>
+            <div class="alert alert-success" id="arxivSuccess"></div>
+            <div class="alert alert-error" id="arxivError"></div>
+            <p class="last-checked" id="arxivLastChecked"></p>
+        </div>
+
+        <!-- HAL Open Science -->
+        <div class="card">
+            <h2>HAL Open Science</h2>
+            <p class="desc">No API key required — HAL is freely and openly accessible.</p>
+            <div class="api-key-row">
+                <label>Status:</label>
+                <span class="status-badge configured">No key needed</span>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-teal" onclick="testHalConnection(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+            </div>
+            <div class="alert alert-success" id="halSuccess"></div>
+            <div class="alert alert-error" id="halError"></div>
+            <p class="last-checked" id="halLastChecked"></p>
+        </div>
+
+        <!-- OpenAlex -->
+        <div class="card">
+            <h2>OpenAlex</h2>
+            <p class="desc">No API key required — OpenAlex is completely free and openly accessible. Covers 250M+ scholarly works.</p>
+            <div class="api-key-row">
+                <label>Status:</label>
+                <span class="status-badge configured">No key needed</span>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-teal" onclick="testOpenAlexConnection(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+            </div>
+            <div class="alert alert-success" id="openalexSuccess"></div>
+            <div class="alert alert-error" id="openalexError"></div>
+            <p class="last-checked" id="openalexLastChecked"></p>
+        </div>
+
+        </div><!-- /.db-group-body -->
+
+        <!-- Email (SMTP) Configuration -->
+        <div id="smtp" class="db-group-header" onclick="toggleGroup('smtpGroup')">
+            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Email Notifications (SMTP)</h2>
+            <span class="db-group-chevron" id="smtpGroupChevron">&#9660;</span>
+        </div>
+        <div class="db-group-body" id="smtpGroup">
+        <div class="card">
+            <p class="desc" style="margin-top:0.25rem;">Configure an outgoing mail server to receive scheduled-run summaries and failure alerts.</p>
+            <div class="status-row">
+                <span class="status-badge" id="smtpStatus">Checking...</span>
+            </div>
+            <div class="smtp-form">
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpHost">SMTP Host</label>
+                    <input type="text" id="smtpHost" placeholder="e.g. smtp.gmail.com">
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpPort">Port</label>
+                    <input type="number" id="smtpPort" value="587" min="1" max="65535">
+                    <span class="smtp-hint">587 (TLS) &middot; 465 (SSL) &middot; 25 (plain)</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpUser">Username</label>
+                    <input type="text" id="smtpUser" placeholder="e.g. you@gmail.com" autocomplete="username">
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpPass">Password</label>
+                    <input type="password" id="smtpPass" placeholder="Leave blank to keep existing" autocomplete="current-password">
+                    <span class="smtp-hint">Gmail: use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a> (2FA required)</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpFrom">From address <span class="smtp-optional">optional</span></label>
+                    <input type="email" id="smtpFrom" placeholder="e.g. you@gmail.com">
+                    <span class="smtp-hint">Defaults to Username if left blank</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpTestTo">Test recipient</label>
+                    <input type="email" id="smtpTestTo" placeholder="Send a test email to this address">
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save</button>
+                <button class="btn btn-primary" onclick="testSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Send Test Email</button>
+                <button class="btn btn-danger" onclick="confirmClearSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear</button>
+            </div>
+            <div class="alert alert-success" id="smtpSuccess"></div>
+            <div class="alert alert-error" id="smtpError"></div>
+        </div>
+        </div><!-- /.smtpGroup -->
+
+        <!-- Run Retention Settings (collapsible group) -->
+        <div id="runRetention" class="db-group-header" onclick="toggleGroup('retentionGroup')">
+            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Run Retention (Local Storage)</h2>
+            <span class="db-group-chevron" id="retentionGroupChevron">&#9660;</span>
+        </div>
+        <div class="db-group-body" id="retentionGroup">
+        <div class="card">
+            <p class="desc" style="margin-top:0.25rem;">Control how many run snapshots are kept locally for saved searches and ad-hoc searches.</p>
+            <div class="retention-form">
+                <div class="smtp-field">
+                    <label class="smtp-label" for="savedKeepLast">Saved Search Runs</label>
+                    <input type="number" id="savedKeepLast" min="1" max="100" value="10">
+                    <span class="smtp-hint">Keep latest N runs per saved search</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="adhocKeepLast">Ad-hoc Runs</label>
+                    <input type="number" id="adhocKeepLast" min="1" max="100" value="10">
+                    <span class="smtp-hint">Keep latest N ad-hoc run files</span>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveRunRetentionSettings()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Retention</button>
+                <button class="btn btn-danger" onclick="confirmRunRetentionCleanup()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/><path d="M5 10.5l.35 1.15L6.5 12l-1.15.35L5 13.5l-.35-1.15L3.5 12l1.15-.35z"/><line x1="6.5" y1="10" x2="10.5" y2="6"/></svg> Cleanup Now</button>
+            </div>
+            <div class="retention-stats" id="retentionStats">
+                <span class="retention-stat-pill"><strong>Loading...</strong></span>
+            </div>
+            <p class="retention-last-cleanup" id="retentionLastCleanup">Last cleanup: never</p>
+            <div class="alert alert-success" id="retentionSuccess"></div>
+            <div class="alert alert-error" id="retentionError"></div>
+        </div>
+        </div><!-- /.retentionGroup -->
+
+        <!-- AI Screening Assistant (collapsible group) -->
+        <div id="aiAssistant" class="db-group-header" onclick="toggleGroup('aiGroup')">
+            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI Screening Assistant (Local LLM)</h2>
+            <span class="db-group-chevron" id="aiGroupChevron">&#9660;</span>
+        </div>
+        <div class="db-group-body" id="aiGroup">
+        <div class="card">
+            <p class="desc" style="margin-top:0.25rem;">
+                Let a <strong>local LLM</strong> propose Include / Exclude / Unsure decisions during Title &amp; Abstract screening.
+                Suggestions are never applied automatically — you review and accept each one, and accepted decisions record
+                the model name for the PRISMA item&nbsp;8 automation-tool disclosure. Titles and abstracts are sent only to the
+                endpoint you configure below. With a local <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> instance
+                nothing leaves your computer; cloud providers (OpenAI, Anthropic, Google Gemini via their OpenAI-compatible
+                endpoints) also work — but then titles and abstracts are sent to that provider.
+            </p>
+            <div class="retention-form">
+                <div class="smtp-field">
+                    <label class="smtp-label" for="aiEnabled">Assistant</label>
+                    <select id="aiEnabled">
+                        <option value="off">Disabled</option>
+                        <option value="on">Enabled</option>
+                    </select>
+                    <span class="smtp-hint">Shows the AI buttons on the Screening page</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="aiProvider">Provider</label>
+                    <select id="aiProvider">
+                        <option value="ollama">Ollama (local)</option>
+                        <option value="openai">OpenAI-compatible endpoint</option>
+                    </select>
+                    <span class="smtp-hint">Ollama uses /api/chat; the other uses /v1/chat/completions</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="aiEndpoint">Endpoint</label>
+                    <input type="text" id="aiEndpoint" placeholder="http://localhost:11434">
+                    <span class="smtp-hint">Ollama: http://localhost:11434 &middot; OpenAI: https://api.openai.com &middot; Anthropic: https://api.anthropic.com &middot; Gemini: https://generativelanguage.googleapis.com/v1beta/openai</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="aiModel">Model</label>
+                    <input type="text" id="aiModel" placeholder="llama3.1">
+                    <span class="smtp-hint">Model name as known by the server</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="aiApiKey">API key</label>
+                    <input type="password" id="aiApiKey" placeholder="only for remote OpenAI-compatible endpoints" autocomplete="new-password">
+                    <span class="smtp-hint">Leave empty for local Ollama; stored locally, never shown again</span>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveAiConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save</button>
+                <button class="btn btn-primary" onclick="testAiConfig(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+            </div>
+            <div class="alert alert-success" id="aiSuccess"></div>
+            <div class="alert alert-error" id="aiError"></div>
+        </div>
+        </div><!-- /.aiGroup -->
+
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        function toggleGroup(id) {
+            const body = document.getElementById(id);
+            const chevron = document.getElementById(id + 'Chevron');
+            const isOpen = body.classList.toggle('open');
+            if (chevron) chevron.classList.toggle('open', isOpen);
+        }
+
+        // Auto-expand section and scroll to it when navigated via hash
+        (function() {
+            if (window.location.hash === '#smtp') {
+                const body   = document.getElementById('smtpGroup');
+                const chevron = document.getElementById('smtpGroupChevron');
+                if (body && !body.classList.contains('open')) {
+                    body.classList.add('open');
+                    if (chevron) chevron.classList.add('open');
+                }
+                const anchor = document.getElementById('smtp');
+                if (anchor) setTimeout(function() { anchor.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+            } else if (window.location.hash === '#runRetention') {
+                const body = document.getElementById('retentionGroup');
+                const chevron = document.getElementById('retentionGroupChevron');
+                if (body && !body.classList.contains('open')) {
+                    body.classList.add('open');
+                    if (chevron) chevron.classList.add('open');
+                }
+                const anchor = document.getElementById('runRetention');
+                if (anchor) setTimeout(function() { anchor.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+            } else if (window.location.hash === '#aiAssistant') {
+                const body = document.getElementById('aiGroup');
+                const chevron = document.getElementById('aiGroupChevron');
+                if (body && !body.classList.contains('open')) {
+                    body.classList.add('open');
+                    if (chevron) chevron.classList.add('open');
+                }
+                const anchor = document.getElementById('aiAssistant');
+                if (anchor) setTimeout(function() { anchor.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+            }
+        })();
+
+        function _fmtBytes(n) {
+            const num = Number(n || 0);
+            if (num < 1024) return num + ' B';
+            if (num < 1024 * 1024) return (num / 1024).toFixed(1) + ' KB';
+            return (num / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function renderRetentionStats(stats) {
+            const el = document.getElementById('retentionStats');
+            if (!el) return;
+            if (!stats) {
+                el.innerHTML = '<span class="retention-stat-pill"><strong>Unavailable</strong></span>';
+                return;
+            }
+            el.innerHTML = [
+                `<span class="retention-stat-pill">Saved runs: <strong>${stats.savedRuns || 0}</strong></span>`,
+                `<span class="retention-stat-pill">Ad-hoc runs: <strong>${stats.adhocRuns || 0}</strong></span>`,
+                `<span class="retention-stat-pill">Saved size: <strong>${_fmtBytes(stats.savedBytes)}</strong></span>`,
+                `<span class="retention-stat-pill">Ad-hoc size: <strong>${_fmtBytes(stats.adhocBytes)}</strong></span>`,
+                `<span class="retention-stat-pill">Total size: <strong>${_fmtBytes(stats.totalBytes)}</strong></span>`,
+            ].join('');
+        }
+
+        function renderRetentionLastCleanup(ts) {
+            const el = document.getElementById('retentionLastCleanup');
+            if (!el) return;
+            if (!ts) {
+                el.textContent = 'Last cleanup: never';
+                return;
+            }
+            const date = new Date(ts);
+            el.textContent = Number.isNaN(date.getTime())
+                ? ('Last cleanup: ' + ts)
+                : ('Last cleanup: ' + date.toLocaleString());
+        }
+
+        async function loadRunRetentionSettings() {
+            try {
+                const resp = await fetch('/api/run-retention-settings');
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) throw new Error(data.error || 'Failed to load retention settings');
+                document.getElementById('savedKeepLast').value = data.settings.savedKeepLast;
+                document.getElementById('adhocKeepLast').value = data.settings.adhocKeepLast;
+                renderRetentionStats(data.stats);
+                renderRetentionLastCleanup(data.settings.lastCleanupAt);
+            } catch (e) {
+                renderRetentionStats(null);
+                renderRetentionLastCleanup('');
+                showAlert('retentionError', 'Error loading retention settings: ' + e.message);
+            }
+        }
+
+        async function saveRunRetentionSettings() {
+            const savedKeepLast = parseInt(document.getElementById('savedKeepLast').value, 10);
+            const adhocKeepLast = parseInt(document.getElementById('adhocKeepLast').value, 10);
+            if (!savedKeepLast || savedKeepLast < 1 || savedKeepLast > 100) {
+                showAlert('retentionError', 'Saved search retention must be between 1 and 100.');
+                return;
+            }
+            if (!adhocKeepLast || adhocKeepLast < 1 || adhocKeepLast > 100) {
+                showAlert('retentionError', 'Ad-hoc retention must be between 1 and 100.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/run-retention-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ savedKeepLast, adhocKeepLast }),
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) throw new Error(data.error || 'Failed to save retention settings');
+                renderRetentionStats(data.stats);
+                renderRetentionLastCleanup(data.settings.lastCleanupAt);
+                showAlert('retentionSuccess', 'Run retention settings saved.');
+            } catch (e) {
+                showAlert('retentionError', 'Error saving retention settings: ' + e.message);
+            }
+        }
+
+        async function runRetentionCleanup() {
+            try {
+                const resp = await fetch('/api/run-retention-settings/cleanup', { method: 'POST' });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) throw new Error(data.error || 'Cleanup failed');
+                renderRetentionStats(data.stats);
+                renderRetentionLastCleanup(data.settings.lastCleanupAt);
+                showAlert('retentionSuccess', `Cleanup complete. Removed ${data.removed.total} run file(s).`);
+            } catch (e) {
+                showAlert('retentionError', 'Cleanup failed: ' + e.message);
+            }
+        }
+        async function loadIeeeKey() {
+            try {
+                const resp = await fetch('/api/ieee-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('ieeeStatus');
+                const infoEl = document.getElementById('ieeeInfo');
+                const inputEl = document.getElementById('ieeeKey');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Key is saved and active.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = '';
+                    resetCardState(statusEl, 'ieee');
+                }
+                updateTestBtn('ieeeKey', 'ieeeTestBtn');
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveIeeeKey() {
+            const key = document.getElementById('ieeeKey').value.trim();
+            if (!key) {
+                showAlert('ieeeError', 'Please enter an API key.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/ieee-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                if (resp.ok) {
+                    await loadIeeeKey();
+                    testIeeeKey(null, 'manual');
+                } else {
+                    showAlert('ieeeError', 'Failed to save key.');
+                }
+            } catch(e) {
+                showAlert('ieeeError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearIeeeKey() {
+            try {
+                await fetch('/api/ieee-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('ieeeKey').value = '';
+                showAlert('ieeeSuccess', 'IEEE API key cleared.');
+                loadIeeeKey();
+            } catch(e) {
+                showAlert('ieeeError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        async function testIeeeKey(btn, trigger = 'manual') {
+            const key = document.getElementById('ieeeKey').value.trim();
+            await testConnection('ieee', key, 'ieeeSuccess', 'ieeeError', btn, trigger);
+        }
+
+        function formatCheckedTimestamp(ts) {
+            const date = new Date(ts);
+            return date.toLocaleString([], {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatLastCheckedLabel(ts, trigger) {
+            const suffix = trigger === 'auto-refresh' ? ' (auto-tested on refresh)' : '';
+            return 'Last checked: ' + formatCheckedTimestamp(ts) + suffix;
+        }
+
+        async function testConnection(api, key, successId, errorId, btn, trigger = 'manual') {
+            if (btn) hideAlerts();
+            const origHTML = btn ? btn.innerHTML : null;
+            if (btn) { btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 107-7"/></svg> Testing…'; btn.disabled = true; }
+            const card = btn?.closest('.card')
+                || document.getElementById(successId)?.closest('.card')
+                || document.getElementById(errorId)?.closest('.card');
+            if (card) { card.classList.remove('card--ok', 'card--error'); }
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 30000);
+            try {
+                const resp = await fetch('/api/test-connection', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({api, key}),
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
+                const data = await resp.json();
+                const alertId = data.ok ? successId : errorId;
+                const checkedAt = Date.now();
+                const alertEl = document.getElementById(alertId);
+                const oppositeAlertEl = document.getElementById(data.ok ? errorId : successId);
+                if (oppositeAlertEl) oppositeAlertEl.style.display = 'none';
+                if (alertEl) { alertEl.textContent = data.message; alertEl.style.display = 'block'; }
+                if (card) {
+                    card.classList.toggle('card--ok', data.ok);
+                    card.classList.toggle('card--error', !data.ok);
+                    const lastCheckedEl = card.querySelector('.last-checked');
+                    if (lastCheckedEl) lastCheckedEl.textContent = formatLastCheckedLabel(checkedAt, trigger);
+                }
+                localStorage.setItem('connTest_' + api, JSON.stringify({
+                    state: data.ok ? 'ok' : 'error',
+                    alertId,
+                    message: data.message,
+                    ts: checkedAt,
+                    trigger
+                }));
+            } catch(e) {
+                clearTimeout(timer);
+                const msg = e.name === 'AbortError'
+                    ? 'Request timed out after 30 seconds. The API may be slow or unreachable — try again.'
+                    : 'Error: ' + e.message;
+                const checkedAt = Date.now();
+                const alertEl = document.getElementById(errorId);
+                const successEl = document.getElementById(successId);
+                if (successEl) successEl.style.display = 'none';
+                if (alertEl) { alertEl.textContent = msg; alertEl.style.display = 'block'; }
+                if (card) {
+                    card.classList.add('card--error');
+                    card.classList.remove('card--ok');
+                    const lastCheckedEl = card.querySelector('.last-checked');
+                    if (lastCheckedEl) lastCheckedEl.textContent = formatLastCheckedLabel(checkedAt, trigger);
+                }
+                localStorage.setItem('connTest_' + api, JSON.stringify({
+                    state: 'error', alertId: errorId, message: msg, ts: checkedAt, trigger
+                }));
+            } finally {
+                if (btn) { btn.innerHTML = origHTML; btn.disabled = false; }
+                updateDbWarningBadge();
+            }
+        }
+
+        function restoreConnectionStates() {
+            const apis = [
+                { api: 'ieee',          ok: 'ieeeSuccess',          err: 'ieeeError',          statusId: 'ieeeStatus' },
+                { api: 'scopus',        ok: 'scopusSuccess',        err: 'scopusError',        statusId: 'scopusStatus' },
+                { api: 'inspec',        ok: 'inspecSuccess',        err: 'inspecError',        statusId: 'inspecStatus' },
+                { api: 'sciencedirect', ok: 'sciencedirectSuccess', err: 'sciencedirectError', statusId: 'sciencedirectStatus' },
+                { api: 'springer',      ok: 'springerSuccess',      err: 'springerError',      statusId: 'springerStatus' },
+                { api: 'pubmed',        ok: 'pubmedSuccess',        err: 'pubmedError',        statusId: 'pubmedStatus', keepStateIfUnconfigured: true },
+                { api: 'acm',           ok: 'acmSuccess',           err: 'acmError',           statusId: 'acmStatus' },
+                { api: 'hal',           ok: 'halSuccess',           err: 'halError',           statusId: null, noKey: true },
+                { api: 'arxiv',         ok: 'arxivSuccess',         err: 'arxivError',         statusId: null, noKey: true },
+                { api: 'openalex',      ok: 'openalexSuccess',      err: 'openalexError',      statusId: null, noKey: true },
+            ];
+            apis.forEach(({ api, statusId, noKey, keepStateIfUnconfigured }) => {
+                // Skip restoring state for keys that are not configured, except for PubMed.
+                if (statusId) {
+                    const badge = document.getElementById(statusId);
+                    if (badge && badge.classList.contains('not-configured') && !keepStateIfUnconfigured) {
+                        localStorage.removeItem('connTest_' + api);
+                        return;
+                    }
+                }
+                // Restore state for all APIs, including no-key APIs such as HAL and arXiv.
+                const raw = localStorage.getItem('connTest_' + api);
+                if (!raw) return;
+                try {
+                    const { state, alertId, message, ts, trigger } = JSON.parse(raw);
+                    const el = document.getElementById(alertId);
+                    const card = el ? el.closest('.card') : null;
+                    if (card) card.querySelectorAll('.alert').forEach(alert => alert.style.display = 'none');
+                    if (el) { el.textContent = message; el.style.display = 'block'; }
+                    if (card) {
+                        card.classList.toggle('card--ok', state === 'ok');
+                        card.classList.toggle('card--error', state === 'error');
+                        const lastCheckedEl = card.querySelector('.last-checked');
+                        if (lastCheckedEl && ts) {
+                            lastCheckedEl.textContent = formatLastCheckedLabel(ts, trigger || 'manual');
+                        }
+                    }
+                } catch(e) { localStorage.removeItem('connTest_' + api); }
+            });
+            updateDbWarningBadge();
+        }
+
+        function updateDbWarningBadge() {
+            const count = document.querySelectorAll('#dbGroupBody .card.card--error').length;
+            const badge = document.getElementById('dbWarningBadge');
+            if (count > 0) {
+                badge.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> ' + count + ' issue' + (count > 1 ? 's' : '');
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+
+        }
+
+        // Stored keys are never sent back to the browser (only a masked
+        // preview) — inputs stay empty with a "Saved: xxxx..." placeholder,
+        // and testing an empty input makes the server use the stored key.
+        function markKeyConfigured(inputEl, maskedKey) {
+            if (!inputEl.dataset.origPlaceholder) inputEl.dataset.origPlaceholder = inputEl.placeholder || '';
+            inputEl.value = '';
+            inputEl.placeholder = 'Saved: ' + (maskedKey || '****') + ' — enter a new key to replace';
+            inputEl.dataset.configured = '1';
+        }
+
+        function markKeyNotConfigured(inputEl) {
+            inputEl.value = '';
+            if (inputEl.dataset.origPlaceholder) inputEl.placeholder = inputEl.dataset.origPlaceholder;
+            inputEl.dataset.configured = '';
+        }
+
+        function updateTestBtn(inputId, btnId) {
+            const input = document.getElementById(inputId);
+            const btn = document.getElementById(btnId);
+            if (btn) btn.disabled = !input.value.trim() && !input.dataset.configured;
+        }
+
+        function showAlert(id, msg) {
+            hideAlerts();
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function hideAlerts() {
+            document.querySelectorAll('.alert').forEach(el => el.style.display = 'none');
+        }
+
+        function resetCardState(statusEl, apiName) {
+            const card = statusEl ? statusEl.closest('.card') : null;
+            if (card) {
+                card.classList.remove('card--ok', 'card--error');
+                card.querySelectorAll('.alert').forEach(el => el.style.display = 'none');
+            }
+            if (apiName) localStorage.removeItem('connTest_' + apiName);
+        }
+
+        // --- Scopus API Key ---
+        async function loadScopusKey() {
+            try {
+                const resp = await fetch('/api/scopus-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('scopusStatus');
+                const infoEl = document.getElementById('scopusInfo');
+                const inputEl = document.getElementById('scopusKey');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Key is saved and active.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = '';
+                    resetCardState(statusEl, 'scopus');
+                }
+                updateTestBtn('scopusKey', 'scopusTestBtn');
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveScopusKey() {
+            const key = document.getElementById('scopusKey').value.trim();
+            if (!key) {
+                showAlert('scopusError', 'Please enter an API key.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/scopus-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                if (resp.ok) {
+                    await loadScopusKey();
+                    testScopusKey(null, 'manual');
+                } else {
+                    showAlert('scopusError', 'Failed to save key.');
+                }
+            } catch(e) {
+                showAlert('scopusError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearScopusKey() {
+            try {
+                await fetch('/api/scopus-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('scopusKey').value = '';
+                showAlert('scopusSuccess', 'Scopus API key cleared.');
+                loadScopusKey();
+            } catch(e) {
+                showAlert('scopusError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        async function testScopusKey(btn, trigger = 'manual') {
+            const key = document.getElementById('scopusKey').value.trim();
+            await testConnection('scopus', key, 'scopusSuccess', 'scopusError', btn, trigger);
+        }
+
+        // --- Inspec (Engineering Village) API Key ---
+        async function loadInspecKey() {
+            try {
+                const resp = await fetch('/api/inspec-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('inspecStatus');
+                const infoEl = document.getElementById('inspecInfo');
+                const inputEl = document.getElementById('inspecKey');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Key is saved and active.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = '';
+                    resetCardState(statusEl, 'inspec');
+                }
+                updateTestBtn('inspecKey', 'inspecTestBtn');
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveInspecKey() {
+            const key = document.getElementById('inspecKey').value.trim();
+            if (!key) {
+                showAlert('inspecError', 'Please enter an API key.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/inspec-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                if (resp.ok) {
+                    await loadInspecKey();
+                    testInspecKey(null, 'manual');
+                } else {
+                    showAlert('inspecError', 'Failed to save key.');
+                }
+            } catch(e) {
+                showAlert('inspecError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearInspecKey() {
+            try {
+                await fetch('/api/inspec-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('inspecKey').value = '';
+                showAlert('inspecSuccess', 'Inspec API key cleared.');
+                loadInspecKey();
+            } catch(e) {
+                showAlert('inspecError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        async function testInspecKey(btn, trigger = 'manual') {
+            const key = document.getElementById('inspecKey').value.trim();
+            await testConnection('inspec', key, 'inspecSuccess', 'inspecError', btn, trigger);
+        }
+
+        // --- ScienceDirect API Key ---
+        async function loadSciencedirectKey() {
+            try {
+                const resp = await fetch('/api/sciencedirect-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('sciencedirectStatus');
+                const infoEl = document.getElementById('sciencedirectInfo');
+                const inputEl = document.getElementById('sciencedirectKey');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Key is saved and active.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = '';
+                    resetCardState(statusEl, 'sciencedirect');
+                }
+                updateTestBtn('sciencedirectKey', 'sciencedirectTestBtn');
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveSciencedirectKey() {
+            const key = document.getElementById('sciencedirectKey').value.trim();
+            if (!key) {
+                showAlert('sciencedirectError', 'Please enter an API key.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/sciencedirect-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                if (resp.ok) {
+                    await loadSciencedirectKey();
+                    testSciencedirectKey(null, 'manual');
+                } else {
+                    showAlert('sciencedirectError', 'Failed to save key.');
+                }
+            } catch(e) {
+                showAlert('sciencedirectError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearSciencedirectKey() {
+            try {
+                await fetch('/api/sciencedirect-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('sciencedirectKey').value = '';
+                showAlert('sciencedirectSuccess', 'ScienceDirect API key cleared.');
+                loadSciencedirectKey();
+            } catch(e) {
+                showAlert('sciencedirectError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        async function testSciencedirectKey(btn, trigger = 'manual') {
+            const key = document.getElementById('sciencedirectKey').value.trim();
+            await testConnection('sciencedirect', key, 'sciencedirectSuccess', 'sciencedirectError', btn, trigger);
+        }
+
+        async function loadSpringerKey() {
+            try {
+                const resp = await fetch('/api/springer-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('springerStatus');
+                const infoEl = document.getElementById('springerInfo');
+                const inputEl = document.getElementById('springerKey');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Key is saved and active.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = '';
+                    resetCardState(statusEl, 'springer');
+                }
+                updateTestBtn('springerKey', 'springerTestBtn');
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveSpringerKey() {
+            const key = document.getElementById('springerKey').value.trim();
+            if (!key) {
+                showAlert('springerError', 'Please enter an API key.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/springer-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                if (resp.ok) {
+                    await loadSpringerKey();
+                    testSpringerKey(null, 'manual');
+                } else {
+                    showAlert('springerError', 'Failed to save key.');
+                }
+            } catch(e) {
+                showAlert('springerError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearSpringerKey() {
+            try {
+                await fetch('/api/springer-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('springerKey').value = '';
+                showAlert('springerSuccess', 'Springer Nature API key cleared.');
+                loadSpringerKey();
+            } catch(e) {
+                showAlert('springerError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        async function testSpringerKey(btn, trigger = 'manual') {
+            const key = document.getElementById('springerKey').value.trim();
+            await testConnection('springer', key, 'springerSuccess', 'springerError', btn, trigger);
+        }
+
+        // --- PubMed API Key ---
+        async function loadPubmedKey() {
+            try {
+                const resp = await fetch('/api/pubmed-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('pubmedStatus');
+                const infoEl = document.getElementById('pubmedInfo');
+                const inputEl = document.getElementById('pubmedKey');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Key is saved and active.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = 'PubMed works without a key but with lower rate limits.';
+                    // Preserve the last PubMed test result until a fresh connection test is performed.
+                }
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function savePubmedKey() {
+            const key = document.getElementById('pubmedKey').value.trim();
+            if (!key) {
+                showAlert('pubmedError', 'Please enter an API key.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/pubmed-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                if (resp.ok) {
+                    await loadPubmedKey();
+                    testPubmedKey(null, 'manual');
+                } else {
+                    showAlert('pubmedError', 'Failed to save key.');
+                }
+            } catch(e) {
+                showAlert('pubmedError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearPubmedKey() {
+            try {
+                await fetch('/api/pubmed-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('pubmedKey').value = '';
+                showAlert('pubmedSuccess', 'PubMed API key cleared.');
+                loadPubmedKey();
+            } catch(e) {
+                showAlert('pubmedError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        async function testPubmedKey(btn, trigger = 'manual') {
+            const key = document.getElementById('pubmedKey').value.trim();
+            await testConnection('pubmed', key, 'pubmedSuccess', 'pubmedError', btn, trigger);
+        }
+
+        // --- ACM Digital Library API Key ---
+        async function loadAcmKey() {
+            try {
+                const resp = await fetch('/api/acm-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('acmStatus');
+                const infoEl = document.getElementById('acmInfo');
+                const inputEl = document.getElementById('acmKey');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Key saved';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Optional key is saved.';
+                } else {
+                    statusEl.textContent = 'No key needed';
+                    statusEl.className = 'status-badge configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = 'ACM DL works without a key. An institutional key can improve access.';
+                }
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveAcmKey() {
+            const key = document.getElementById('acmKey').value.trim();
+            if (!key) {
+                showAlert('acmError', 'Please enter an API key.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/acm-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                if (resp.ok) {
+                    await loadAcmKey();
+                    testAcmKey(null, 'manual');
+                } else {
+                    showAlert('acmError', 'Failed to save key.');
+                }
+            } catch(e) {
+                showAlert('acmError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearAcmKey() {
+            try {
+                await fetch('/api/acm-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('acmKey').value = '';
+                showAlert('acmSuccess', 'ACM Digital Library API key cleared.');
+                loadAcmKey();
+            } catch(e) {
+                showAlert('acmError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        async function testAcmKey(btn, trigger = 'manual') {
+            const key = document.getElementById('acmKey').value.trim();
+            await testConnection('acm', key, 'acmSuccess', 'acmError', btn, trigger);
+        }
+
+        (async function() {
+            const [
+                ieeeConfigured,
+                scopusConfigured,
+                inspecConfigured,
+                sciencedirectConfigured,
+                springerConfigured,
+                pubmedConfigured,
+                acmConfigured
+            ] = await Promise.all([
+                loadIeeeKey(),
+                loadScopusKey(),
+                loadInspecKey(),
+                loadSciencedirectKey(),
+                loadSpringerKey(),
+                loadPubmedKey(),
+                loadAcmKey()
+            ]);
+            restoreConnectionStates();
+            // Auto-test no-key APIs and key-based APIs that are configured.
+            testHalConnection(null, 'auto-refresh');
+            testArxivConnection(null, 'auto-refresh');
+            testOpenAlexConnection(null, 'auto-refresh');
+            if (ieeeConfigured) testIeeeKey(null, 'auto-refresh');
+            if (scopusConfigured) testScopusKey(null, 'auto-refresh');
+            if (inspecConfigured) testInspecKey(null, 'auto-refresh');
+            if (sciencedirectConfigured) testSciencedirectKey(null, 'auto-refresh');
+            if (springerConfigured) testSpringerKey(null, 'auto-refresh');
+            testPubmedKey(null, 'auto-refresh');
+            testAcmKey(null, 'auto-refresh');
+        })();
+
+        // --- SMTP Configuration ---
+        async function loadSmtpConfig() {
+            try {
+                const resp = await fetch('/api/smtp-config');
+                const data = await resp.json();
+                const statusEl = document.getElementById('smtpStatus');
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    document.getElementById('smtpHost').value = data.host || '';
+                    document.getElementById('smtpPort').value = data.port || 587;
+                    document.getElementById('smtpUser').value = data.user || '';
+                    document.getElementById('smtpFrom').value = data.from_addr || '';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                }
+            } catch(e) {
+                document.getElementById('smtpStatus').textContent = 'Error';
+            }
+        }
+
+        async function saveSmtpConfig() {
+            const payload = {
+                host:      document.getElementById('smtpHost').value.trim(),
+                port:      parseInt(document.getElementById('smtpPort').value) || 587,
+                user:      document.getElementById('smtpUser').value.trim(),
+                password:  document.getElementById('smtpPass').value,
+                from_addr: document.getElementById('smtpFrom').value.trim(),
+            };
+            if (!payload.host) { showAlert('smtpError', 'Please enter an SMTP host.'); return; }
+            try {
+                const resp = await fetch('/api/smtp-config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                if (resp.ok) {
+                    document.getElementById('smtpPass').value = '';
+                    showAlert('smtpSuccess', 'SMTP configuration saved.');
+                    loadSmtpConfig();
+                }
+            } catch(e) { showAlert('smtpError', 'Error saving: ' + e.message); }
+        }
+
+        async function testSmtpConfig() {
+            const to = document.getElementById('smtpTestTo').value.trim();
+            if (!to) { showAlert('smtpError', 'Enter a test recipient email address first.'); return; }
+            showAlert('smtpSuccess', 'Sending test email…');
+            try {
+                const resp = await fetch('/api/smtp-config/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({to})
+                });
+                const data = await resp.json();
+                if (data.ok) {
+                    showAlert('smtpSuccess', `Test email sent to ${to}. Check your inbox!`);
+                } else {
+                    showAlert('smtpError', 'Failed: ' + data.error);
+                }
+            } catch(e) { showAlert('smtpError', 'Error: ' + e.message); }
+        }
+
+        async function clearSmtpConfig() {
+            try {
+                await fetch('/api/smtp-config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({host: '', port: 587, user: '', password: '', from_addr: '', clear: true})
+                });
+                document.getElementById('smtpHost').value = '';
+                document.getElementById('smtpPort').value = 587;
+                document.getElementById('smtpUser').value = '';
+                document.getElementById('smtpPass').value = '';
+                document.getElementById('smtpFrom').value = '';
+                showAlert('smtpSuccess', 'SMTP configuration cleared.');
+                loadSmtpConfig();
+            } catch(e) { showAlert('smtpError', 'Error: ' + e.message); }
+        }
+
+        loadSmtpConfig();
+        loadRunRetentionSettings();
+
+        // --- HAL / arXiv Connectivity Tests ---
+        async function testHalConnection(btn, trigger = 'manual') {
+            await testConnection('hal', '', 'halSuccess', 'halError', btn, trigger);
+        }
+
+        async function testArxivConnection(btn, trigger = 'manual') {
+            await testConnection('arxiv', '', 'arxivSuccess', 'arxivError', btn, trigger);
+        }
+
+        async function testOpenAlexConnection(btn, trigger = 'manual') {
+            await testConnection('openalex', '', 'openalexSuccess', 'openalexError', btn, trigger);
+        }
+
+        // ── Confirm wrappers for all destructive actions ──────────────
+        function confirmClearIeeeKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear IEEE API Key?',
+                message: 'The IEEE API key will be removed from the server. You will need to re-enter it to search IEEE Xplore.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearIeeeKey });
+        }
+        function confirmClearScopusKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear Scopus API Key?',
+                message: 'The Scopus API key will be removed. You will no longer be able to search the Scopus database until a new key is saved.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearScopusKey });
+        }
+        function confirmClearInspecKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear Inspec API Key?',
+                message: 'The Inspec (Engineering Village) API key will be removed. Inspec searches will be unavailable until a new key is saved.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearInspecKey });
+        }
+        function confirmClearSciencedirectKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear ScienceDirect API Key?',
+                message: 'The ScienceDirect API key will be removed. ScienceDirect searches will be unavailable until a new key is saved.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearSciencedirectKey });
+        }
+        function confirmClearSpringerKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear Springer Nature API Key?',
+                message: 'The Springer Nature API key will be removed. Springer searches will be unavailable until a new key is saved.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearSpringerKey });
+        }
+        function confirmClearPubmedKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear PubMed API Key?',
+                message: 'The PubMed API key will be removed. You can still search PubMed without a key, but at lower rate limits.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearPubmedKey });
+        }
+        function confirmClearAcmKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear ACM Digital Library API Key?',
+                message: 'The ACM Digital Library API key will be removed. ACM DL searches will be unavailable until a new key is saved.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearAcmKey });
+        }
+        function confirmClearSmtpConfig() {
+            showConfirmModal({ icon: RSP_ICONS.mail, title: 'Clear SMTP Configuration?',
+                message: 'All SMTP settings (host, port, credentials) will be erased. Email notifications and survey submissions will stop working until SMTP is reconfigured.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep settings', onConfirm: clearSmtpConfig });
+        }
+        function confirmRunRetentionCleanup() {
+            showConfirmModal({ icon: RSP_ICONS.sparkles, title: 'Apply Run Cleanup Now?',
+                message: 'This will remove old saved/ad-hoc run files beyond your configured limits. This action cannot be undone.',
+                confirmLabel: 'Run cleanup', cancelLabel: 'Cancel', onConfirm: runRetentionCleanup });
+        }
+
+        // ── AI Screening Assistant config ─────────────────────────
+        async function loadAiConfig() {
+            try {
+                const resp = await fetch('/api/ai-config');
+                if (!resp.ok) return;
+                const cfg = await resp.json();
+                document.getElementById('aiEnabled').value = cfg.enabled ? 'on' : 'off';
+                document.getElementById('aiProvider').value = cfg.provider || 'ollama';
+                document.getElementById('aiEndpoint').value = cfg.endpoint || '';
+                document.getElementById('aiModel').value = cfg.model || '';
+                const keyInput = document.getElementById('aiApiKey');
+                keyInput.value = '';
+                keyInput.placeholder = cfg.apiKeyConfigured
+                    ? 'Saved — enter a new key to replace'
+                    : 'only for remote OpenAI-compatible endpoints';
+            } catch (e) { /* section shows defaults */ }
+        }
+
+        async function saveAiConfig() {
+            hideAlerts();
+            const payload = {
+                enabled: document.getElementById('aiEnabled').value === 'on',
+                provider: document.getElementById('aiProvider').value,
+                endpoint: document.getElementById('aiEndpoint').value.trim(),
+                model: document.getElementById('aiModel').value.trim(),
+                apiKey: document.getElementById('aiApiKey').value.trim(),
+            };
+            try {
+                const resp = await fetch('/api/ai-config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                if (resp.ok) {
+                    showAlert('aiSuccess', 'AI assistant settings saved.');
+                    loadAiConfig();
+                } else {
+                    showAlert('aiError', 'Failed to save AI settings.');
+                }
+            } catch (e) {
+                showAlert('aiError', 'Error saving AI settings: ' + e.message);
+            }
+        }
+
+        async function testAiConfig(btn) {
+            hideAlerts();
+            const orig = btn ? btn.innerHTML : null;
+            if (btn) { btn.disabled = true; btn.innerHTML = 'Testing…'; }
+            try {
+                const resp = await fetch('/api/ai-config/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        provider: document.getElementById('aiProvider').value,
+                        endpoint: document.getElementById('aiEndpoint').value.trim(),
+                        model: document.getElementById('aiModel').value.trim(),
+                        apiKey: document.getElementById('aiApiKey').value.trim(),
+                    })
+                });
+                const data = await resp.json();
+                if (data.ok) showAlert('aiSuccess', data.message || 'Connection OK.');
+                else showAlert('aiError', data.message || 'Connection failed.');
+            } catch (e) {
+                showAlert('aiError', 'Test failed: ' + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+            }
+        }
+
+        loadAiConfig();
+    </script>
+{% endblock %}

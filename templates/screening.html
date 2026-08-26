@@ -1,0 +1,1084 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – Screening{% endblock %}
+{% block head_extra %}
+<style>
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; box-sizing: border-box; }
+
+    /* ── Progress bar ──────────────────────────────────────── */
+    .progress-wrap {
+        background: var(--c-bg);
+        border-radius: var(--r-lg);
+        border: 1px solid var(--c-border);
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .progress-bar-track {
+        height: 8px;
+        background: var(--c-border);
+        border-radius: 999px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        background: var(--c-primary);
+        border-radius: 999px;
+        transition: width 0.3s;
+    }
+    .progress-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        font-size: var(--text-sm);
+        font-weight: 600;
+        margin-top: 0.35rem;
+    }
+    .stat-include { color: var(--c-success); }
+    .stat-exclude { color: var(--c-danger); }
+    .stat-unsure  { color: var(--c-warning); }
+    .stat-pending { color: var(--c-text-3); }
+
+    /* ── Nav bar ───────────────────────────────────────────── */
+    .screen-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    .screen-nav .position {
+        flex: 1;
+        text-align: center;
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--c-text-2);
+    }
+
+    /* ── Paper card ────────────────────────────────────────── */
+    .paper-card {
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-sm);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .paper-card .pc-source {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.65rem;
+    }
+    .paper-card .pc-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--c-text);
+        margin-bottom: 0.35rem;
+        line-height: 1.4;
+    }
+    .paper-card .pc-title a {
+        color: var(--c-text);
+        text-decoration: none;
+    }
+    .paper-card .pc-title a:hover { color: var(--c-primary); text-decoration: underline; }
+    .paper-card .pc-meta {
+        font-size: var(--text-sm);
+        color: var(--c-text-2);
+        margin-bottom: 0.25rem;
+    }
+    .paper-card .pc-doi a {
+        font-size: var(--text-sm);
+        color: var(--c-primary);
+    }
+    .paper-card .pc-abstract {
+        font-size: 0.9rem;
+        color: var(--c-text);
+        line-height: 1.6;
+        margin-top: 0.75rem;
+        border-top: 1px solid var(--c-border);
+        padding-top: 0.75rem;
+    }
+    .pc-abstract-placeholder {
+        font-style: italic;
+        color: var(--c-text-3);
+    }
+    .decision-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: var(--text-xs);
+        font-weight: 700;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        flex-shrink: 0;
+    }
+    .di-include { background: var(--c-success-bg); color: var(--c-success); border: 1px solid #a5d6a7; }
+    .di-exclude { background: var(--c-danger-bg); color: var(--c-danger); border: 1px solid #fca5a5; }
+    .di-unsure  { background: var(--c-warning-bg); color: var(--c-warning); border: 1px solid #fcd34d; }
+
+    /* ── Decision panel ────────────────────────────────────── */
+    .decision-panel {
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-sm);
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .decision-btns {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+    }
+    .btn-include { background: var(--c-success); border-color: var(--c-success); color: #fff; flex: 1; min-width: 120px; }
+    .btn-include:hover:not(:disabled) { background: #15803d; border-color: #15803d; }
+    .btn-include.active { background: #14532d; border-color: #14532d; box-shadow: 0 0 0 3px rgba(22,163,74,.3); }
+    .btn-exclude { background: var(--c-danger); border-color: var(--c-danger); color: #fff; flex: 1; min-width: 120px; }
+    .btn-exclude:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
+    .btn-exclude.active { background: #7f1d1d; border-color: #7f1d1d; box-shadow: 0 0 0 3px rgba(220,38,38,.3); }
+    .btn-unsure { background: var(--c-warning); border-color: var(--c-warning); color: #fff; flex: 1; min-width: 120px; }
+    .btn-unsure:hover:not(:disabled) { background: #b45309; border-color: #b45309; }
+    .btn-unsure.active { background: #78350f; border-color: #78350f; box-shadow: 0 0 0 3px rgba(217,119,6,.3); }
+
+    .reason-row {
+        display: none;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .reason-row.visible { display: flex; }
+    .reason-row select, .reason-row input { margin-bottom: 0; font-size: 0.85rem; }
+    .reason-row select { min-width: 200px; width: auto; }
+    .reason-row input { flex: 1; min-width: 180px; }
+
+    /* ── Tabs ──────────────────────────────────────────────── */
+    .tab-bar {
+        display: flex;
+        gap: 0.3rem;
+        border-bottom: 2px solid var(--c-border);
+        margin-bottom: 1.25rem;
+    }
+    .tab-btn {
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        font-size: var(--text-sm);
+        color: var(--c-text-2);
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover { color: var(--c-primary); }
+    .tab-btn.active { color: var(--c-primary); border-bottom-color: var(--c-primary); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Summary table ─────────────────────────────────────── */
+    .summary-filters {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+    .summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--text-sm);
+    }
+    .summary-table th {
+        text-align: left;
+        padding: 0.55rem 0.75rem;
+        font-weight: 700;
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--c-text-2);
+        background: var(--c-bg);
+        border-bottom: 2px solid var(--c-border);
+    }
+    .summary-table td {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid var(--c-border);
+        vertical-align: top;
+    }
+    .summary-table tr:hover td { background: var(--c-bg); }
+    .summary-table tr.hi-include td { background: #f0fdf4; }
+    .summary-table tr.hi-exclude td { background: var(--c-danger-bg); }
+    .summary-table tr.hi-unsure  td { background: var(--c-warning-bg); }
+
+    /* Source badges (shared pattern) */
+    .source-badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:3px; font-size:0.72rem; font-weight:600; text-transform:uppercase; }
+    .source-hal { background:#d4efdf; color:#1e8449; }
+    .source-arxiv { background:#fdebd0; color:#b9770e; }
+    .source-ieee { background:#d6eaf8; color:#1a5276; }
+    .source-scopus { background:#f5e6ff; color:#6c3483; }
+    .source-inspec { background:#fce4ec; color:#880e4f; }
+    .source-sciencedirect { background:#fff3e0; color:#e65100; }
+    .source-springer { background:#e3f2fd; color:#0d47a1; }
+    .source-pubmed { background:#fce4ec; color:#880e4f; }
+    .source-snowball { background:#e8f5e9; color:#1b5e20; }
+    .source-acm { background:#e8eaf6; color:#283593; }
+    .source-openalex { background: #e8f4fd; color: #1a5276; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Empty state -->
+    <div id="emptyState" style="display:none; text-align:center; padding:3rem; color:var(--c-text-3);">
+        <div style="width:2.5rem;height:2.5rem;margin:0 auto 0.75rem;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg></div>
+        <h2 style="color:var(--c-text); margin-bottom:0.5rem;">No search results to screen</h2>
+        <p style="margin-bottom:1.25rem;">Run a search first, then come back here to screen the results.</p>
+        <p style="margin:-0.4rem 0 1rem;font-size:0.82rem;color:var(--c-text-3);">
+            If this tool helps your workflow, you can <a href="https://ko-fi.com/ribeirolabs" target="_blank" rel="noopener noreferrer">support RibeiroLabs on Ko-fi</a> (optional).
+        </p>
+        <a href="/" class="btn btn-primary">Go to Search</a>
+    </div>
+
+    <!-- Run picker (shown when no ?runId in URL) -->
+    <div id="runPicker" style="display:none; padding-top:1.5rem;">
+        <div class="card" style="padding:1.5rem;">
+            <h2 style="font-size:1.15rem; font-weight:700; color:var(--c-text); margin:0 0 0.25rem;">Title &amp; Abstract Screening</h2>
+            <p style="font-size:var(--text-sm); color:var(--c-text-2); margin:0 0 1.25rem;">Select a saved run to screen, or continue from the last search loaded in memory.</p>
+
+            <div style="margin-bottom:1rem;">
+                <label style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2); display:block; margin-bottom:0.4rem;">Available runs</label>
+                <select id="runPickerSelect" style="width:100%; margin-bottom:0;">
+                    <option value="">— loading runs… —</option>
+                </select>
+            </div>
+
+            <div id="runPickerMeta" style="display:none; background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--r-md); padding:0.65rem 0.85rem; font-size:var(--text-sm); color:var(--c-text-2); margin-bottom:1rem; line-height:1.6;"></div>
+
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <button id="runPickerBtn" class="btn btn-primary" onclick="pickAndLoad()" disabled>Open Selected Run</button>
+                <button class="btn btn-neutral" onclick="loadFromLocalStorage()">Use Last Search (memory)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main screening app -->
+    <div id="screeningApp" style="display:none;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
+            <div>
+                <h1 style="font-size:1.3rem; font-weight:700; color:var(--c-text); margin:0;">Title &amp; Abstract Screening</h1>
+                <p id="sourceLabel" style="font-size:var(--text-sm); color:var(--c-text-2); margin:0.2rem 0 0;"></p>
+            </div>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <button class="btn btn-neutral btn-sm" id="btnAiBatch" onclick="askAiBatch()" style="display:none;" title="Ask the configured local LLM to suggest a decision for every unscreened paper"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI-suggest unscreened</button>
+                <button class="btn btn-danger btn-sm" onclick="resetDecisions()" title="Clear all screening decisions"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Reset All</button>
+                <button class="btn btn-purple btn-sm" onclick="exportScreeningCSV()" title="Export decisions as CSV"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 8l4 4 4-4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export CSV</button>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-wrap">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2);">Screening progress</span>
+                <span id="progressLabel" style="font-size:var(--text-sm); font-weight:700; color:var(--c-text);"></span>
+            </div>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progressBar" style="width:0%;"></div>
+            </div>
+            <div class="progress-stats">
+                <span class="stat-include"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> <span id="countInclude">0</span> included</span>
+                <span class="stat-exclude"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> <span id="countExclude">0</span> excluded</span>
+                <span class="stat-unsure"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M6 6.2a2 2 0 013.8 1c0 1.5-2 1.5-2 3"/><circle cx="8" cy="12" r="0.5" fill="currentColor" stroke="none"/></svg> <span id="countUnsure">0</span> unsure</span>
+                <span class="stat-pending"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="1.5"/></svg> <span id="countPending">0</span> unscreened</span>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tabScreen" onclick="switchTab('screen')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="2.5" width="9" height="11" rx="1.5"/><path d="M6.5 2.5V1.5h3v1"/><line x1="6" y1="7" x2="10" y2="7"/><line x1="6" y1="9.5" x2="10" y2="9.5"/></svg> Screen Papers</button>
+            <button class="tab-btn" id="tabSummary" onclick="switchTab('summary')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="3.5" height="5" rx="0.5"/><rect x="6.25" y="5.5" width="3.5" height="8.5" rx="0.5"/><rect x="10.5" y="3" width="3.5" height="11" rx="0.5"/></svg> Summary</button>
+        </div>
+
+        <!-- ── Screen tab ── -->
+        <div class="tab-panel active" id="panelScreen">
+
+            <!-- Navigation -->
+            <div class="screen-nav">
+                <button class="btn btn-neutral btn-sm" id="btnPrev" onclick="navigate(-1)">← Prev</button>
+                <button class="btn btn-neutral btn-sm" onclick="jumpToUnscreened()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="3" x2="5" y2="13"/><polyline points="8,3 13,8 8,13"/></svg> Next Unscreened</button>
+                <span class="position" id="positionLabel"></span>
+                <div style="display:flex; gap:0.4rem; align-items:center;">
+                    <label style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2); white-space:nowrap;">Go to:</label>
+                    <input type="number" id="jumpInput" min="1" style="width:70px; margin-bottom:0; font-size:0.85rem; padding:0.3rem 0.4rem;" placeholder="#"
+                           onkeydown="if(event.key==='Enter') jumpTo()">
+                    <button class="btn btn-ghost btn-sm" onclick="jumpTo()">Go</button>
+                </div>
+                <button class="btn btn-neutral btn-sm" id="btnNext" onclick="navigate(1)">Next →</button>
+            </div>
+
+            <!-- Paper card -->
+            <div class="paper-card" id="paperCard">
+                <div class="pc-source" id="pcSource"></div>
+                <div class="pc-title" id="pcTitle"></div>
+                <div class="pc-meta" id="pcMeta"></div>
+                <div class="pc-doi" id="pcDoi"></div>
+                <div class="pc-abstract" id="pcAbstract"></div>
+            </div>
+
+            <!-- Decision panel -->
+            <div class="decision-panel">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem;">
+                    <div style="font-size:var(--text-sm); font-weight:700; color:var(--c-text-2);">Decision</div>
+                    <button class="btn btn-neutral btn-sm" id="btnAskAi" onclick="askAiCurrent()" style="display:none;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> Ask AI</button>
+                </div>
+                <div id="aiSuggestBox" style="display:none;margin-bottom:0.75rem;padding:0.6rem 0.85rem;border:1px solid #c4b5fd;background:#f5f3ff;border-radius:8px;font-size:0.85rem;color:#4c1d95;"></div>
+                <div class="decision-btns">
+                    <button class="btn btn-include" id="btnInclude" onclick="decide('include')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> Include</button>
+                    <button class="btn btn-unsure"  id="btnUnsure"  onclick="decide('unsure')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M6 6.2a2 2 0 013.8 1c0 1.5-2 1.5-2 3"/><circle cx="8" cy="12" r="0.5" fill="currentColor" stroke="none"/></svg> Unsure</button>
+                    <button class="btn btn-exclude" id="btnExclude" onclick="decide('exclude')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> Exclude</button>
+                </div>
+                <div class="reason-row" id="reasonRow">
+                    <label style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2); white-space:nowrap;">Reason:</label>
+                    <select id="reasonPreset" onchange="syncReasonPreset()">
+                        <option value="">— select reason —</option>
+                        <option value="Out of scope / irrelevant topic">Out of scope / irrelevant topic</option>
+                        <option value="Not a primary study">Not a primary study</option>
+                        <option value="Wrong study type / design">Wrong study type / design</option>
+                        <option value="Duplicate">Duplicate</option>
+                        <option value="Wrong language">Wrong language</option>
+                        <option value="Abstract not available">Abstract not available</option>
+                        <option value="Full text not accessible">Full text not accessible</option>
+                        <option value="Low quality / no peer review">Low quality / no peer review</option>
+                        <option value="Published outside date range">Published outside date range</option>
+                        <option value="custom">Custom reason…</option>
+                    </select>
+                    <input type="text" id="reasonCustom" placeholder="Type custom reason…" style="display:none;">
+                    <button class="btn btn-primary btn-sm" onclick="confirmDecision()">Confirm</button>
+                </div>
+            </div>
+
+        </div><!-- /panelScreen -->
+
+        <!-- ── Summary tab ── -->
+        <div class="tab-panel" id="panelSummary">
+            <div class="summary-filters">
+                <label style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2);">Filter:</label>
+                <select id="summaryFilter" onchange="renderSummary()" style="margin-bottom:0; width:auto; font-size:var(--text-sm);">
+                    <option value="all">All papers</option>
+                    <option value="include">✔ Included</option>
+                    <option value="exclude">✕ Excluded</option>
+                    <option value="unsure">❓ Unsure</option>
+                    <option value="pending">⬜ Unscreened</option>
+                </select>
+                <input type="text" id="summarySearch" placeholder="Search title…"
+                       oninput="renderSummary()"
+                       style="flex:1; min-width:200px; margin-bottom:0; font-size:var(--text-sm);">
+                <span id="summaryCount" style="font-size:var(--text-sm); color:var(--c-text-2); white-space:nowrap;"></span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="summary-table" id="summaryTable">
+                    <thead>
+                        <tr>
+                            <th style="width:50px;">#</th>
+                            <th>Title</th>
+                            <th style="width:80px;">Year</th>
+                            <th style="width:90px;">Source</th>
+                            <th style="width:100px;">Decision</th>
+                            <th style="width:180px;">Reason</th>
+                            <th style="width:80px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryBody"></tbody>
+                </table>
+            </div>
+        </div><!-- /panelSummary -->
+
+    </div><!-- /screeningApp -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ── State ─────────────────────────────────────────────────
+    let _papers    = [];
+    let _decisions = {};   // { paperId: { decision, reason, ts } }
+    let _current   = 0;
+    let _pendingDecision = null;  // 'include'|'exclude'|'unsure' before reason confirmed
+    let _runId     = null;        // null = localStorage mode, string = server mode
+    let _runMeta   = {};          // {query, timestamp, databases}
+
+    const STORAGE_KEY  = 'screeningDecisions';
+    const RESULTS_KEY  = 'lastSearchResults';
+
+    // ── Init ──────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', async function() {
+        const params = new URLSearchParams(window.location.search);
+        const runId  = params.get('runId') || null;
+        if (runId) {
+            await loadFromServer(runId);
+        } else {
+            await showRunPicker();
+        }
+    });
+
+    // ── Run picker ────────────────────────────────────────────
+    async function showRunPicker() {
+        document.getElementById('runPicker').style.display = 'block';
+        const sel = document.getElementById('runPickerSelect');
+        try {
+            const resp = await fetch('/api/results/runs?limit=100');
+            const runs = resp.ok ? await resp.json() : [];
+            const adhocRuns = runs.filter(r => r.storage === 'adhoc' && r.runId);
+            if (adhocRuns.length === 0) {
+                sel.innerHTML = '<option value="">— no saved runs found —</option>';
+            } else {
+                sel.innerHTML = '<option value="">— select a run —</option>' +
+                    adhocRuns.map(r => {
+                        const ts  = r.timestamp ? new Date(r.timestamp).toLocaleString() : '';
+                        const sp  = r.screeningProgress || {};
+                        const pct = sp.total > 0 ? ` · ${sp.screened}/${sp.total} screened` : '';
+                        const q   = r.query ? r.query.slice(0, 60) + (r.query.length > 60 ? '…' : '') : '(no query)';
+                        return `<option value="${escapeHtml(r.runId)}" data-run='${escapeHtml(JSON.stringify(r))}'>${ts} — ${escapeHtml(q)} (${r.included} papers${pct})</option>`;
+                    }).join('');
+                document.getElementById('runPickerBtn').disabled = false;
+            }
+        } catch(e) {
+            sel.innerHTML = '<option value="">— could not load runs —</option>';
+        }
+        sel.addEventListener('change', function() {
+            const opt = sel.selectedOptions[0];
+            const meta = document.getElementById('runPickerMeta');
+            if (!opt || !opt.value) { meta.style.display = 'none'; return; }
+            try {
+                const r  = JSON.parse(opt.dataset.run || '{}');
+                const sp = r.screeningProgress || {};
+                const dbs = Array.isArray(r.databases) ? r.databases.join(', ') : '—';
+                const ts  = r.timestamp ? new Date(r.timestamp).toLocaleString() : '—';
+                meta.style.display = 'block';
+                meta.innerHTML =
+                    `<strong>Query:</strong> ${escapeHtml(r.query || '(none)')}<br>` +
+                    `<strong>Date:</strong> ${escapeHtml(ts)}<br>` +
+                    `<strong>Databases:</strong> ${escapeHtml(dbs)}<br>` +
+                    `<strong>Papers:</strong> ${r.included || 0} &nbsp;|&nbsp; ` +
+                    `<strong>Screened:</strong> ${sp.screened || 0}/${sp.total || 0}` +
+                    (sp.screened > 0 ? ` &nbsp;(✅ ${sp.included} included · <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> ${sp.excluded} excluded · <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M6 6.2a2 2 0 013.8 1c0 1.5-2 1.5-2 3"/><circle cx="8" cy="12" r="0.5" fill="currentColor" stroke="none"/></svg> ${sp.unsure} unsure)` : '');
+            } catch(e) { document.getElementById('runPickerMeta').style.display = 'none'; }
+            document.getElementById('runPickerBtn').disabled = !opt.value;
+        });
+    }
+
+    async function pickAndLoad() {
+        const sel = document.getElementById('runPickerSelect');
+        const runId = sel.value;
+        if (!runId) return;
+        document.getElementById('runPicker').style.display = 'none';
+        await loadFromServer(runId);
+    }
+
+    async function loadFromServer(runId) {
+        try {
+            const resp = await fetch('/api/results/run/adhoc/' + encodeURIComponent(runId));
+            if (!resp.ok) throw new Error('Run not found');
+            const run = await resp.json();
+            if (run.error) throw new Error(run.error);
+            _runId   = runId;
+            _runMeta = { query: run.query || '', timestamp: run.timestamp || '', databases: run.databases || [] };
+            _papers    = run.docs || [];
+            _decisions = run.screeningDecisions || {};
+
+            if (_papers.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                return;
+            }
+            document.getElementById('screeningApp').style.display = 'block';
+
+            const ts  = _runMeta.timestamp ? ' · ' + new Date(_runMeta.timestamp).toLocaleString() : '';
+            const dbs = _runMeta.databases.length ? ' · ' + _runMeta.databases.join(', ') : '';
+            document.getElementById('sourceLabel').innerHTML =
+                escapeHtml(_papers.length.toLocaleString() + ' papers') +
+                (_runMeta.query ? ' · <em>' + escapeHtml(_runMeta.query) + '</em>' : '') +
+                escapeHtml(dbs + ts);
+
+            // Remember this run so PRISMA page can pick it up
+            localStorage.setItem('lastScreeningRunId', runId);
+
+            jumpToFirstUnscreened();
+            renderProgress();
+        } catch(e) {
+            showToast('Could not load run from server — falling back to local data.', 'warning');
+            loadFromLocalStorage();
+        }
+    }
+
+    function loadFromLocalStorage() {
+        _runId = null;
+        document.getElementById('runPicker').style.display = 'none';
+        let raw;
+        try { raw = localStorage.getItem(RESULTS_KEY); } catch(e) { raw = null; }
+        _papers = raw ? JSON.parse(raw) : [];
+        if (_papers.length === 0) {
+            document.getElementById('emptyState').style.display = 'block';
+            return;
+        }
+        document.getElementById('screeningApp').style.display = 'block';
+        document.getElementById('sourceLabel').textContent =
+            `${_papers.length.toLocaleString()} papers from last search`;
+        loadDecisions();
+        jumpToFirstUnscreened();
+        renderProgress();
+    }
+
+    // ── Paper ID ──────────────────────────────────────────────
+    function paperId(doc) {
+        if (doc.doi) return 'doi:' + doc.doi.toLowerCase().trim();
+        return 'title:' + (doc.title || '').toLowerCase().trim();
+    }
+
+    // ── Decisions persistence ─────────────────────────────────
+    function loadDecisions() {
+        try {
+            _decisions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        } catch(e) { _decisions = {}; }
+    }
+
+    function saveDecisions() {
+        if (_runId) return;  // server-side mode: decisions go to server, not localStorage
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(_decisions));
+        } catch(e) { showToast('Could not save decision — localStorage full.', 'warning'); }
+    }
+
+    // ── Server-side decision helpers ───────────────────────────
+    // A 4xx/5xx response resolves fetch() normally, so resp.ok must be
+    // checked — otherwise failed saves are silently acknowledged and the
+    // researcher's screening work is lost on reload.
+    function _serverSaveDecision(pId, decision, reason, ai) {
+        if (!_runId) return;
+        const body = {paperId: pId, decision: decision, reason: reason};
+        if (ai) { body.aiAssisted = true; body.aiModel = ai.model || ''; }
+        fetch('/api/results/run/adhoc/' + encodeURIComponent(_runId) + '/screening/decision', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        }).then(resp => {
+            if (!resp.ok) showToast(`Warning: decision was NOT saved to server (HTTP ${resp.status}).`, 'error');
+        }).catch(() => showToast('Warning: decision may not have been saved to server.', 'warning'));
+    }
+
+    function _serverDeleteDecision(pId) {
+        if (!_runId) return;
+        fetch('/api/results/run/adhoc/' + encodeURIComponent(_runId) + '/screening/decision', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({paperId: pId})
+        }).then(resp => {
+            if (!resp.ok) showToast(`Warning: decision was NOT removed on server (HTTP ${resp.status}).`, 'error');
+        }).catch(() => showToast('Warning: could not remove decision from server.', 'warning'));
+    }
+
+    function _serverResetAll() {
+        if (!_runId) return Promise.resolve();
+        return fetch('/api/results/run/adhoc/' + encodeURIComponent(_runId) + '/screening', {
+            method: 'DELETE'
+        }).then(resp => {
+            if (resp && !resp.ok) showToast(`Warning: reset failed on server (HTTP ${resp.status}).`, 'error');
+        }).catch(() => showToast('Warning: could not reset decisions on server.', 'warning'));
+    }
+
+    // ── Navigation helper ─────────────────────────────────────
+    function jumpToFirstUnscreened() {
+        const first = _papers.findIndex(p => !_decisions[paperId(p)]);
+        _current = first >= 0 ? first : 0;
+        renderPaper(_current);
+    }
+
+    // ── Render current paper ──────────────────────────────────
+    function renderPaper(idx) {
+        if (_papers.length === 0) return;
+        _current = Math.max(0, Math.min(idx, _papers.length - 1));
+        const doc = _papers[_current];
+        const id  = paperId(doc);
+        const dec = _decisions[id];
+
+        // Source badge
+        const src = (doc.source || 'unknown').toLowerCase().replace(/[^a-z]/g,'');
+        const srcCls = `source-badge source-${src}`;
+        document.getElementById('pcSource').innerHTML =
+            `<span class="${srcCls}">${escapeHtml(doc.source || 'unknown')}</span>` +
+            (dec ? `<span class="decision-indicator di-${dec.decision}">${decIcon(dec.decision)} ${cap(dec.decision)}${dec.reason ? ' — ' + escapeHtml(dec.reason) : ''}</span>` : '');
+
+        // Title
+        const titleHtml = doc.url
+            ? `<a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener">${escapeHtml(doc.title || 'No title')}</a>`
+            : escapeHtml(doc.title || 'No title');
+        document.getElementById('pcTitle').innerHTML = titleHtml;
+
+        // Meta
+        const parts = [];
+        if (doc.authors) parts.push(doc.authors);
+        if (doc.year)    parts.push(doc.year);
+        if (doc.journal) parts.push(`<em>${escapeHtml(doc.journal)}</em>`);
+        document.getElementById('pcMeta').innerHTML = parts.map(escapeHtml).join(' · ')
+            .replace(escapeHtml(doc.journal || ''), `<em>${escapeHtml(doc.journal || '')}</em>`);
+        // redo meta properly
+        const metaParts = [];
+        if (doc.authors) metaParts.push(escapeHtml(doc.authors));
+        if (doc.year)    metaParts.push(String(doc.year));
+        if (doc.journal) metaParts.push(`<em>${escapeHtml(doc.journal)}</em>`);
+        document.getElementById('pcMeta').innerHTML = metaParts.join(' &nbsp;·&nbsp; ');
+
+        // DOI
+        document.getElementById('pcDoi').innerHTML = doc.doi
+            ? `<a href="https://doi.org/${escapeHtml(doc.doi)}" target="_blank" rel="noopener">https://doi.org/${escapeHtml(doc.doi)}</a>`
+            : '';
+
+        // Abstract
+        const abs = doc.abstract || '';
+        document.getElementById('pcAbstract').innerHTML = abs
+            ? escapeHtml(abs).replace(/\n/g, '<br>')
+            : '<span class="pc-abstract-placeholder">Abstract not available.</span>';
+
+        // Decision button states
+        document.getElementById('btnInclude').classList.toggle('active', dec && dec.decision === 'include');
+        document.getElementById('btnUnsure').classList.toggle('active',  dec && dec.decision === 'unsure');
+        document.getElementById('btnExclude').classList.toggle('active', dec && dec.decision === 'exclude');
+
+        // Reset reason row
+        _pendingDecision = null;
+        document.getElementById('reasonRow').classList.remove('visible');
+        document.getElementById('reasonPreset').value = '';
+        document.getElementById('reasonCustom').style.display = 'none';
+        document.getElementById('reasonCustom').value = '';
+
+        // Navigation state
+        document.getElementById('positionLabel').textContent = `${_current + 1} / ${_papers.length}`;
+        document.getElementById('btnPrev').disabled = _current === 0;
+        document.getElementById('btnNext').disabled = _current === _papers.length - 1;
+
+        renderAiSuggestion(id, !!dec);
+    }
+
+    // ── AI Screening Assistant ────────────────────────────────
+    // The assistant only SUGGESTS: nothing is saved until the reviewer
+    // clicks Accept (or decides manually). Accepted decisions carry
+    // aiAssisted provenance for PRISMA item 8 / AI-disclosure reporting.
+    let _aiConfig = null;
+    let _aiSuggestions = {};
+    let _aiBatchRunning = false;
+
+    (async function loadAiConfig() {
+        try {
+            const resp = await fetch('/api/ai-config');
+            if (!resp.ok) return;
+            _aiConfig = await resp.json();
+            if (_aiConfig && _aiConfig.enabled) {
+                document.getElementById('btnAskAi').style.display = '';
+                document.getElementById('btnAiBatch').style.display = '';
+            }
+        } catch (e) { /* assistant stays hidden */ }
+    })();
+
+    function _aiContext() {
+        let query = (_runMeta && _runMeta.query) || '';
+        const filters = {};
+        try {
+            const state = JSON.parse(localStorage.getItem('searchFormState') || '{}');
+            if (!query) query = state.keywords || '';
+            const split = v => String(v || '').split(',').map(t => t.trim()).filter(Boolean);
+            filters.includeTerms = split(state.includeTerms);
+            filters.excludeTerms = split(state.excludeTerms);
+            if (state.yearFrom) filters.yearFrom = state.yearFrom;
+            if (state.yearTo) filters.yearTo = state.yearTo;
+        } catch (e) { /* context is best-effort */ }
+        return { query, filters };
+    }
+
+    function renderAiSuggestion(id, decided) {
+        const box = document.getElementById('aiSuggestBox');
+        const sug = _aiSuggestions[id];
+        if (!sug || decided) { box.style.display = 'none'; return; }
+        box.style.display = 'block';
+        box.innerHTML =
+            `<strong>AI suggests: ${cap(escapeHtml(sug.decision))}</strong>` +
+            ` <span style="color:#6d28d9;">(confidence ${sug.confidence}%)</span>` +
+            (sug.reason ? ` — ${escapeHtml(sug.reason)}` : '') +
+            `<div style="margin-top:0.45rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">` +
+            `<button class="btn btn-primary btn-sm" onclick="acceptAiSuggestion()">Accept suggestion</button>` +
+            `<span style="font-size:0.75rem;color:#7c3aed;">model: ${escapeHtml(sug.model || '')} · you remain the reviewer of record</span>` +
+            `</div>`;
+    }
+
+    async function _fetchAiSuggestions(docs) {
+        const ctx = _aiContext();
+        const papers = docs.map(d => ({
+            paperId: paperId(d),
+            title: d.title || '',
+            abstract: d.abstract || '',
+            year: d.year || '',
+            journal: d.journal || '',
+        }));
+        const resp = await fetch('/api/ai/screen-suggest', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ papers, query: ctx.query, filters: ctx.filters })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || ('HTTP ' + resp.status));
+        Object.assign(_aiSuggestions, data.suggestions || {});
+        return data;
+    }
+
+    async function askAiCurrent() {
+        const doc = _papers[_current];
+        if (!doc) return;
+        const btn = document.getElementById('btnAskAi');
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = 'Asking…';
+        try {
+            const data = await _fetchAiSuggestions([doc]);
+            if (data.errors && data.errors.length) {
+                showToast('AI error: ' + data.errors[0].error, 'error');
+            }
+            renderPaper(_current);
+        } catch (e) {
+            showToast('AI request failed: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    }
+
+    async function askAiBatch() {
+        if (_aiBatchRunning) return;
+        const unscreened = _papers.filter(p => !_decisions[paperId(p)] && !_aiSuggestions[paperId(p)]);
+        if (!unscreened.length) { showToast('Nothing left to suggest — all papers are screened or already have suggestions.', 'info'); return; }
+        _aiBatchRunning = true;
+        const btn = document.getElementById('btnAiBatch');
+        btn.disabled = true;
+        let done = 0, failed = 0;
+        try {
+            for (let i = 0; i < unscreened.length; i += 10) {
+                const chunk = unscreened.slice(i, i + 10);
+                btn.innerHTML = `AI: ${done}/${unscreened.length}…`;
+                try {
+                    const data = await _fetchAiSuggestions(chunk);
+                    failed += (data.errors || []).length;
+                } catch (e) {
+                    failed += chunk.length;
+                }
+                done += chunk.length;
+            }
+            showToast(`AI suggestions ready for ${done - failed} paper${done - failed === 1 ? '' : 's'}${failed ? ` (${failed} failed)` : ''}.`, failed ? 'warning' : 'success');
+            renderPaper(_current);
+        } finally {
+            _aiBatchRunning = false;
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI-suggest unscreened';
+        }
+    }
+
+    function acceptAiSuggestion() {
+        const doc = _papers[_current];
+        const id = paperId(doc);
+        const sug = _aiSuggestions[id];
+        if (!sug) return;
+        commitDecision(sug.decision, sug.reason || '', { model: sug.model || '' });
+    }
+
+    function decIcon(d) {
+        if (d === 'include') return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#16a34a;"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg>';
+        if (d === 'exclude') return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#dc2626;"><circle cx="8" cy="8" r="6.5"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg>';
+        return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;color:#d97706;"><circle cx="8" cy="8" r="6.5"/><path d="M6 6.2a2 2 0 013.8 1c0 1.5-2 1.5-2 3"/><circle cx="8" cy="12" r="0.5" fill="currentColor" stroke="none"/></svg>';
+    }
+    function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : ''; }
+
+    // ── Decision flow ─────────────────────────────────────────
+    function decide(decision) {
+        _pendingDecision = decision;
+
+        // Highlight the chosen button
+        ['include','unsure','exclude'].forEach(d => {
+            document.getElementById('btn' + cap(d)).classList.toggle('active', d === decision);
+        });
+
+        if (decision === 'exclude') {
+            // Show reason panel
+            document.getElementById('reasonRow').classList.add('visible');
+            document.getElementById('reasonPreset').focus();
+        } else {
+            // Include / Unsure — no reason needed, commit immediately
+            document.getElementById('reasonRow').classList.remove('visible');
+            commitDecision(decision, '');
+        }
+    }
+
+    function syncReasonPreset() {
+        const val = document.getElementById('reasonPreset').value;
+        const customInput = document.getElementById('reasonCustom');
+        if (val === 'custom') {
+            customInput.style.display = 'block';
+            customInput.focus();
+        } else {
+            customInput.style.display = 'none';
+            customInput.value = '';
+        }
+    }
+
+    function confirmDecision() {
+        if (!_pendingDecision) return;
+        const preset = document.getElementById('reasonPreset').value;
+        const custom = document.getElementById('reasonCustom').value.trim();
+        const reason = preset === 'custom' ? custom : (preset || '');
+        commitDecision(_pendingDecision, reason);
+    }
+
+    function commitDecision(decision, reason, ai) {
+        const doc = _papers[_current];
+        const id  = paperId(doc);
+        const entry = { decision, reason, ts: new Date().toISOString() };
+        if (ai) { entry.aiAssisted = true; entry.aiModel = ai.model || ''; }
+        _decisions[id] = entry;
+        saveDecisions();
+        _serverSaveDecision(id, decision, reason, ai);
+        renderProgress();
+
+        // Show feedback briefly then advance to next unscreened
+        renderPaper(_current); // re-render to show badge
+        setTimeout(() => {
+            const next = findNextUnscreened(_current + 1);
+            if (next !== null) {
+                renderPaper(next);
+            }
+        }, 280);
+    }
+
+    function findNextUnscreened(from) {
+        for (let i = from; i < _papers.length; i++) {
+            if (!_decisions[paperId(_papers[i])]) return i;
+        }
+        return null;
+    }
+
+    // ── Navigation ────────────────────────────────────────────
+    function navigate(delta) {
+        renderPaper(_current + delta);
+    }
+
+    function jumpToUnscreened() {
+        const next = findNextUnscreened(_current);
+        // wrap around
+        const wrapped = next !== null ? next : findNextUnscreened(0);
+        if (wrapped !== null) renderPaper(wrapped);
+        else showToast('All papers have been screened! 🎉', 'success');
+    }
+
+    function jumpTo() {
+        const val = parseInt(document.getElementById('jumpInput').value) - 1;
+        if (!isNaN(val) && val >= 0 && val < _papers.length) {
+            renderPaper(val);
+            document.getElementById('jumpInput').value = '';
+        }
+    }
+
+    // ── Progress ──────────────────────────────────────────────
+    function renderProgress() {
+        let inc = 0, exc = 0, uns = 0;
+        _papers.forEach(p => {
+            const d = _decisions[paperId(p)];
+            if (!d) return;
+            if (d.decision === 'include') inc++;
+            else if (d.decision === 'exclude') exc++;
+            else uns++;
+        });
+        const total   = _papers.length;
+        const done    = inc + exc + uns;
+        const pending = total - done;
+        const pct     = total > 0 ? Math.round(done / total * 100) : 0;
+
+        document.getElementById('progressBar').style.width  = pct + '%';
+        document.getElementById('progressLabel').textContent = `${done} / ${total} screened (${pct}%)`;
+        document.getElementById('countInclude').textContent  = inc;
+        document.getElementById('countExclude').textContent  = exc;
+        document.getElementById('countUnsure').textContent   = uns;
+        document.getElementById('countPending').textContent  = pending;
+
+        // Update PRISMA T&A screening data in localStorage (use 'taScreening' to avoid
+        // overwriting the automated filter counts stored under 'screening').
+        // Guards: never create a partial lastPrismaData from scratch (it would
+        // crash the PRISMA page), and never graft counts from a different run
+        // onto another search's PRISMA flow.
+        try {
+            const pd = JSON.parse(localStorage.getItem('lastPrismaData') || 'null');
+            const sameRun = !_runId || !pd || !pd.runId || pd.runId === _runId;
+            if (pd && pd.identification && sameRun) {
+                // Per-reason exclusion histogram feeds PRISMA item 16b;
+                // AI-assistance provenance feeds PRISMA item 8 disclosure
+                const reasonCounts = {};
+                let aiAssisted = 0;
+                const aiModels = {};
+                Object.values(_decisions).forEach(function(d) {
+                    if (!d) return;
+                    if (d.decision === 'exclude') {
+                        const r = (d.reason || '').trim() || 'No reason given';
+                        reasonCounts[r] = (reasonCounts[r] || 0) + 1;
+                    }
+                    if (d.aiAssisted) {
+                        aiAssisted++;
+                        if (d.aiModel) aiModels[d.aiModel] = true;
+                    }
+                });
+                pd.taScreening = {
+                    screened:  done,
+                    included:  inc,
+                    excluded:  exc,
+                    unsure:    uns,
+                    total:     total,
+                    runId:     _runId || pd.runId || null,
+                    reasonCounts: reasonCounts,
+                    aiAssisted: aiAssisted,
+                    aiModels: Object.keys(aiModels),
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('lastPrismaData', JSON.stringify(pd));
+            }
+        } catch(e) {}
+    }
+
+    // ── Tabs ──────────────────────────────────────────────────
+    function switchTab(tab) {
+        document.getElementById('panelScreen').classList.toggle('active', tab === 'screen');
+        document.getElementById('panelSummary').classList.toggle('active', tab === 'summary');
+        document.getElementById('tabScreen').classList.toggle('active', tab === 'screen');
+        document.getElementById('tabSummary').classList.toggle('active', tab === 'summary');
+        if (tab === 'summary') renderSummary();
+    }
+
+    // ── Summary ───────────────────────────────────────────────
+    function renderSummary() {
+        const filter = document.getElementById('summaryFilter').value;
+        const search = document.getElementById('summarySearch').value.toLowerCase();
+
+        const rows = _papers.map((p, i) => {
+            const id  = paperId(p);
+            const dec = _decisions[id];
+            const decVal = dec ? dec.decision : 'pending';
+            if (filter !== 'all' && filter !== decVal) return null;
+            if (search && !(p.title || '').toLowerCase().includes(search)) return null;
+            return { p, i, dec, decVal };
+        }).filter(Boolean);
+
+        document.getElementById('summaryCount').textContent = `${rows.length} paper${rows.length !== 1 ? 's' : ''}`;
+
+        const tbody = document.getElementById('summaryBody');
+        if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--c-text-3); padding:2rem;">No papers match this filter.</td></tr>';
+            return;
+        }
+
+        const src = (doc) => (doc.source || 'unknown').toLowerCase().replace(/[^a-z]/g,'');
+
+        tbody.innerHTML = rows.map(({ p, i, dec, decVal }) => {
+            const rowCls = dec ? `hi-${dec.decision}` : '';
+            const decBadge = dec
+                ? `<span class="decision-indicator di-${dec.decision}">${decIcon(dec.decision)} ${cap(dec.decision)}</span>`
+                : `<span style="color:var(--c-text-3); font-size:var(--text-xs);">unscreened</span>`;
+            return `<tr class="${rowCls}">
+                <td style="color:var(--c-text-2); font-size:var(--text-xs);">${i + 1}</td>
+                <td>
+                    ${p.url
+                        ? `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener" style="color:var(--c-primary); font-weight:500;">${escapeHtml(p.title || 'No title')}</a>`
+                        : `<span style="font-weight:500;">${escapeHtml(p.title || 'No title')}</span>`}
+                </td>
+                <td>${p.year || ''}</td>
+                <td><span class="source-badge source-${src(p)}">${escapeHtml(p.source || '')}</span></td>
+                <td>${decBadge}</td>
+                <td style="color:var(--c-text-2); font-size:var(--text-xs);">${dec && dec.reason ? escapeHtml(dec.reason) : ''}</td>
+                <td>
+                    <button class="btn btn-ghost btn-sm" onclick="goToPaper(${i})" title="Open in screen view"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.5" y1="9.5" x2="14" y2="14"/></svg></button>
+                    ${dec ? `<button class="btn btn-neutral btn-sm" onclick="clearDecision('${id}')" title="Clear decision" style="margin-left:0.25rem;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg></button>` : ''}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function goToPaper(idx) {
+        switchTab('screen');
+        renderPaper(idx);
+    }
+
+    function clearDecision(id) {
+        delete _decisions[id];
+        saveDecisions();
+        _serverDeleteDecision(id);
+        renderProgress();
+        renderSummary();
+        renderPaper(_current);
+    }
+
+    // ── Reset all ─────────────────────────────────────────────
+    function resetDecisions() {
+        showConfirmModal({
+            icon: RSP_ICONS.trash,
+            title: 'Reset all screening decisions?',
+            message: 'All include/exclude/unsure decisions will be permanently cleared. This cannot be undone.',
+            confirmLabel: 'Yes, reset all',
+            cancelLabel: 'Keep decisions',
+            onConfirm: async function() {
+                _decisions = {};
+                saveDecisions();
+                await _serverResetAll();
+                renderProgress();
+                renderPaper(_current);
+                if (document.getElementById('panelSummary').classList.contains('active')) renderSummary();
+                showToast('All decisions reset.', 'info');
+            }
+        });
+    }
+
+    // ── Export CSV ────────────────────────────────────────────
+    function exportScreeningCSV() {
+        const rows = [['#','Title','Authors','Year','Source','DOI','Decision','Reason','Timestamp']];
+        _papers.forEach((p, i) => {
+            const dec = _decisions[paperId(p)];
+            rows.push([
+                i + 1,
+                p.title || '',
+                p.authors || '',
+                p.year || '',
+                p.source || '',
+                p.doi || '',
+                dec ? dec.decision : 'unscreened',
+                dec ? (dec.reason || '') : '',
+                dec ? dec.ts : ''
+            ]);
+        });
+        // Neutralize spreadsheet formula injection (=, +, -, @ prefixes) —
+        // titles come from external APIs and this file is opened in Excel.
+        const csvCell = v => {
+            let s = String(v);
+            if (/^[=+\-@]/.test(s)) s = "'" + s;
+            return `"${s.replace(/"/g,'""')}"`;
+        };
+        // BOM so Excel opens the file as UTF-8 (accented author names)
+        const csv = '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `screening_decisions_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Screening decisions exported as CSV.', 'success');
+    }
+
+    // ── Utility ───────────────────────────────────────────────
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+</script>
+{% endblock %}

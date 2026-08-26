@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – Feedback{% endblock %}
+{% block head_extra %}
+<style>
+        .container { width: 100%; max-width: 1100px; margin: 0 auto; box-sizing: border-box; }
+        h1 { text-align: center; margin-bottom: 0.5rem; color: #2c3e50; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 2rem; font-size: 1.05rem; }
+
+
+        /* Form card */
+        .form-card {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+        .form-card h2 {
+            color: #2c3e50;
+            font-size: 1.2rem;
+            margin-bottom: 0.3rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.4rem;
+        }
+        .form-card .section-desc {
+            font-size: 0.88rem;
+            color: #777;
+            margin-bottom: 1.2rem;
+            font-style: italic;
+        }
+
+        /* Fields */
+        .field {
+            margin-bottom: 1.3rem;
+        }
+        .field label {
+            display: block;
+            font-size: 0.93rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.35rem;
+        }
+        .field label .required::after {
+            content: ' *';
+            color: #e74c3c;
+        }
+        .field textarea { min-height: 100px; }
+        .field .hint {
+            font-size: 0.78rem;
+            color: #aaa;
+            margin-top: 0.25rem;
+        }
+        .field.has-error input,
+        .field.has-error textarea,
+        .field.has-error select { border-color: #e74c3c; }
+        .field .error-msg {
+            color: #e74c3c;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+            display: none;
+        }
+        .field.has-error .error-msg { display: block; }
+
+        /* Radio group */
+        .radio-group {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.3rem;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border: 2px solid #eee;
+            border-radius: 6px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .radio-group label:hover { border-color: #3498db; background: #f0f8ff; }
+        .radio-group input[type="radio"]:checked + span { color: #2c3e50; font-weight: 700; }
+        .radio-group label:has(input:checked) {
+            border-color: #3498db;
+            background: #eaf5fc;
+        }
+        .radio-group input[type="radio"] {
+            width: 16px; height: 16px;
+            accent-color: #3498db;
+        }
+        .bug-icon { display:inline-flex; align-items:center; gap:0.4rem; }
+        .feat-icon { display:inline-flex; align-items:center; gap:0.4rem; }
+
+        /* Conditional fields */
+        .bug-only { transition: opacity 0.3s ease; }
+        .bug-only.hidden { opacity: 0; height: 0; overflow: hidden; margin: 0; padding: 0; pointer-events: none; }
+        .bug-only:not(.hidden) { opacity: 1; height: auto; overflow: visible; }
+
+
+
+        /* Buttons */
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            padding: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+        /* Priority select — width constraint only */
+        .priority-select { max-width: 320px; }
+
+        @media (max-width: 600px) {
+            .container { padding: 0 1rem 1rem; }
+            .radio-group { flex-direction: column; gap: 0.6rem; }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <form id="feedbackForm" novalidate>
+            <!-- Submission Type -->
+            <div class="form-card">
+                <h2>Submission</h2>
+                <p class="section-desc">Choose whether you are reporting a bug or proposing a new feature.</p>
+
+                <div class="field">
+                    <label><span class="required">Submission type</span></label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="type" value="bug" checked>
+                            <span class="bug-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="9" r="3.5"/><path d="M6 5.5a2 2 0 014 0v1.5"/><line x1="4.5" y1="7.5" x2="2.5" y2="5.5"/><line x1="11.5" y1="7.5" x2="13.5" y2="5.5"/><line x1="4.5" y1="10" x2="2" y2="10"/><line x1="11.5" y1="10" x2="14" y2="10"/><line x1="4.5" y1="12.5" x2="2.5" y2="14"/><line x1="11.5" y1="12.5" x2="13.5" y2="14"/></svg>Bug Report</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="feature">
+                            <span class="feat-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2a4 4 0 014 4c0 2-1 3-1.5 4h-5C5 9 4 8 4 6a4 4 0 014-4z"/><line x1="6.5" y1="10" x2="9.5" y2="10"/><line x1="7" y1="11.5" x2="9" y2="11.5"/><line x1="7.5" y1="13" x2="8.5" y2="13"/></svg>Feature Request</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="fbTitle"><span class="required">Title / Short Summary</span></label>
+                    <input type="text" id="fbTitle" name="title" required placeholder="e.g. Search results do not load when using IEEE" aria-required="true">
+                    <div class="error-msg">Please provide a short title.</div>
+                </div>
+
+                <div class="field">
+                    <label for="fbDescription"><span class="required">Detailed Description</span></label>
+                    <textarea id="fbDescription" name="description" required placeholder="Describe the issue or your idea in detail..." aria-required="true"></textarea>
+                    <div class="error-msg">Please provide a description.</div>
+                </div>
+            </div>
+
+            <!-- Bug-specific fields -->
+            <div class="form-card bug-only" id="bugFields">
+                <h2>Bug Details</h2>
+                <p class="section-desc">These fields help reproduce and diagnose the issue (optional but helpful).</p>
+
+                <div class="field">
+                    <label for="fbSteps">Steps to Reproduce</label>
+                    <textarea id="fbSteps" name="steps" placeholder="1. Go to the Search page&#10;2. Enter 'machine learning' as keyword&#10;3. Select only IEEE&#10;4. Click Search Papers&#10;5. Observe: no results appear"></textarea>
+                    <div class="hint">List the steps someone would follow to encounter this bug.</div>
+                </div>
+
+                <div class="field">
+                    <label for="fbExpected">Expected Behaviour</label>
+                    <textarea id="fbExpected" name="expected" placeholder="What should happen? e.g. Results from IEEE should appear below the search box." style="min-height:70px;"></textarea>
+                </div>
+
+                <div class="field">
+                    <label for="fbActual">Actual Behaviour</label>
+                    <textarea id="fbActual" name="actual" placeholder="What actually happens? e.g. The page shows 'No results found' with no error message." style="min-height:70px;"></textarea>
+                </div>
+            </div>
+
+            <!-- Common fields -->
+            <div class="form-card">
+                <h2>Additional Information</h2>
+
+                <div class="field">
+                    <label for="fbPriority">Impact / Priority</label>
+                    <select id="fbPriority" name="priority" class="priority-select">
+                        <option value="low">Low — cosmetic or minor inconvenience</option>
+                        <option value="medium" selected>Medium — affects workflow but has workaround</option>
+                        <option value="high">High — blocks important functionality</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="fbEmail">Your Email (optional)</label>
+                    <input type="email" id="fbEmail" name="contact_email" placeholder="your.email@example.com">
+                    <div class="hint">Only if you'd like us to follow up with you about this submission.</div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-danger" onclick="confirmClearFeedback()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.3em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 107-7"/></svg> Start Over</button>
+                <button type="button" id="fbSubmitBtn" class="btn btn-primary" onclick="submitFeedback()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.3em"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> Submit</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ── Email options modal ── -->
+    <div id="feedbackEmailModal" role="dialog" aria-modal="true" aria-labelledby="femTitle"
+         style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);
+                z-index:10000;align-items:center;justify-content:center;padding:1rem;">
+      <div style="background:#fff;border-radius:12px;padding:2rem 2.25rem;max-width:440px;
+                  width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.2);text-align:center;">
+        <div style="font-size:2rem;margin-bottom:0.6rem;">&#128231;</div>
+        <h3 id="femTitle" style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:0.5rem;">
+          How would you like to send the feedback?
+        </h3>
+        <p id="femDesc" style="font-size:0.875rem;color:#475569;line-height:1.55;margin-bottom:1.5rem;"></p>
+        <div style="display:flex;flex-direction:column;gap:0.6rem;">
+          <button class="btn btn-primary" onclick="openMailtoFeedback()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.3em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Open in My Email App
+          </button>
+          <button class="btn btn-neutral" onclick="window.location.href='/settings#smtp'">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.3em"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg> Configure SMTP in Settings
+          </button>
+          <button class="btn btn-ghost" onclick="closeFeedbackEmailModal()">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // --- Toggle bug-only fields based on submission type ---
+        const typeRadios = document.querySelectorAll('input[name="type"]');
+        const bugFields = document.getElementById('bugFields');
+
+        function updateTypeVisibility() {
+            const isBug = document.querySelector('input[name="type"]:checked').value === 'bug';
+            if (isBug) {
+                bugFields.classList.remove('hidden');
+            } else {
+                bugFields.classList.add('hidden');
+            }
+        }
+        typeRadios.forEach(r => r.addEventListener('change', updateTypeVisibility));
+        updateTypeVisibility();
+
+        // --- Validation ---
+        function validate() {
+            let valid = true;
+            const title = document.getElementById('fbTitle');
+            const desc = document.getElementById('fbDescription');
+
+            // Clear previous errors
+            document.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
+
+            if (!title.value.trim()) {
+                title.closest('.field').classList.add('has-error');
+                valid = false;
+            }
+            if (!desc.value.trim()) {
+                desc.closest('.field').classList.add('has-error');
+                valid = false;
+            }
+            return valid;
+        }
+
+        // --- Clear Form ---
+        function confirmClearFeedback() {
+            showConfirmModal({
+                icon: RSP_ICONS.trash,
+                title: 'Clear this form?',
+                message: 'All fields will be cleared and the form will return to its default state. Any information you have entered will be lost.',
+                confirmLabel: 'Yes, clear it',
+                cancelLabel: 'Keep my input',
+                onConfirm: function() {
+                    document.getElementById('feedbackForm').reset();
+                    document.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
+                    updateTypeVisibility();
+                }
+            });
+        }
+
+        // --- Email modal helpers ---
+        let _feedbackMailtoData = null;
+
+        function closeFeedbackEmailModal() {
+            document.getElementById('feedbackEmailModal').style.display = 'none';
+        }
+
+        document.getElementById('feedbackEmailModal').addEventListener('click', function(e) {
+            if (e.target === this) closeFeedbackEmailModal();
+        });
+
+        function openMailtoFeedback() {
+            const d = _feedbackMailtoData || collectData();
+            const recipient = 'edu.f.ribeiro@gmail.com';
+            const typeLabel = d.type === 'bug' ? 'Bug Report' : 'Feature Request';
+            const subject   = encodeURIComponent('[Review Sentinel Prime] ' + typeLabel + ': ' + d.title);
+
+            let body = 'Review Sentinel Prime – ' + typeLabel + '\r\n';
+            body += '==============================\r\n\r\n';
+            body += 'Title: '       + (d.title       || '(none)') + '\r\n';
+            body += 'Type: '        + typeLabel                    + '\r\n';
+            body += 'Priority: '    + (d.priority    || '(none)') + '\r\n';
+            body += 'Contact: '     + (d.contactEmail || '(not provided)') + '\r\n\r\n';
+            body += 'DESCRIPTION\r\n' + (d.description || '(none)') + '\r\n\r\n';
+            if (d.type === 'bug') {
+                body += 'STEPS TO REPRODUCE\r\n' + (d.steps    || '(not provided)') + '\r\n\r\n';
+                body += 'EXPECTED BEHAVIOUR\r\n'  + (d.expected || '(not provided)') + '\r\n\r\n';
+                body += 'ACTUAL BEHAVIOUR\r\n'    + (d.actual   || '(not provided)') + '\r\n';
+            }
+
+            window.location.href = 'mailto:' + recipient + '?subject=' + subject + '&body=' + encodeURIComponent(body);
+            closeFeedbackEmailModal();
+        }
+
+        // --- Submit ---
+        async function submitFeedback() {
+            // Validate required fields first
+            if (!validate()) {
+                showToast('Please fill in all required fields (marked with *).', 'warning');
+                const firstErr = document.querySelector('.field.has-error input, .field.has-error textarea');
+                if (firstErr) firstErr.focus();
+                return;
+            }
+
+            _feedbackMailtoData = collectData();
+
+            const btn = document.getElementById('fbSubmitBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Sending…';
+
+            try {
+                const resp = await fetch('/api/submit-feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_feedbackMailtoData)
+                });
+                const result = await resp.json();
+                if (resp.ok && result.ok) {
+                    showToast('Feedback submitted successfully! Thank you.', 'success', 6000);
+                    document.getElementById('feedbackForm').reset();
+                    document.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
+                    updateTypeVisibility();
+                } else {
+                    document.getElementById('femDesc').textContent =
+                        'Automatic submission is not configured on this installation. You can send the ' +
+                        'feedback directly from your email app (Outlook, Apple Mail, Gmail, etc.), or set ' +
+                        'up SMTP in Settings for automatic sending.';
+                    document.getElementById('feedbackEmailModal').style.display = 'flex';
+                }
+            } catch (err) {
+                showToast('Network error – could not send the feedback. Please try again.', 'warning', 6000);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '&#10003; Submit';
+            }
+        }
+
+        function collectData() {
+            return {
+                type: document.querySelector('input[name="type"]:checked').value,
+                title: document.getElementById('fbTitle').value.trim(),
+                description: document.getElementById('fbDescription').value.trim(),
+                steps: document.getElementById('fbSteps').value.trim(),
+                expected: document.getElementById('fbExpected').value.trim(),
+                actual: document.getElementById('fbActual').value.trim(),
+                priority: document.getElementById('fbPriority').value,
+                contactEmail: document.getElementById('fbEmail').value.trim(),
+            };
+        }
+
+
+    </script>
+{% endblock %}

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Sentinel Prime — Quick Start</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <style>
+        :root {
+            --c-primary:    #2563eb;
+            --c-primary-dk: #1d4ed8;
+            --c-primary-lt: #eff6ff;
+            --c-success:    #16a34a;
+            --c-warning:    #d97706;
+            --c-danger:     #dc2626;
+            --c-bg:         #f1f5f9;
+            --c-surface:    #ffffff;
+            --c-border:     #e2e8f0;
+            --c-text:       #0f172a;
+            --c-text-2:     #475569;
+            --c-text-3:     #94a3b8;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--c-bg);
+            color: var(--c-text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--c-surface);
+            border-radius: 18px;
+            box-shadow: 0 4px 32px rgba(15,23,42,0.1), 0 1px 4px rgba(15,23,42,0.06);
+            max-width: 700px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        .card-header {
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #3b82f6 100%);
+            padding: 2.5rem 2.5rem 2.2rem;
+            text-align: center;
+        }
+        .logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        .logo-img {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.15);
+            border: 1.5px solid rgba(255,255,255,0.25);
+            object-fit: contain;
+            padding: 6px;
+        }
+        .logo-text { text-align: left; }
+        .logo-sup {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.75);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 0.1rem;
+        }
+        .card-header h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+        }
+        .card-header p {
+            color: rgba(255,255,255,0.82);
+            font-size: 0.88rem;
+            margin-top: 0.75rem;
+            line-height: 1.65;
+            max-width: 520px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ── Body ── */
+        .card-body { padding: 2rem 2.5rem 2.5rem; }
+
+        /* ── Status bar ── */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--c-bg);
+            border: 1.5px solid var(--c-border);
+            border-radius: 10px;
+            padding: 0.85rem 1.1rem;
+            margin-bottom: 2rem;
+            font-size: 0.85rem;
+            transition: border-color 0.3s;
+        }
+        .status-bar.running { border-color: var(--c-success); background: #f0fdf4; }
+        .status-bar.stopped { border-color: #fca5a5; background: #fef2f2; }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--c-text-3);
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+        .status-dot.checking { background: var(--c-warning); animation: pulse 1.2s infinite; }
+        .status-dot.running  { background: var(--c-success); }
+        .status-dot.stopped  { background: var(--c-danger); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+        .status-text { color: var(--c-text-2); flex: 1; }
+        .status-text strong { color: var(--c-text); }
+        .status-text code {
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            border-radius: 4px;
+            padding: 0.1rem 0.4rem;
+            font-size: 0.82rem;
+            font-family: 'Cascadia Code', 'Fira Mono', Consolas, monospace;
+        }
+
+        /* ── Steps ── */
+        .steps-heading {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--c-text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.9rem;
+        }
+        .steps { list-style: none; margin-bottom: 2rem; }
+        .step {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--c-border);
+        }
+        .step:last-child { border-bottom: none; }
+
+        .step-num {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--c-primary-lt);
+            color: var(--c-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .step-content h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--c-text);
+            margin-bottom: 0.25rem;
+        }
+        .step-content p {
+            font-size: 0.82rem;
+            color: var(--c-text-2);
+            line-height: 1.6;
+        }
+        .step-content .cmd-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .cmd {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            border-radius: 7px;
+            padding: 0.3rem 0.75rem;
+            font-size: 0.82rem;
+            font-family: 'Cascadia Code', 'Fira Mono', Consolas, monospace;
+            color: var(--c-primary);
+            font-weight: 500;
+        }
+        .cmd .os-tag {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--c-text-3);
+            margin-right: 0.15rem;
+        }
+
+        /* ── Launch button ── */
+        .btn-launch {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.55rem;
+            width: 100%;
+            padding: 0.9rem 1.5rem;
+            background: var(--c-primary);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+            box-shadow: 0 2px 10px rgba(37,99,235,0.3);
+        }
+        .btn-launch:hover {
+            background: var(--c-primary-dk);
+            box-shadow: 0 4px 18px rgba(37,99,235,0.4);
+            transform: translateY(-1px);
+        }
+        .btn-launch:active { transform: translateY(0); }
+
+        /* ── System requirements ── */
+        .sysreq {
+            margin-top: 1.75rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--c-border);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+        .req-item {
+            background: var(--c-bg);
+            border-radius: 9px;
+            padding: 0.85rem 0.75rem;
+            text-align: center;
+        }
+        .req-icon  { font-size: 1.15rem; margin-bottom: 0.3rem; }
+        .req-label { font-size: 0.68rem; color: var(--c-text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
+        .req-value { font-size: 0.82rem; font-weight: 600; color: var(--c-text); }
+
+        /* ── Footer note ── */
+        .footer-note {
+            margin-top: 1.25rem;
+            text-align: center;
+            font-size: 0.76rem;
+            color: var(--c-text-3);
+            line-height: 1.6;
+        }
+        .footer-note a { color: var(--c-primary); text-decoration: none; }
+        .footer-note a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+
+    <!-- ── Header ── -->
+    <div class="card-header">
+        <div class="logo-row">
+            <img src="../static/images/logo.png" alt="Review Sentinel Prime Logo" class="logo-img"
+                 onerror="this.style.display='none'">
+            <div class="logo-text">
+                <span class="logo-sup">SLR Automation Platform</span>
+                <h1>Review Sentinel Prime</h1>
+            </div>
+        </div>
+        <p>
+            Automated systematic literature review search and management platform with
+            multi-database querying, PRISMA-aligned export, interactive charts, and
+            one-click replication package generation.
+        </p>
+    </div>
+
+    <!-- ── Body ── -->
+    <div class="card-body">
+
+        <!-- Status bar -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-dot checking" id="statusDot"></div>
+            <span class="status-text" id="statusText">
+                <strong>Checking server…</strong> Waiting for the application to respond.
+            </span>
+        </div>
+
+        <!-- Steps -->
+        <p class="steps-heading">How to launch</p>
+        <ol class="steps">
+            <li class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                    <h4>Run the launcher script</h4>
+                    <p>
+                        Double-click the launcher for your operating system.
+                        It automatically sets up the Python environment, installs all
+                        dependencies, and starts the local server.
+                    </p>
+                    <div class="cmd-row">
+                        <span class="cmd"><span class="os-tag">Win</span>START.bat</span>
+                        <span class="cmd"><span class="os-tag">Mac</span>start.command</span>
+                        <span class="cmd"><span class="os-tag">Linux</span>./start.command</span>
+                    </div>
+                </div>
+            </li>
+            <li class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                    <h4>Wait for the server to start</h4>
+                    <p>
+                        The first launch installs Python packages (~30–60 seconds depending
+                        on your connection). Subsequent launches start in under 3 seconds.
+                        This page auto-redirects the moment the server is detected.
+                    </p>
+                </div>
+            </li>
+            <li class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                    <h4>Use the application</h4>
+                    <p>
+                        Review Sentinel Prime runs at
+                        <strong>http://127.0.0.1:5001</strong> — entirely on your local
+                        machine. The launcher runs the app in the background;
+                        stop it with <code>STOP.bat</code> (Windows) or <code>stop.command</code>
+                        (macOS/Linux).
+                    </p>
+                </div>
+            </li>
+        </ol>
+
+        <!-- Launch button -->
+        <a href="http://127.0.0.1:5001" id="launchBtn" class="btn-launch">
+            <span id="launchIcon">🚀</span>
+            <span id="launchLabel">Open Review Sentinel Prime</span>
+        </a>
+
+        <!-- System requirements -->
+        <div class="sysreq">
+            <div class="req-item">
+                <div class="req-icon">🐍</div>
+                <div class="req-label">Python</div>
+                <div class="req-value">3.12 or later</div>
+            </div>
+            <div class="req-item">
+                <div class="req-icon">🌐</div>
+                <div class="req-label">Browser</div>
+                <div class="req-value">Chrome · Firefox · Edge</div>
+            </div>
+            <div class="req-item">
+                <div class="req-icon">💾</div>
+                <div class="req-label">Disk Space</div>
+                <div class="req-value">~150 MB (incl. venv)</div>
+            </div>
+        </div>
+
+        <p class="footer-note">
+            Server address: <a href="http://127.0.0.1:5001">http://127.0.0.1:5001</a>
+            &nbsp;·&nbsp; Python must be installed and added to PATH.
+            Download from <a href="https://python.org" target="_blank" rel="noopener">python.org</a>
+        </p>
+
+    </div>
+</div>
+
+<script>
+    const statusBar   = document.getElementById('statusBar');
+    const statusDot   = document.getElementById('statusDot');
+    const statusText  = document.getElementById('statusText');
+    const launchIcon  = document.getElementById('launchIcon');
+    const launchLabel = document.getElementById('launchLabel');
+    let   redirected  = false;
+
+    async function checkServer() {
+        try {
+            // mode:'no-cors' gives an opaque response but won't throw on a live
+            // connection; it WILL throw (TypeError: Failed to fetch) when the
+            // port is closed — which is exactly the signal we need.
+            await fetch('http://127.0.0.1:5001', {
+                mode:   'no-cors',
+                cache:  'no-store',
+                signal: AbortSignal.timeout(2000)
+            });
+
+            // ── Server is UP ──
+            statusBar.className  = 'status-bar running';
+            statusDot.className  = 'status-dot running';
+            statusText.innerHTML = '<strong>Server is running!</strong> Redirecting to the application…';
+            launchIcon.textContent  = '✅';
+            launchLabel.textContent = 'Opening Review Sentinel Prime…';
+
+            if (!redirected) {
+                redirected = true;
+                setTimeout(() => { window.location.href = 'http://127.0.0.1:5001'; }, 1400);
+            }
+        } catch {
+            // ── Server is DOWN ──
+            statusBar.className  = 'status-bar stopped';
+            statusDot.className  = 'status-dot stopped';
+            statusText.innerHTML =
+                '<strong>Server not running.</strong> ' +
+                'Run <code>START.bat</code> (Windows), <code>start.command</code> (macOS), or <code>./start.command</code> (Linux) ' +
+                'to start it, then this page will redirect automatically.';
+        }
+    }
+
+    // Check immediately, then every 2 s
+    checkServer();
+    setInterval(checkServer, 2000);
+</script>
+
+</body>
+</html>

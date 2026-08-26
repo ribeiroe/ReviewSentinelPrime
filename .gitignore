@@ -1,0 +1,23 @@
+# User data, API keys, SMTP credentials, and cached/exported results
+data/
+results/
+dist/
+rsp.log
+.rsp.pid
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Test artefacts
+.pytest_cache/
+results/reports/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/

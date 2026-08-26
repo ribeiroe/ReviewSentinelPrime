@@ -1,0 +1,1076 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – Research Survey{% endblock %}
+{% block head_extra %}
+<style>
+        .container { width: 100%; max-width: 1100px; margin: 0 auto; box-sizing: border-box; }
+        h1 { text-align: center; margin-bottom: 0.5rem; color: #2c3e50; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 2rem; font-size: 1.05rem; }
+        nav { text-align: center; margin-bottom: 2rem; display: flex; justify-content: center; flex-wrap: wrap; gap: 0.4rem 0; }
+        nav a { color: #3498db; text-decoration: none; margin: 0 0.6rem; font-weight: 500; padding: 0.2rem 0; }
+        nav a:hover { text-decoration: underline; }
+        nav a.active { color: #2c3e50; font-weight: 700; border-bottom: 2px solid #3498db; }
+        nav .sep { color: #ddd; margin: 0 0.3rem; user-select: none; font-weight: 300; }
+
+        /* =============================================
+           SURVEY FORM STYLES
+           ============================================= */
+        .survey-intro {
+            background: #fff;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #3498db;
+        }
+        .survey-intro h2 { font-size: 1.15rem; color: #2c3e50; margin-bottom: 0.5rem; }
+        .survey-intro p { font-size: 0.92rem; color: #555; margin-bottom: 0.4rem; }
+
+        .survey-section {
+            background: #fff;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+        .survey-section h2 {
+            color: #2c3e50;
+            font-size: 1.2rem;
+            margin-bottom: 0.3rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.4rem;
+        }
+        .survey-section .section-desc {
+            font-size: 0.88rem;
+            color: #777;
+            margin-bottom: 1.2rem;
+            font-style: italic;
+        }
+
+        /* Likert question row */
+        .likert-question {
+            margin-bottom: 1.2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .likert-question:last-of-type { border-bottom: none; margin-bottom: 0; }
+        .likert-question .q-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #2c3e50;
+            margin-bottom: 0.6rem;
+            display: block;
+        }
+        .likert-question .q-id {
+            display: inline-block;
+            background: #ecf0f1;
+            color: #7f8c8d;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+
+        /* Likert scale options */
+        .likert-scale {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            justify-content: space-between;
+            max-width: 560px;
+        }
+        .likert-scale .anchor-label {
+            font-size: 0.78rem;
+            color: #999;
+            min-width: 80px;
+            text-align: center;
+        }
+        .likert-scale .anchor-label.left { text-align: left; }
+        .likert-scale .anchor-label.right { text-align: right; }
+        .likert-options {
+            display: flex;
+            gap: 0.3rem;
+            align-items: center;
+        }
+        .likert-options label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+            transition: background 0.15s;
+            min-width: 38px;
+        }
+        .likert-options label:hover { background: #eaf5fc; }
+        .likert-options label input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #3498db;
+        }
+        .likert-options label span {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 0.2rem;
+            font-weight: 600;
+        }
+
+        /* Open text questions */
+        .open-question {
+            margin-bottom: 1.2rem;
+        }
+        .open-question label {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        .open-question label .q-id {
+            display: inline-block;
+            background: #ecf0f1;
+            color: #7f8c8d;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            margin-right: 0.5rem;
+        }
+        .open-question textarea { min-height: 90px; }
+        .open-question .hint {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 0.3rem;
+        }
+
+
+
+        /* Action buttons */
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            padding: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+
+
+        /* Progress indicator */
+        .progress-bar {
+            background: #ecf0f1;
+            height: 6px;
+            border-radius: 3px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: var(--c-primary);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .progress-text {
+            text-align: center;
+            font-size: 0.82rem;
+            color: #999;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Participant info */
+        .participant-field {
+            margin-bottom: 1rem;
+        }
+        .participant-field label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.3rem;
+        }
+        .participant-field input, .participant-field select {
+            width: 100%;
+            max-width: 360px;
+        }
+
+        /* Required asterisk */
+        .required::after {
+            content: ' *';
+            color: #e74c3c;
+        }
+
+        /* Validation */
+        .error-msg {
+            color: #e74c3c;
+            font-size: 0.82rem;
+            margin-top: 0.3rem;
+            display: none;
+        }
+        .has-error .error-msg { display: block; }
+        .has-error input, .has-error textarea { border-color: #e74c3c; }
+
+        @media (max-width: 600px) {
+            .container { padding: 0 1rem 1rem; }
+            .likert-scale { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            .likert-options { gap: 0.1rem; }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <!-- Introduction -->
+        <div class="survey-intro">
+            <h2>Research Evaluation: Assessing the Usability and Usefulness of RSP</h2>
+            <p>Thank you for agreeing to participate in this evaluation. This survey aims to assess the usability, usefulness, and perceived impact of Review Sentinel Prime (RSP) on systematic literature review workflows.</p>
+            <p>The survey requires approximately <strong>8 to 12 minutes to complete</strong>. All responses will remain anonymous unless identifying information is voluntarily provided. The feedback collected will inform future improvements to the tool.</p>
+            <p style="font-size:0.82rem; color:#999; margin-top:0.5rem;">Please note that fields marked with an asterisk <span style="color:#e74c3c;">*</span> are required.</p>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-text" id="progressText">0 of 30 questions answered</div>
+        <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+
+        <form id="surveyForm" onsubmit="return false;">
+
+            <!-- ============================
+                 SECTION A: PARTICIPANT INFO
+                 ============================ -->
+            <div class="survey-section">
+                <h2>Section A: Participant Background</h2>
+                <p class="section-desc">Providing demographic information is optional and will be used to contextualize your responses.</p>
+
+                <div class="participant-field">
+                    <label for="pRole">A1: Your role</label>
+                    <select id="pRole">
+                        <option value="">— Select —</option>
+                        <option value="phd">PhD Student</option>
+                        <option value="postdoc">Postdoctoral Researcher</option>
+                        <option value="lecturer">Lecturer / Assistant Professor</option>
+                        <option value="professor">Associate / Full Professor</option>
+                        <option value="industry">Industry Researcher</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="participant-field">
+                    <label for="pExperience">A2: Years of research experience</label>
+                    <select id="pExperience">
+                        <option value="">— Select —</option>
+                        <option value="0-2">0–2 years</option>
+                        <option value="3-5">3–5 years</option>
+                        <option value="6-10">6–10 years</option>
+                        <option value="11-20">11–20 years</option>
+                        <option value="20+">More than 20 years</option>
+                    </select>
+                </div>
+
+                <div class="participant-field">
+                    <label for="pSLR">A3: Number of SLRs conducted previously</label>
+                    <select id="pSLR">
+                        <option value="">— Select —</option>
+                        <option value="0">None (first time)</option>
+                        <option value="1-2">1–2</option>
+                        <option value="3-5">3–5</option>
+                        <option value="6+">6 or more</option>
+                    </select>
+                </div>
+
+                <div class="participant-field">
+                    <label for="pField">A4: Research field / discipline</label>
+                    <input type="text" id="pField" placeholder="e.g. Software Engineering, Computer Science">
+                </div>
+            </div>
+
+            <!-- ============================
+                 SECTION B: SYSTEM USABILITY (SUS-style)
+                 Based on Brooke (1996) System Usability Scale
+                 ============================ -->
+            <div class="survey-section">
+                <h2>Section B: System Usability (SUS)</h2>
+                <p class="section-desc">Please rate each statement from 1 (Strongly Disagree) to 5 (Strongly Agree). The items are adapted from the System Usability Scale (Brooke, 1996).</p>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B1</span><span class="required">I think I would like to use RSP frequently for my research</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus1" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus1" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus1" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus1" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus1" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B2</span><span class="required">I found RSP unnecessarily complex</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus2" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus2" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus2" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus2" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus2" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B3</span><span class="required">I thought RSP was easy to use</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus3" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus3" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus3" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus3" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus3" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B4</span><span class="required">I think I would need the support of a technical person to use RSP</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus4" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus4" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus4" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus4" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus4" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B5</span><span class="required">I found the various functions in RSP were well integrated</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus5" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus5" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus5" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus5" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus5" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B6</span><span class="required">I thought there was too much inconsistency in RSP</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus6" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus6" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus6" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus6" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus6" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B7</span><span class="required">I would imagine that most researchers would learn to use RSP very quickly</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus7" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus7" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus7" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus7" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus7" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B8</span><span class="required">I found RSP very complex to use</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus8" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus8" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus8" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus8" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus8" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B9</span><span class="required">I felt very confident using RSP</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus9" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus9" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus9" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus9" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus9" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">B10</span><span class="required">I needed to learn a lot of things before I could get going with RSP</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="sus10" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="sus10" value="2"><span>2</span></label>
+                            <label><input type="radio" name="sus10" value="3"><span>3</span></label>
+                            <label><input type="radio" name="sus10" value="4"><span>4</span></label>
+                            <label><input type="radio" name="sus10" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================
+                 SECTION C: PERCEIVED USEFULNESS & EASE OF USE (TAM/UTAUT)
+                 Based on Davis (1989) and Venkatesh et al. (2003)
+                 ============================ -->
+            <div class="survey-section">
+                <h2>Section C: Perceived Usefulness &amp; Ease of Use</h2>
+                <p class="section-desc">Rate each statement from 1 (Strongly Disagree) to 7 (Strongly Agree). Items C1–C7 are adapted from the Technology Acceptance Model (Davis, 1989). Item C8 assesses behavioral intention to continue using RSP.</p>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">C1</span><span class="required">Using RSP improves my performance in conducting literature reviews</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="tam1" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="tam1" value="2"><span>2</span></label>
+                            <label><input type="radio" name="tam1" value="3"><span>3</span></label>
+                            <label><input type="radio" name="tam1" value="4"><span>4</span></label>
+                            <label><input type="radio" name="tam1" value="5"><span>5</span></label>
+                            <label><input type="radio" name="tam1" value="6"><span>6</span></label>
+                            <label><input type="radio" name="tam1" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">C2</span><span class="required">Using RSP increases my productivity when searching for literature</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="tam2" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="tam2" value="2"><span>2</span></label>
+                            <label><input type="radio" name="tam2" value="3"><span>3</span></label>
+                            <label><input type="radio" name="tam2" value="4"><span>4</span></label>
+                            <label><input type="radio" name="tam2" value="5"><span>5</span></label>
+                            <label><input type="radio" name="tam2" value="6"><span>6</span></label>
+                            <label><input type="radio" name="tam2" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">C3</span><span class="required">Using RSP makes it easier to conduct a systematic literature review</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="tam3" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="tam3" value="2"><span>2</span></label>
+                            <label><input type="radio" name="tam3" value="3"><span>3</span></label>
+                            <label><input type="radio" name="tam3" value="4"><span>4</span></label>
+                            <label><input type="radio" name="tam3" value="5"><span>5</span></label>
+                            <label><input type="radio" name="tam3" value="6"><span>6</span></label>
+                            <label><input type="radio" name="tam3" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">C4</span><span class="required">I find RSP useful for my research work</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="tam4" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="tam4" value="2"><span>2</span></label>
+                            <label><input type="radio" name="tam4" value="3"><span>3</span></label>
+                            <label><input type="radio" name="tam4" value="4"><span>4</span></label>
+                            <label><input type="radio" name="tam4" value="5"><span>5</span></label>
+                            <label><input type="radio" name="tam4" value="6"><span>6</span></label>
+                            <label><input type="radio" name="tam4" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">C5</span><span class="required">Learning to use RSP was easy for me</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="tam5" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="tam5" value="2"><span>2</span></label>
+                            <label><input type="radio" name="tam5" value="3"><span>3</span></label>
+                            <label><input type="radio" name="tam5" value="4"><span>4</span></label>
+                            <label><input type="radio" name="tam5" value="5"><span>5</span></label>
+                            <label><input type="radio" name="tam5" value="6"><span>6</span></label>
+                            <label><input type="radio" name="tam5" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">C6</span><span class="required">I find it easy to get RSP to do what I want it to do</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="tam6" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="tam6" value="2"><span>2</span></label>
+                            <label><input type="radio" name="tam6" value="3"><span>3</span></label>
+                            <label><input type="radio" name="tam6" value="4"><span>4</span></label>
+                            <label><input type="radio" name="tam6" value="5"><span>5</span></label>
+                            <label><input type="radio" name="tam6" value="6"><span>6</span></label>
+                            <label><input type="radio" name="tam6" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">C7</span><span class="required">My interaction with RSP is clear and understandable</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="tam7" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="tam7" value="2"><span>2</span></label>
+                            <label><input type="radio" name="tam7" value="3"><span>3</span></label>
+                            <label><input type="radio" name="tam7" value="4"><span>4</span></label>
+                            <label><input type="radio" name="tam7" value="5"><span>5</span></label>
+                            <label><input type="radio" name="tam7" value="6"><span>6</span></label>
+                            <label><input type="radio" name="tam7" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">C8</span><span class="required">I intend to continue using RSP in my future research</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="tam8" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="tam8" value="2"><span>2</span></label>
+                            <label><input type="radio" name="tam8" value="3"><span>3</span></label>
+                            <label><input type="radio" name="tam8" value="4"><span>4</span></label>
+                            <label><input type="radio" name="tam8" value="5"><span>5</span></label>
+                            <label><input type="radio" name="tam8" value="6"><span>6</span></label>
+                            <label><input type="radio" name="tam8" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================
+                 SECTION D: PERCEIVED IMPACT ON RESEARCH
+                 ============================ -->
+            <div class="survey-section">
+                <h2>Section D: Impact on Research Quality</h2>
+                <p class="section-desc">Rate each statement from 1 (Strongly Disagree) to 7 (Strongly Agree). Assess how RSP impacts the rigor, transparency, and reproducibility of your review process.</p>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">D1</span><span class="required">RSP improves the transparency of my search process</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="imp1" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="imp1" value="2"><span>2</span></label>
+                            <label><input type="radio" name="imp1" value="3"><span>3</span></label>
+                            <label><input type="radio" name="imp1" value="4"><span>4</span></label>
+                            <label><input type="radio" name="imp1" value="5"><span>5</span></label>
+                            <label><input type="radio" name="imp1" value="6"><span>6</span></label>
+                            <label><input type="radio" name="imp1" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">D2</span><span class="required">RSP helps make my literature review reproducible by other researchers</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="imp2" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="imp2" value="2"><span>2</span></label>
+                            <label><input type="radio" name="imp2" value="3"><span>3</span></label>
+                            <label><input type="radio" name="imp2" value="4"><span>4</span></label>
+                            <label><input type="radio" name="imp2" value="5"><span>5</span></label>
+                            <label><input type="radio" name="imp2" value="6"><span>6</span></label>
+                            <label><input type="radio" name="imp2" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">D3</span><span class="required">The Preferred Reporting Items for Systematic Reviews and Meta-Analyses (PRISMA) flow diagram feature improves the reporting quality of my reviews</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="imp3" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="imp3" value="2"><span>2</span></label>
+                            <label><input type="radio" name="imp3" value="3"><span>3</span></label>
+                            <label><input type="radio" name="imp3" value="4"><span>4</span></label>
+                            <label><input type="radio" name="imp3" value="5"><span>5</span></label>
+                            <label><input type="radio" name="imp3" value="6"><span>6</span></label>
+                            <label><input type="radio" name="imp3" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">D4</span><span class="required">The replication package export helps meet open science requirements</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="imp4" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="imp4" value="2"><span>2</span></label>
+                            <label><input type="radio" name="imp4" value="3"><span>3</span></label>
+                            <label><input type="radio" name="imp4" value="4"><span>4</span></label>
+                            <label><input type="radio" name="imp4" value="5"><span>5</span></label>
+                            <label><input type="radio" name="imp4" value="6"><span>6</span></label>
+                            <label><input type="radio" name="imp4" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">D5</span><span class="required">The validation papers feature helps me verify the completeness of my search</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="imp5" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="imp5" value="2"><span>2</span></label>
+                            <label><input type="radio" name="imp5" value="3"><span>3</span></label>
+                            <label><input type="radio" name="imp5" value="4"><span>4</span></label>
+                            <label><input type="radio" name="imp5" value="5"><span>5</span></label>
+                            <label><input type="radio" name="imp5" value="6"><span>6</span></label>
+                            <label><input type="radio" name="imp5" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">D6</span><span class="required">RSP reduces the risk of bias in my study selection process</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="imp6" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="imp6" value="2"><span>2</span></label>
+                            <label><input type="radio" name="imp6" value="3"><span>3</span></label>
+                            <label><input type="radio" name="imp6" value="4"><span>4</span></label>
+                            <label><input type="radio" name="imp6" value="5"><span>5</span></label>
+                            <label><input type="radio" name="imp6" value="6"><span>6</span></label>
+                            <label><input type="radio" name="imp6" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">D7</span><span class="required">Searching multiple databases simultaneously improves coverage of relevant literature</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Strongly<br>Disagree</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="imp7" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="imp7" value="2"><span>2</span></label>
+                            <label><input type="radio" name="imp7" value="3"><span>3</span></label>
+                            <label><input type="radio" name="imp7" value="4"><span>4</span></label>
+                            <label><input type="radio" name="imp7" value="5"><span>5</span></label>
+                            <label><input type="radio" name="imp7" value="6"><span>6</span></label>
+                            <label><input type="radio" name="imp7" value="7"><span>7</span></label>
+                        </div>
+                        <span class="anchor-label right">Strongly<br>Agree</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================
+                 SECTION E: FEATURE-SPECIFIC RATINGS
+                 ============================ -->
+            <div class="survey-section">
+                <h2>Section E: Feature-Specific Evaluation</h2>
+                <p class="section-desc">Rate how useful you found each feature from 1 (Not useful at all) to 5 (Extremely useful).</p>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">E1</span><span class="required">Multi-database search (9 databases simultaneously)</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Not<br>useful</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="feat1" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="feat1" value="2"><span>2</span></label>
+                            <label><input type="radio" name="feat1" value="3"><span>3</span></label>
+                            <label><input type="radio" name="feat1" value="4"><span>4</span></label>
+                            <label><input type="radio" name="feat1" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Extremely<br>useful</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">E2</span><span class="required">Inclusion / Exclusion criteria filters</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Not<br>useful</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="feat2" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="feat2" value="2"><span>2</span></label>
+                            <label><input type="radio" name="feat2" value="3"><span>3</span></label>
+                            <label><input type="radio" name="feat2" value="4"><span>4</span></label>
+                            <label><input type="radio" name="feat2" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Extremely<br>useful</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">E3</span><span class="required">Validation papers (search completeness check)</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Not<br>useful</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="feat3" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="feat3" value="2"><span>2</span></label>
+                            <label><input type="radio" name="feat3" value="3"><span>3</span></label>
+                            <label><input type="radio" name="feat3" value="4"><span>4</span></label>
+                            <label><input type="radio" name="feat3" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Extremely<br>useful</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">E4</span><span class="required">PRISMA flow diagram auto-generation</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Not<br>useful</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="feat4" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="feat4" value="2"><span>2</span></label>
+                            <label><input type="radio" name="feat4" value="3"><span>3</span></label>
+                            <label><input type="radio" name="feat4" value="4"><span>4</span></label>
+                            <label><input type="radio" name="feat4" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Extremely<br>useful</span>
+                    </div>
+                </div>
+
+                <div class="likert-question">
+                    <span class="q-text"><span class="q-id">E5</span><span class="required">Replication package export (Zip / GitHub)</span></span>
+                    <div class="likert-scale">
+                        <span class="anchor-label left">Not<br>useful</span>
+                        <div class="likert-options">
+                            <label><input type="radio" name="feat5" value="1" required><span>1</span></label>
+                            <label><input type="radio" name="feat5" value="2"><span>2</span></label>
+                            <label><input type="radio" name="feat5" value="3"><span>3</span></label>
+                            <label><input type="radio" name="feat5" value="4"><span>4</span></label>
+                            <label><input type="radio" name="feat5" value="5"><span>5</span></label>
+                        </div>
+                        <span class="anchor-label right">Extremely<br>useful</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================
+                 SECTION F: QUALITATIVE FEEDBACK
+                 ============================ -->
+            <div class="survey-section">
+                <h2>Section F: Open Feedback</h2>
+                <p class="section-desc">Please provide free-text responses. Your qualitative feedback is highly valued.</p>
+
+                <div class="open-question">
+                    <label><span class="q-id">F1</span> What aspects of RSP did you find most useful for your research workflow?</label>
+                    <textarea name="open1" placeholder="Describe the features or aspects that were most helpful..."></textarea>
+                </div>
+
+                <div class="open-question">
+                    <label><span class="q-id">F2</span> What difficulties or frustrations did you encounter while using RSP?</label>
+                    <textarea name="open2" placeholder="Describe any usability issues, confusing elements, or missing features..."></textarea>
+                </div>
+
+                <div class="open-question">
+                    <label><span class="q-id">F3</span> How does RSP compare to your previous approach for conducting literature searches?</label>
+                    <textarea name="open3" placeholder="Describe what you used before (e.g. manual database searches, other tools) and how RSP differs..."></textarea>
+                </div>
+
+                <div class="open-question">
+                    <label><span class="q-id">F4</span> What features or improvements would you suggest for future versions?</label>
+                    <textarea name="open4" placeholder="Suggest new features, UI improvements, additional databases, etc..."></textarea>
+                </div>
+
+                <div class="open-question">
+                    <label><span class="q-id">F5</span> Any additional comments or observations?</label>
+                    <textarea name="open5" placeholder="Anything else you'd like to share about your experience..."></textarea>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-danger" onclick="confirmClearSurvey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.3em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 107-7"/></svg> Start Over</button>
+                <button type="button" id="surveySubmitBtn" class="btn btn-primary" onclick="submitSurvey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.3em"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> Submit Survey</button>
+            </div>
+        </form>
+        </div>
+        </div>
+
+        <!-- ── Email options modal ── -->
+        <div id="surveyEmailModal" role="dialog" aria-modal="true" aria-labelledby="semTitle"
+             style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);
+                    z-index:10000;align-items:center;justify-content:center;padding:1rem;">
+          <div style="background:#fff;border-radius:12px;padding:2rem 2.25rem;max-width:440px;
+                      width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.2);text-align:center;">
+            <div style="font-size:2rem;margin-bottom:0.6rem;">&#128231;</div>
+            <h3 id="semTitle" style="font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:0.5rem;">
+              Send via your email app
+            </h3>
+            <p id="semDesc" style="font-size:0.875rem;color:#475569;line-height:1.55;margin-bottom:1.5rem;">
+              This will open your default email client (Outlook, Apple Mail, Gmail, etc.)
+              with the survey responses pre-filled. Just press Send in your email app to submit.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:0.6rem;">
+              <button class="btn btn-primary" onclick="openMailtoSurvey()">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.3em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Open in My Email App
+              </button>
+              <button class="btn btn-neutral" onclick="window.location.href='/settings#smtp'">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.3em"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg> Configure SMTP in Settings
+              </button>
+              <button class="btn btn-ghost" onclick="closeSurveyEmailModal()">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // --- Progress Tracking ---
+        function updateProgress() {
+            const radios = document.querySelectorAll('input[type="radio"]');
+            const radioNames = new Set();
+            radios.forEach(r => radioNames.add(r.name));
+            const totalQuestions = radioNames.size; // 30 Likert questions
+
+            let answered = 0;
+            radioNames.forEach(name => {
+                if (document.querySelector(`input[name="${name}"]:checked`)) {
+                    answered++;
+                }
+            });
+
+            const pct = Math.round((answered / totalQuestions) * 100);
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = `${answered} of ${totalQuestions} questions answered (${pct}%)`;
+        }
+
+        // Listen for changes on all radio buttons
+        document.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', updateProgress);
+        });
+
+        // --- Clear Form ---
+        function confirmClearSurvey() {
+            showConfirmModal({
+                icon: RSP_ICONS.clipboard,
+                title: 'Start the survey over?',
+                message: 'All your current answers will be removed and the form will return to its initial state. Your progress will not be saved.',
+                confirmLabel: 'Yes, start over',
+                cancelLabel: 'Keep my answers',
+                onConfirm: function() {
+                    document.getElementById('surveyForm').reset();
+                    updateProgress();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+        }
+
+        // --- Email modal helpers ---
+        let _surveyMailtoData = null;
+
+        function closeSurveyEmailModal() {
+            document.getElementById('surveyEmailModal').style.display = 'none';
+        }
+
+        document.getElementById('surveyEmailModal').addEventListener('click', function(e) {
+            if (e.target === this) closeSurveyEmailModal();
+        });
+
+        function openMailtoSurvey() {
+            const data = _surveyMailtoData || collectResponses();
+            const recipient = 'edu.f.ribeiro@gmail.com';
+            const subject  = encodeURIComponent('[Review Sentinel Prime] Evaluation Survey Response');
+
+            const susMap  = { sus1:'B1',sus2:'B2',sus3:'B3',sus4:'B4',sus5:'B5',sus6:'B6',sus7:'B7',sus8:'B8',sus9:'B9',sus10:'B10' };
+            const tamMap  = { tam1:'C1',tam2:'C2',tam3:'C3',tam4:'C4',tam5:'C5',tam6:'C6',tam7:'C7',tam8:'C8' };
+            const impMap  = { imp1:'D1',imp2:'D2',imp3:'D3',imp4:'D4',imp5:'D5',imp6:'D6',imp7:'D7' };
+            const featMap = { feat1:'E1',feat2:'E2',feat3:'E3',feat4:'E4',feat5:'E5' };
+
+            let body = 'Review Sentinel Prime – Survey Response\r\n';
+            body += '========================================\r\n\r\n';
+
+            const bg = data.background;
+            body += 'PARTICIPANT BACKGROUND\r\n';
+            body += 'Role: '       + (bg.role       || '(not provided)') + '\r\n';
+            body += 'Experience: ' + (bg.experience || '(not provided)') + '\r\n';
+            body += 'SLR Count: '  + (bg.slrCount   || '(not provided)') + '\r\n';
+            body += 'Field: '      + (bg.field      || '(not provided)') + '\r\n\r\n';
+
+            body += 'SECTION B: SYSTEM USABILITY (SUS, 1-5)\r\n';
+            Object.entries(susMap).forEach(([k,lbl]) => { body += lbl + ': ' + (data.likert[k] || '—') + '\r\n'; });
+            body += '\r\nSECTION C: PERCEIVED USEFULNESS & EASE OF USE (TAM, 1-7)\r\n';
+            Object.entries(tamMap).forEach(([k,lbl]) => { body += lbl + ': ' + (data.likert[k] || '—') + '\r\n'; });
+            body += '\r\nSECTION D: IMPACT ON RESEARCH QUALITY (1-7)\r\n';
+            Object.entries(impMap).forEach(([k,lbl]) => { body += lbl + ': ' + (data.likert[k] || '—') + '\r\n'; });
+            body += '\r\nSECTION E: FEATURE-SPECIFIC EVALUATION (1-5)\r\n';
+            Object.entries(featMap).forEach(([k,lbl]) => { body += lbl + ': ' + (data.likert[k] || '—') + '\r\n'; });
+
+            body += '\r\nSECTION F: OPEN FEEDBACK\r\n';
+            const openLabels = { open1:'F1 – Most useful aspects', open2:'F2 – Difficulties encountered',
+                                  open3:'F3 – Comparison to previous approach', open4:'F4 – Suggested improvements',
+                                  open5:'F5 – Additional comments' };
+            Object.entries(openLabels).forEach(([k,lbl]) => {
+                body += lbl + ':\r\n' + (data.open[k] || '(no answer)') + '\r\n\r\n';
+            });
+
+            window.location.href = 'mailto:' + recipient + '?subject=' + subject + '&body=' + encodeURIComponent(body);
+            closeSurveyEmailModal();
+        }
+
+        // Validate form then open the email-app modal
+        function validateAndOpenEmailModal() {
+            const radioNames = new Set();
+            document.querySelectorAll('input[type="radio"][required]').forEach(r => radioNames.add(r.name));
+            const missing = [];
+            radioNames.forEach(name => {
+                if (!document.querySelector(`input[name="${name}"]:checked`)) missing.push(name);
+            });
+            if (missing.length > 0) {
+                showToast('Please answer all required questions before sending.', 'warning', 6000);
+                const firstMissing = document.querySelector(`input[name="${missing[0]}"]`);
+                if (firstMissing) firstMissing.closest('.likert-question').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            _surveyMailtoData = collectResponses();
+            document.getElementById('semDesc').textContent =
+                'This will open your default email client (Outlook, Apple Mail, Gmail, etc.) ' +
+                'with the survey responses pre-filled. Just press Send in your email app to submit.';
+            document.getElementById('surveyEmailModal').style.display = 'flex';
+        }
+
+        // --- Submit Survey ---
+        async function submitSurvey() {
+            // Validate required Likert questions first
+            const radioNames = new Set();
+            document.querySelectorAll('input[type="radio"][required]').forEach(r => radioNames.add(r.name));
+            const missing = [];
+            radioNames.forEach(name => {
+                if (!document.querySelector(`input[name="${name}"]:checked`)) missing.push(name);
+            });
+
+            if (missing.length > 0) {
+                showToast('Please answer all required questions. Scroll through the form to find unanswered questions marked with *.', 'warning', 6000);
+                const firstMissing = document.querySelector(`input[name="${missing[0]}"]`);
+                if (firstMissing) firstMissing.closest('.likert-question').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+
+            _surveyMailtoData = collectResponses();
+
+            // Disable button while sending
+            const btn = document.getElementById('surveySubmitBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Sending…';
+
+            try {
+                const resp = await fetch('/api/submit-survey', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_surveyMailtoData)
+                });
+                const result = await resp.json();
+                if (resp.ok && result.ok) {
+                    showToast('Thank you for completing this evaluation of Review Sentinel Prime (RSP). Your responses have been recorded and will be used to inform future improvements to the tool.\n\nIf you have any questions about this study or would like to receive a summary of the findings, please contact rsp.researchfeedback@gmail.com.\n\nIf you know other researchers conducting systematic literature reviews, please feel free to share both the tool and this survey with them.', 'success', 10000);
+                    document.getElementById('surveyForm').reset();
+                    updateProgress();
+                } else {
+                    // Server could not record the response — offer the email-app fallback.
+                    document.getElementById('semDesc').textContent =
+                        'The response could not be recorded automatically (' +
+                        (result.error || 'unknown error') + '). You can send it from your email app ' +
+                        '(Outlook, Apple Mail, Gmail, etc.), or set up SMTP in Settings.';
+                    document.getElementById('surveyEmailModal').style.display = 'flex';
+                }
+            } catch (err) {
+                showToast('Network error – could not send the survey. Please try again.', 'warning', 6000);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '&#10003; Submit Survey';
+            }
+        }
+
+        function collectResponses() {
+            const data = {};
+
+            // Participant background
+            data.background = {
+                role:       document.getElementById('pRole').value || '',
+                experience: document.getElementById('pExperience').value || '',
+                slrCount:   document.getElementById('pSLR').value || '',
+                field:      document.getElementById('pField').value || '',
+            };
+
+            // Likert questions (flat key → value)
+            const likertKeys = [
+                'sus1','sus2','sus3','sus4','sus5','sus6','sus7','sus8','sus9','sus10',
+                'tam1','tam2','tam3','tam4','tam5','tam6','tam7','tam8',
+                'imp1','imp2','imp3','imp4','imp5','imp6','imp7',
+                'feat1','feat2','feat3','feat4','feat5',
+            ];
+            data.likert = {};
+            likertKeys.forEach(name => {
+                const checked = document.querySelector(`input[name="${name}"]:checked`);
+                data.likert[name] = checked ? checked.value : '';
+            });
+
+            // Open questions
+            data.open = {};
+            for (let i = 1; i <= 5; i++) {
+                const ta = document.querySelector(`textarea[name="open${i}"]`);
+                data.open[`open${i}`] = ta ? ta.value.trim() : '';
+            }
+
+            return data;
+        }
+
+        // Initial progress update
+        updateProgress();
+    </script>
+{% endblock %}

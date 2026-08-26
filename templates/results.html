@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime - Results{% endblock %}
+
+{% block head_extra %}
+<style>
+  .container { width: 100%; max-width: 1100px; margin: 0 auto; box-sizing: border-box; }
+  .results-header {
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .results-title {
+    font-size: 1.35rem;
+    color: var(--c-text);
+    margin-bottom: 0.2rem;
+    letter-spacing: -0.01em;
+  }
+  .results-subtitle {
+    color: var(--c-text-2);
+    font-size: 0.9rem;
+  }
+  .results-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.9rem;
+  }
+  .results-toolbar-left {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .path-chip {
+    font-size: 0.76rem;
+    color: var(--c-text-2);
+    background: #f8fafc;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    padding: 0.28rem 0.55rem;
+  }
+  .runs-card {
+    overflow: hidden;
+  }
+  .runs-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--c-border);
+    background: #f8fafc;
+  }
+  .runs-head h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--c-text);
+  }
+  .runs-count {
+    color: var(--c-text-2);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .runs-empty {
+    padding: 1.8rem 1rem;
+    text-align: center;
+    color: var(--c-text-2);
+    font-size: 0.92rem;
+  }
+  .run-item {
+    border-top: 1px solid var(--c-border);
+    padding: 0.85rem 1rem;
+  }
+  .run-item:first-child { border-top: none; }
+  .run-top {
+    display: flex;
+    gap: 0.7rem;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .run-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+  .run-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.14rem 0.48rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+  }
+  .run-badge.saved {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+  }
+  .run-badge.adhoc {
+    background: #ecfeff;
+    border-color: #a5f3fc;
+    color: #0e7490;
+  }
+  .run-time {
+    color: var(--c-text-2);
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  .run-query {
+    margin-top: 0.35rem;
+    color: var(--c-text);
+    font-size: 0.9rem;
+    word-break: break-word;
+  }
+  .run-stats {
+    margin-top: 0.45rem;
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+  .stat-pill {
+    background: #f8fafc;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    padding: 0.15rem 0.45rem;
+    font-size: 0.76rem;
+    color: var(--c-text-2);
+  }
+  .run-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .detail-panel {
+    display: none;
+    margin-top: 0.7rem;
+    padding: 0.75rem;
+    border-radius: var(--r-md);
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0.45rem 0.75rem;
+    font-size: 0.82rem;
+  }
+  .detail-key {
+    color: #64748b;
+    font-weight: 600;
+  }
+  .detail-value {
+    color: #1e293b;
+    word-break: break-word;
+  }
+
+  @media (max-width: 900px) {
+    .container { padding: 0 0.8rem; }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <section class="card results-header">
+    <div class="results-title">Search Results Hub</div>
+    <div class="results-subtitle">Browse, review, and download local result snapshots from ad-hoc and saved runs.</div>
+    <div class="results-toolbar">
+      <div class="results-toolbar-left">
+        <button id="refreshBtn" class="btn btn-primary btn-sm" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg> Refresh</button>
+        <button id="openFolderBtn" class="btn btn-neutral btn-sm" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12l1.5-5.5H13.5L12 12z"/><path d="M1.5 6.5V5a1 1 0 011-1h3.5l1.5 2H2.5"/></svg> Open Results Folder</button>
+      </div>
+      <span class="path-chip" id="resultsPathChip">Loading folder path...</span>
+    </div>
+  </section>
+
+  <section class="card runs-card" aria-label="Runs list">
+    <div class="runs-head">
+      <h2>Available Runs</h2>
+      <span class="runs-count" id="runsCount">0 runs</span>
+    </div>
+    <div id="runsList" class="runs-list">
+      <div class="runs-empty">Loading runs...</div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const runsListEl = document.getElementById('runsList');
+  const runsCountEl = document.getElementById('runsCount');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const openFolderBtn = document.getElementById('openFolderBtn');
+  const resultsPathChip = document.getElementById('resultsPathChip');
+
+  function fmtDate(iso) {
+    if (!iso) return 'Unknown time';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString();
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  async function loadFolderInfo() {
+    try {
+      const r = await fetch('/api/results/folder');
+      const data = await r.json();
+      resultsPathChip.textContent = data.path ? ('Results: ' + data.path) : 'Results folder unavailable';
+    } catch (_) {
+      resultsPathChip.textContent = 'Results folder unavailable';
+    }
+  }
+
+  async function toggleDetails(buttonEl, detailUrl) {
+    const row = buttonEl.closest('.run-item');
+    const panel = row.querySelector('.detail-panel');
+
+    if (panel.dataset.loaded === '1') {
+      const open = panel.style.display === 'block';
+      panel.style.display = open ? 'none' : 'block';
+      buttonEl.textContent = open ? 'View Details' : 'Hide Details';
+      return;
+    }
+
+    panel.style.display = 'block';
+    panel.innerHTML = '<div class="detail-value">Loading details...</div>';
+    buttonEl.disabled = true;
+
+    try {
+      const r = await fetch(detailUrl);
+      if (!r.ok) throw new Error('Failed to load details');
+      const data = await r.json();
+      const dbs = Array.isArray(data.databases) ? data.databases.join(', ') : '';
+      const screen = data.prisma && data.prisma.screening ? JSON.stringify(data.prisma.screening) : '{}';
+      const elig = data.prisma && data.prisma.eligibility ? JSON.stringify(data.prisma.eligibility) : '{}';
+      panel.innerHTML = `
+        <div class="detail-grid">
+          <div class="detail-key">Run ID</div><div class="detail-value">${esc(data.runId || '')}</div>
+          <div class="detail-key">Timestamp</div><div class="detail-value">${esc(fmtDate(data.timestamp))}</div>
+          <div class="detail-key">Query</div><div class="detail-value">${esc(data.query || '')}</div>
+          <div class="detail-key">Databases</div><div class="detail-value">${esc(dbs || '-')}</div>
+          <div class="detail-key">Total Found</div><div class="detail-value">${esc(data.numFound || 0)}</div>
+          <div class="detail-key">Included Docs</div><div class="detail-value">${esc((data.docs || []).length)}</div>
+          <div class="detail-key">Raw Docs</div><div class="detail-value">${esc((data.rawDocs || []).length)}</div>
+          <div class="detail-key">Excluded (by reason)</div><div class="detail-value">${esc(Object.keys(data.excluded_docs || {}).join(', ') || '-')}</div>
+          <div class="detail-key">Screening Summary</div><div class="detail-value">${esc(screen)}</div>
+          <div class="detail-key">Eligibility Summary</div><div class="detail-value">${esc(elig)}</div>
+        </div>
+      `;
+      panel.dataset.loaded = '1';
+      buttonEl.textContent = 'Hide Details';
+    } catch (err) {
+      panel.innerHTML = '<div class="detail-value">Could not load run details.</div>';
+      showToast('Unable to load run details.', 'error', 3000);
+    } finally {
+      buttonEl.disabled = false;
+    }
+  }
+
+  function renderRuns(runs) {
+    runsCountEl.textContent = `${runs.length} run${runs.length === 1 ? '' : 's'}`;
+
+    if (!runs.length) {
+      runsListEl.innerHTML = '<div class="runs-empty">No runs found yet. Execute a search to generate local run files.<div style="margin-top:0.65rem;font-size:0.82rem;color:var(--c-text-3);">If RSP helps your research, you can <a href="https://ko-fi.com/ribeirolabs" target="_blank" rel="noopener noreferrer">support RibeiroLabs on Ko-fi</a> (optional).</div></div>';
+      return;
+    }
+
+    runsListEl.innerHTML = runs.map((run, idx) => {
+      const dbs = Array.isArray(run.databases) ? run.databases.join(', ') : '';
+      const sp  = run.screeningProgress || {};
+      const screenBadge = sp.total > 0
+        ? (sp.screened > 0
+            ? `<span class="stat-pill" style="background:#f0fdf4; border-color:#a5d6a7; color:#15803d;" title="${sp.included} included · ${sp.excluded} excluded · ${sp.unsure} unsure"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg> ${sp.screened}/${sp.total} screened</span>`
+            : `<span class="stat-pill" style="color:var(--c-text-3);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg> unscreened</span>`)
+        : '';
+      const screenBtn = run.storage === 'adhoc' && run.runId
+        ? `<a class="btn btn-neutral btn-sm" href="/screening?runId=${encodeURIComponent(run.runId)}" title="Open T&amp;A Screening for this run"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg> Screen</a>`
+        : '';
+      return `
+        <article class="run-item">
+          <div class="run-top">
+            <div class="run-meta">
+              <span class="run-badge ${run.storage === 'saved' ? 'saved' : 'adhoc'}">${run.storage === 'saved' ? 'Saved Search' : 'Ad-hoc'}</span>
+              <span class="run-time">${esc(fmtDate(run.timestamp))}</span>
+            </div>
+            <div class="run-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-detail-idx="${idx}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.5" y1="9.5" x2="14" y2="14"/></svg> View Details</button>
+              ${screenBtn}
+              <a class="btn btn-neutral btn-sm" href="${esc(run.downloadUrl)}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 8l4 4 4-4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Download JSON</a>
+              <a class="btn btn-purple btn-sm" href="${esc(run.zipDownloadUrl)}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="14,5.5 8,9 2,5.5"/><line x1="8" y1="9" x2="8" y2="14"/><path d="M14 5.5L8 2 2 5.5v5L8 14l6-3.5z"/></svg> Download ZIP</a>
+              <button type="button" class="btn btn-danger btn-sm" data-delete-idx="${idx}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Delete</button>
+            </div>
+          </div>
+          <div class="run-query">${esc(run.query || '(no query saved)')}</div>
+          <div class="run-stats">
+            <span class="stat-pill">Found: ${esc(run.numFound)}</span>
+            <span class="stat-pill">Included: ${esc(run.included)}</span>
+            <span class="stat-pill">DBs: ${esc(dbs || '-')}</span>
+            ${run.searchId ? `<span class="stat-pill">Search ID: ${esc(run.searchId)}</span>` : ''}
+            ${screenBadge}
+          </div>
+          <div class="detail-panel" id="detail-${idx}"></div>
+        </article>
+      `;
+    }).join('');
+
+    runs.forEach((run, idx) => {
+      const btn = runsListEl.querySelector(`[data-detail-idx="${idx}"]`);
+      if (!btn) return;
+      btn.addEventListener('click', () => toggleDetails(btn, run.detailUrl));
+
+      const delBtn = runsListEl.querySelector(`[data-delete-idx="${idx}"]`);
+      if (!delBtn) return;
+      delBtn.addEventListener('click', () => confirmDeleteRun(run));
+    });
+  }
+
+  async function deleteRun(run) {
+    const endpoint = run.storage === 'saved'
+      ? `/api/results/run/saved/${encodeURIComponent(run.searchId)}/${Number.isInteger(run.historyIndex) ? run.historyIndex : 0}`
+      : `/api/results/run/adhoc/${encodeURIComponent(run.runId)}`;
+
+    const resp = await fetch(endpoint, { method: 'DELETE' });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) {
+      throw new Error(data.error || data.message || 'Delete failed');
+    }
+  }
+
+  function confirmDeleteRun(run) {
+    const label = run.storage === 'saved' ? 'saved run' : 'ad-hoc run';
+    const ts = fmtDate(run.timestamp);
+    const shortQuery = (run.query || '(no query)').slice(0, 120);
+    showConfirmModal({
+      icon: RSP_ICONS.trash,
+      title: 'Delete Run',
+      message: `Delete this ${label}?\n\nTime: ${ts}\nQuery: ${shortQuery}`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      onConfirm: async function() {
+        try {
+          await deleteRun(run);
+          showToast('Run deleted.', 'success', 2800);
+          await loadRuns();
+        } catch (err) {
+          showToast('Unable to delete run: ' + err.message, 'error', 3600);
+        }
+      }
+    });
+  }
+
+  async function loadRuns() {
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('btn-loading');
+    try {
+      const r = await fetch('/api/results/runs?limit=500');
+      if (!r.ok) throw new Error('Failed to list runs');
+      const runs = await r.json();
+      renderRuns(runs);
+    } catch (err) {
+      runsListEl.innerHTML = '<div class="runs-empty">Could not load runs right now.</div>';
+      runsCountEl.textContent = '0 runs';
+      showToast('Failed to load local runs.', 'error', 3000);
+    } finally {
+      refreshBtn.disabled = false;
+      refreshBtn.classList.remove('btn-loading');
+    }
+  }
+
+  async function openResultsFolder() {
+    openFolderBtn.disabled = true;
+    try {
+      const r = await fetch('/api/results/open-folder', { method: 'POST' });
+      const data = await r.json();
+      if (r.ok && data.ok) {
+        showToast('Opened the results folder in your file manager.', 'success', 2600);
+      } else {
+        showToast(data.message || 'Unable to open results folder.', 'warning', 3600);
+      }
+    } catch (_) {
+      showToast('Unable to open results folder.', 'error', 3200);
+    } finally {
+      openFolderBtn.disabled = false;
+    }
+  }
+
+  refreshBtn.addEventListener('click', loadRuns);
+  openFolderBtn.addEventListener('click', openResultsFolder);
+
+  loadFolderInfo();
+  loadRuns();
+</script>
+{% endblock %}

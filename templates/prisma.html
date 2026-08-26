@@ -1,0 +1,2535 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – PRISMA{% endblock %}
+{% block head_extra %}
+<style>
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 0.5rem; color: #2c3e50; font-size: 1.8rem; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 2rem; font-size: 1.05rem; }
+
+
+        .card {
+            background: #fff;
+            padding: 2rem 2.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .card h2 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            margin-bottom: 1.2rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+
+        .empty-state { text-align: center; color: #999; padding: 3rem; font-size: 1.1rem; }
+        .empty-state a { color: #3498db; }
+
+        /* ============================================
+           PRISMA Flow Diagram — Academic Layout
+           Follows PRISMA 2020 standard structure:
+           Main flow (left) + Excluded boxes (right)
+           ============================================ */
+        .prisma-flow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            padding: 2rem 0;
+            position: relative;
+        }
+
+        /* Each step row: main box on left, excluded on right */
+        .flow-row {
+            display: grid;
+            /* Fixed-width side tracks (rather than fr/minmax) so the middle
+               (main box) column always sits at the same X position whether
+               or not a row has a companion excluded/snowballing box —
+               otherwise the main boxes and the vertical arrows above/below
+               them drift a few px left/right between rows, breaking the
+               straight vertical alignment of the flow. */
+            grid-template-columns: 310px auto 310px;
+            align-items: center;
+            width: 100%;
+            max-width: 960px;
+            gap: 0;
+        }
+        .flow-row .flow-main {
+            grid-column: 2;
+            display: flex;
+            justify-content: center;
+        }
+        .flow-row .flow-side {
+            grid-column: 3;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding-left: 1rem;
+        }
+        .flow-row .flow-side-left {
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.8rem;
+            padding-right: 1rem;
+        }
+
+        /* Database grid for identification */
+        .db-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.6rem;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto 0.5rem auto;
+        }
+        .db-chip {
+            background: #eaf5fc;
+            border: 1.5px solid #3498db;
+            border-radius: 5px;
+            padding: 0.5rem 0.7rem;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        .db-chip .db-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.82rem;
+            margin-bottom: 0.2rem;
+        }
+        .db-chip .db-count {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #3498db;
+        }
+        .db-chip .db-retrieved {
+            font-size: 0.72rem;
+            color: #888;
+        }
+
+        /* Main flow boxes */
+        .flow-box {
+            border: 2.5px solid #2c3e50;
+            border-radius: 8px;
+            padding: 1.2rem 1.8rem;
+            text-align: center;
+            width: 340px;
+            background: #fff;
+            position: relative;
+        }
+        .flow-box.identification { border-color: #3498db; background: #eaf5fc; }
+        .flow-box.screening { border-color: #f39c12; background: #fef9e7; }
+        .flow-box.eligibility { border-color: #e67e22; background: #fdebd0; }
+        .flow-box.included { border-color: #27ae60; background: #d4efdf; }
+        .flow-box.snowballing { border-color: #0d9488; background: #f0fdfa; }
+        .flow-box.snowballing .box-label { background: #0d9488; }
+        .flow-box.snowballing .box-count { color: #0d9488; }
+
+        .flow-box .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #fff;
+            background: #2c3e50;
+            padding: 0.2rem 0.7rem;
+            border-radius: 3px;
+            position: absolute;
+            top: -0.7rem;
+            left: 1.2rem;
+        }
+        .flow-box.identification .box-label { background: #3498db; }
+        .flow-box.screening .box-label { background: #f39c12; }
+        .flow-box.eligibility .box-label { background: #e67e22; }
+        .flow-box.included .box-label { background: #27ae60; }
+
+        .flow-box .box-title {
+            font-weight: 600;
+            font-size: 1.05rem;
+            margin-bottom: 0.4rem;
+            margin-top: 0.4rem;
+            color: #2c3e50;
+        }
+        .flow-box .box-count {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            line-height: 1.2;
+        }
+        .flow-box .box-detail {
+            font-size: 0.88rem;
+            color: #555;
+            margin-top: 0.3rem;
+        }
+        .flow-box .box-desc {
+            font-size: 0.82rem;
+            color: #666;
+            margin-top: 0.5rem;
+            line-height: 1.4;
+            font-style: italic;
+            border-top: 1px solid rgba(0,0,0,0.08);
+            padding-top: 0.4rem;
+        }
+
+        /* Sub-criteria pills below screening/eligibility boxes */
+        .sub-criteria {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.5rem;
+            margin-top: 1rem;
+            width: 100%;
+            max-width: 960px;
+        }
+        .sub-box {
+            border: 1.5px solid #ccc;
+            border-radius: 5px;
+            padding: 0.6rem 0.9rem;
+            font-size: 0.82rem;
+            background: #fff;
+            min-width: 0;
+            text-align: center;
+        }
+        .sub-box.active {
+            border-color: #27ae60;
+            background: #eafaf1;
+        }
+        .sub-box.inactive {
+            border-color: #bdc3c7;
+            background: #f9f9f9;
+            color: #aaa;
+        }
+        .sub-box .sub-label {
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 0.2rem;
+            color: #555;
+        }
+        .sub-box.active .sub-label { color: #27ae60; }
+        .sub-box.inactive .sub-label { color: #bdc3c7; }
+        .sub-box .sub-value {
+            font-size: 0.8rem;
+            color: #333;
+            word-break: break-word;
+        }
+        .sub-box.inactive .sub-value { color: #bbb; }
+        .sub-box .sub-count {
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-top: 0.3rem;
+            padding-top: 0.3rem;
+            border-top: 1px solid #eee;
+            color: #e74c3c;
+        }
+        .sub-box.inactive .sub-count { color: #ccc; }
+
+        /* Vertical arrow connector */
+        .flow-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #555;
+            font-size: 1.6rem;
+            padding: 0.5rem 0;
+        }
+        .flow-arrow .arrow-text {
+            font-size: 0.78rem;
+            color: #999;
+            margin-top: 0.1rem;
+        }
+
+        /* Horizontal connector line to excluded box */
+        .flow-connector {
+            width: 48px;
+            height: 2px;
+            background: #e74c3c;
+            color: #e74c3c;
+            position: relative;
+            flex-shrink: 0;
+        }
+        /* connector tip via inline SVG (see .connector-tip span) — color matches the line so the arrowhead (stroke=currentColor) isn't a different colour */
+        .flow-connector.connector-purple { background: #8e44ad; color: #8e44ad; }
+
+        /* Left-side connector (snowballing → identification) */
+        .flow-connector-left {
+            width: 48px; height: 2px; background: #0d9488; color: #0d9488;
+            position: relative; flex-shrink: 0;
+        }
+
+
+        .connector-tip { position:absolute; right:-10px; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; }
+        .connector-tip svg { display:block; }
+        /* Excluded/removed side boxes — styled like flow-box cards */
+        .flow-excluded {
+            border: 2.5px solid #e74c3c;
+            border-radius: 8px;
+            padding: 1rem 1.3rem;
+            background: #fdedec;
+            color: #c0392b;
+            width: 240px;
+            min-width: 240px;
+            max-width: 240px;
+            text-align: left;
+            position: relative;
+            box-sizing: border-box;
+        }
+        .flow-excluded .excl-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: #fff;
+            background: #e74c3c;
+            padding: 0.18rem 0.6rem;
+            border-radius: 3px;
+            position: absolute;
+            top: -0.65rem;
+            left: 1rem;
+        }
+        .flow-excluded .excl-count {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #c0392b;
+            line-height: 1.2;
+            margin-top: 0.6rem;
+            margin-bottom: 0.2rem;
+        }
+        .flow-excluded .excl-title {
+            font-weight: 600;
+            font-size: 0.82rem;
+            color: #922b21;
+            margin-bottom: 0.4rem;
+            padding-top: 0.1rem;
+        }
+        .flow-excluded ul {
+            list-style: none;
+            padding: 0;
+            text-align: left;
+            font-size: 0.8rem;
+            border-top: 1px solid rgba(231,76,60,0.2);
+            padding-top: 0.35rem;
+            margin-top: 0.2rem;
+        }
+        .flow-excluded li { margin-bottom: 0.25rem; color: #922b21; display:flex; align-items:center; }
+
+
+        /* Manual steps and final boxes */
+        .flow-box.manual { border-color: #8e44ad; background: #f4ecf7; }
+        .flow-box.manual .box-label { background: #8e44ad; }
+        .flow-box.final { border-color: #16a085; background: #d1f2eb; }
+        .flow-box.final .box-label { background: #16a085; }
+
+        /* Checklist */
+        .checklist-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+        }
+        .checklist-table th, .checklist-table td {
+            border: 1px solid #ddd;
+            padding: 0.7rem 0.9rem;
+            text-align: left;
+        }
+        .checklist-table th {
+            background: #ecf0f1;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .checklist-table tr:nth-child(even) { background: #f9f9f9; }
+        .checklist-table .section-header {
+            background: #2c3e50;
+            color: #fff;
+            font-weight: 600;
+        }
+        .check-yes { color: #27ae60; font-weight: 600; }
+        .check-no { color: #e74c3c; font-weight: 600; }
+        .check-na { color: #999; }
+
+        /* ── Interactive PRISMA 2020 Checklist ── */
+        .cl-section-hdr {
+            background: #2c3e50; color: #fff;
+            font-weight: 700; font-size: 0.85rem; letter-spacing: 0.4px;
+            padding: 0.5rem 0.9rem; border-radius: 5px;
+            margin: 1.2rem 0 0.35rem; display: flex;
+            justify-content: space-between; align-items: center;
+        }
+        .cl-section-cnt { font-size: 0.73rem; font-weight: 400; color: #a0aab4; }
+        .cl-item {
+            display: grid; grid-template-columns: 52px 1fr;
+            border: 1px solid #e9ecef; border-radius: 5px;
+            margin-bottom: 0.35rem; overflow: hidden; background: #fff;
+        }
+        .cl-item.is-auto-yes { border-color: #aed6f1; }
+        .cl-item.is-complete  { border-color: #a9dfbf; }
+        .cl-num {
+            background: #f8f9fa; border-right: 1px solid #e9ecef;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; color: #6c757d; font-size: 0.78rem;
+            padding: 0.4rem 0.2rem; min-height: 56px; text-align: center;
+            line-height: 1.2;
+        }
+        .cl-item.is-auto-yes .cl-num { background: #eaf5fc; color: #1a5276; }
+        .cl-item.is-complete  .cl-num { background: #eafaf1; color: #27ae60; }
+        .cl-body { padding: 0.55rem 0.85rem; }
+        .cl-top { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.22rem; }
+        .cl-name { font-weight: 600; color: #2c3e50; font-size: 0.87rem; flex: 1; line-height: 1.3; }
+        .cl-badge {
+            font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.4rem;
+            border-radius: 3px; white-space: nowrap; margin-top: 0.1rem; flex-shrink: 0;
+        }
+        .cl-badge-auto   { background: #eaf5fc; color: #1a5276; border: 1px solid #aed6f1; }
+        .cl-badge-manual { background: #fef9e7; color: #7d6608; border: 1px solid #f9e79f; }
+        .cl-desc { font-size: 0.78rem; color: #6c757d; line-height: 1.4; margin-bottom: 0.32rem; }
+        .cl-auto-val {
+            font-size: 0.8rem; background: #eaf5fc;
+            border-left: 3px solid #3498db; padding: 0.3rem 0.55rem;
+            border-radius: 0 4px 4px 0; line-height: 1.4; color: #1a5276;
+            display: flex; align-items: flex-start;
+        }
+        .cl-auto-val.st-yes     { border-color: #27ae60; background: #eafaf1; color: #1e8449; }
+
+        .cl-auto-val.st-no      { border-color: #e74c3c; background: #fdedec; color: #c0392b; }
+
+        .cl-auto-val.st-partial { border-color: #f39c12; background: #fef9e7; color: #7d6608; }
+
+        .cl-supplement { margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px dashed #f0c060; }
+        .cl-supplement-lbl { font-size: 0.78rem; font-weight: 600; color: #7d6608; margin-bottom: 0.3rem; }
+        .cl-manual-row { display: flex; align-items: flex-start; gap: 0.55rem; margin-top: 0.3rem; }
+        .cl-check { margin-top: 0.15rem; width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+        .cl-txt {
+            flex: 1; font-size: 0.8rem; border: 1px solid #dee2e6; border-radius: 4px;
+            padding: 0.3rem 0.45rem; min-height: 34px; resize: vertical;
+            font-family: inherit; color: #333; background: #fafafa;
+        }
+        .cl-txt:focus { outline: none; border-color: #3498db; background: #fff; }
+        .cl-txt.has-val { background: #f0fdf4; border-color: #a9dfbf; }
+        .cl-progress-wrap {
+            background: #f0f0f0; border-radius: 8px; height: 10px; overflow: hidden; margin-bottom: 0.35rem;
+        }
+        .cl-progress-fill {
+            height: 100%; border-radius: 8px;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            transition: width 0.4s ease;
+        }
+        .cl-progress-lbl { font-size: 0.8rem; color: #6c757d; }
+
+
+        /* Manual Steps Panel */
+        .manual-steps-panel {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+        .manual-steps-panel h3 {
+            font-size: 1.05rem;
+            color: #2c3e50;
+            margin-bottom: 0.8rem;
+        }
+        .manual-steps-list {
+            margin-bottom: 1rem;
+        }
+        .manual-step-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.7rem;
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 0.4rem;
+            font-size: 0.88rem;
+        }
+        .manual-step-item .step-info { flex: 1; }
+        .manual-step-item .step-name { font-weight: 600; color: #2c3e50; }
+        .manual-step-item .step-counts { color: #666; font-size: 0.82rem; }
+        .manual-step-item .step-counts .added { color: #27ae60; }
+        .manual-step-item .step-counts .removed { color: #e74c3c; }
+
+        .add-step-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+        .add-step-form .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .add-step-form label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .add-step-form input {
+            padding: 0.45rem 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.88rem;
+        }
+        .add-step-form input[type="number"] { width: 70px; }
+        .add-step-form input[type="text"] { width: 180px; }
+
+
+        /* ── Paper panel ── */
+        .paper-panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+        .paper-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.8rem 1.2rem;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .paper-panel-title { font-weight: 700; color: #2c3e50; font-size: 0.97rem; }
+        .paper-panel-count { font-size: 0.82rem; color: #6b7280; }
+        .paper-panel-close {
+            background: none; border: none; font-size: 1.2rem; cursor: pointer;
+            color: #9ca3af; line-height: 1;
+        }
+        .paper-panel-close:hover { color: #374151; }
+        .paper-panel-body { padding: 0.8rem 1.2rem; max-height: 560px; overflow-y: auto; }
+        .pp-page-bar {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.6rem 1.2rem; border-top: 1px solid #f0f0f0;
+            font-size: 0.82rem; color: #6b7280;
+        }
+        /* Reuse search-page card styles */
+        .paper {
+            background: #fff;
+            padding: 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 1rem;
+        }
+        .paper-title { font-size: 1.1rem; font-weight: 600; color: #2c3e50; margin-bottom: 0.4rem; }
+        .paper-title a { color: #2c3e50; text-decoration: none; }
+        .paper-title a:hover { color: #3498db; text-decoration: underline; }
+        .paper-meta { font-size: 0.85rem; color: #777; margin-bottom: 0.4rem; }
+        .paper-authors { font-style: italic; margin-bottom: 0.3rem; font-size: 0.9rem; }
+        .paper-abstract { font-size: 0.9rem; color: #555; line-height: 1.5; margin-top: 0.5rem; }
+        .paper-keywords { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.3rem; }
+        .keyword-tag { background: #eaf2f8; color: #2980b9; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.8rem; }
+        .doi-link { font-size: 0.85rem; margin-top: 0.4rem; }
+        .doi-link a { color: #3498db; }
+        .paper-link { margin-top: 0.5rem; }
+        .paper-link a {
+            display: inline-block; background: var(--c-primary); color: #fff;
+            padding: 0.3rem 0.8rem; border-radius: var(--r-sm); font-size: 0.82rem;
+            text-decoration: none; font-weight: 600;
+        }
+        .paper-link a:hover { background: var(--c-primary-dk); }
+        .source-badge {
+            display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px;
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+            margin-right: 0.5rem; vertical-align: middle;
+        }
+        .source-hal { background: #d4efdf; color: #1e8449; }
+        .source-arxiv { background: #fdebd0; color: #b9770e; }
+        .source-ieee { background: #d6eaf8; color: #1a5276; }
+        .source-scopus { background: #f5e6ff; color: #6c3483; }
+        .source-inspec { background: #fce4ec; color: #880e4f; }
+        .source-sciencedirect { background: #fff3e0; color: #e65100; }
+        .source-springer { background: #e3f2fd; color: #0d47a1; }
+        .source-pubmed { background: #fce4ec; color: #880e4f; }
+        .source-acm { background: #e8f5e9; color: #2e7d32; }
+        .source-openalex { background: #e8f4fd; color: #1a5276; }
+        /* Make flow boxes clickable */
+        .flow-box { cursor: pointer; transition: box-shadow .15s, transform .1s; }
+        .flow-box:hover { box-shadow: 0 4px 16px rgba(52,152,219,.25); transform: translateY(-2px); }
+        .flow-box.selected { outline: 2px solid #3498db; }
+        .flow-excluded[data-excl] { cursor: pointer; transition: box-shadow .15s, transform .1s; }
+        .flow-excluded[data-excl]:hover { box-shadow: 0 4px 14px rgba(231,76,60,.22); transform: translateY(-2px); }
+        .flow-excluded.selected { outline: 2px solid #e74c3c; }
+        .db-chip { cursor: pointer; transition: box-shadow .15s, transform .1s; }
+        .db-chip:hover { box-shadow: 0 4px 14px rgba(52,152,219,.22); transform: translateY(-2px); }
+        .db-chip.selected { outline: 2px solid #3498db; }
+
+        /* List-view rows inside the panel */
+        .pp-paper-row {
+            display: grid;
+            grid-template-columns: 100px 1fr 60px 110px;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.7rem;
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+            margin-bottom: 0.4rem;
+            font-size: 0.9rem;
+        }
+        .pp-paper-row:hover { background: #f5faff; }
+        .pp-paper-row.expanded { background: #f0f8ff; border-left: 3px solid #3498db; }
+        .pp-paper-row .row-source { font-weight: 700; font-size: 0.78rem; }
+        .pp-paper-row .row-title  { font-weight: 500; color: #1a1a1a; cursor: pointer; }
+        .pp-paper-row .row-year   { color: #666; text-align: center; }
+        .pp-paper-row .row-link   { text-align: right; white-space: nowrap; }
+        .pp-paper-row .row-link a { font-size: 0.82rem; }
+        .pp-row-detail {
+            display: none;
+            grid-column: 1 / -1;
+            border-top: 1px solid #dce9f5;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+        }
+        .pp-row-header {
+            display: grid;
+            grid-template-columns: 100px 1fr 60px 110px;
+            gap: 0.6rem;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 0.05em;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div id="emptyState" class="empty-state" style="display:none;">
+            <p>No search data available. <a href="/">Run a search</a> first to generate the PRISMA flow diagram.</p>
+            <p style="margin-top:0.6rem;font-size:0.82rem;color:var(--c-text-3);">
+                If RSP helps your research, you can <a href="https://ko-fi.com/ribeirolabs" target="_blank" rel="noopener noreferrer">support RibeiroLabs on Ko-fi</a> (optional).
+            </p>
+        </div>
+
+        <div id="prismaContent" style="display:none;">
+            <!-- PRISMA Flow Diagram -->
+            <div class="card">
+                <h2>PRISMA Flow Diagram</h2>
+                <div class="prisma-flow" id="prismaFlow"></div>
+                <button class="btn btn-purple" style="margin-top:1rem;" onclick="exportPrisma()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export Diagram as PNG</button>
+
+                <div class="manual-steps-panel">
+                    <h3>Snowballing / Other Sources <span style="font-weight:400;font-size:0.8rem;color:#888;">(optional)</span></h3>
+                    <p style="font-size:0.8rem; color:#888; margin-bottom:0.8rem;">Records identified through backward/forward citation searching, hand-search, or grey literature. These appear as a parallel card at the Identification stage.</p>
+                    <div class="add-step-form" style="align-items:flex-end;">
+                        <div style="display:flex;gap:0.5rem;align-items:flex-end;padding:0.5rem 0.7rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;">
+                            <div class="field">
+                                <label>↩ Backward snowballing</label>
+                                <input type="number" id="sbBackward" value="0" min="0" oninput="updateSbTotal()">
+                            </div>
+                            <div class="field">
+                                <label>↪ Forward snowballing</label>
+                                <input type="number" id="sbForward" value="0" min="0" oninput="updateSbTotal()">
+                            </div>
+                            <div class="field">
+                                <label>Other sources</label>
+                                <input type="number" id="sbOther" value="0" min="0" oninput="updateSbTotal()">
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.5rem;align-items:flex-end;padding:0.5rem 0.7rem;background:#fff1f2;border:1px solid #fecdd3;border-radius:6px;">
+                            <div class="field">
+                                <label>Excluded after T&amp;A screening</label>
+                                <input type="number" id="sbExcluded" value="0" min="0" oninput="updateSbTotal()">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="sbTotalLine" style="font-size:0.82rem;color:#555;background:#f4f4f4;border-radius:5px;padding:0.3rem 0.6rem;margin:0.5rem 0;"></div>
+                    <div class="add-step-form" style="align-items:flex-start;">
+                        <div class="field" style="flex:1;min-width:200px;">
+                            <label>Notes / description</label>
+                            <textarea id="sbDesc" rows="3" placeholder="e.g. References of 10 seed papers + Google Scholar forward search" style="width:100%;font-size:0.83rem;resize:vertical;padding:0.45rem 0.6rem;border:1px solid #ddd;border-radius:4px;font-family:inherit;"></textarea>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+                        <button class="btn btn-success btn-sm" onclick="saveSnowballing()">+ Save</button>
+                        <button class="btn btn-neutral btn-sm" onclick="clearSnowballing()">Clear</button>
+                    </div>
+                </div>
+
+                <div class="manual-steps-panel">
+                    <h3>Manual Review Steps (post-inclusion)</h3>
+                    <p style="font-size:0.8rem; color:#888; margin-bottom:0.8rem;">Add steps that occur after the automated inclusion (e.g., manual full-text review, snowballing). These will appear in the flow diagram.</p>
+                    <div class="manual-steps-list" id="manualStepsList"></div>
+                    <div class="add-step-form">
+                        <div class="field">
+                            <label>Step name</label>
+                            <input type="text" id="stepName" placeholder="e.g. Manual Review">
+                        </div>
+                        <div class="field">
+                            <label>Added</label>
+                            <input type="number" id="stepAdded" value="0" min="0">
+                        </div>
+                        <div class="field">
+                            <label>Removed</label>
+                            <input type="number" id="stepRemoved" value="0" min="0">
+                        </div>
+                        <div class="field">
+                            <label>Description</label>
+                            <input type="text" id="stepDesc" placeholder="e.g. Full-text review by 2 researchers">
+                        </div>
+                        <button class="btn btn-success btn-sm" onclick="addManualStep()">&#10133; Add Step</button>
+                    </div>
+                </div>
+            </div><!-- /.card flow diagram -->
+
+            <!-- Paper panel (shown when a flow box is clicked) -->
+            <div id="paperPanel" class="paper-panel" style="display:none;">
+                <div class="paper-panel-header">
+                    <div>
+                        <div class="paper-panel-title" id="ppTitle">Papers</div>
+                        <div class="paper-panel-count" id="ppCount"></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                        <span style="font-size:0.85rem;color:#555;margin-right:0.25rem;">View:</span>
+                        <button class="view-btn active" id="ppBtnCard" onclick="_ppSetView('card')">&#9646;&#9646; Cards</button>
+                        <button class="view-btn"        id="ppBtnList" onclick="_ppSetView('list')">&#9776; List</button>
+                        <button class="paper-panel-close" onclick="closePaperPanel()" title="Close">&times;</button>
+                    </div>
+                </div>
+                <div class="paper-panel-body" id="ppBody"></div>
+                <div class="pp-page-bar" id="ppPageBar"></div>
+            </div>
+
+            <!-- Review Protocol (feeds the checklist + replication package) -->
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+                    <h2 style="margin:0;border:none;padding:0;">Review Protocol</h2>
+                    <button class="btn btn-neutral btn-sm" id="protocolToggle" onclick="toggleProtocolForm()">+ Show</button>
+                </div>
+                <p style="font-size:0.82rem;color:#666;margin:0.5rem 0 0;">Review-level facts no search can infer — research questions, registration, reviewer team, synthesis and risk-of-bias methods, funding. Filling these in auto-completes the corresponding PRISMA checklist items below and is exported with the replication package (<code>03_protocol/review_protocol.json</code>).</p>
+                <div id="protocolForm" style="display:none;margin-top:1rem;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:0.9rem;">
+                        <div>
+                            <label for="protoRQ" style="font-weight:600;font-size:0.85rem;">Research question(s) / objectives <span style="color:#888;font-weight:400;">(items 3–4)</span></label>
+                            <textarea id="protoRQ" rows="3" placeholder="RQ1: … RQ2: …" style="width:100%;box-sizing:border-box;"></textarea>
+                        </div>
+                        <div>
+                            <label for="protoRationale" style="font-weight:600;font-size:0.85rem;">Rationale <span style="color:#888;font-weight:400;">(item 3)</span></label>
+                            <textarea id="protoRationale" rows="3" placeholder="Why this review is needed in the context of existing knowledge…" style="width:100%;box-sizing:border-box;"></textarea>
+                        </div>
+                        <div>
+                            <label for="protoOutcomes" style="font-weight:600;font-size:0.85rem;">Outcomes / data items sought <span style="color:#888;font-weight:400;">(item 10a)</span></label>
+                            <textarea id="protoOutcomes" rows="3" placeholder="e.g. reported development practices, evaluation metrics, tool support…" style="width:100%;box-sizing:border-box;"></textarea>
+                        </div>
+                        <div>
+                            <label for="protoScreening" style="font-weight:600;font-size:0.85rem;">Screening process notes <span style="color:#888;font-weight:400;">(items 8–9)</span></label>
+                            <textarea id="protoScreening" rows="3" placeholder="e.g. disagreements resolved by discussion…" style="width:100%;box-sizing:border-box;"></textarea>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.9rem;margin-top:0.9rem;">
+                        <div>
+                            <label for="protoReviewers" style="font-weight:600;font-size:0.85rem;">Reviewers <span style="color:#888;font-weight:400;">(items 8–9)</span></label>
+                            <input type="number" id="protoReviewers" min="1" value="1" style="width:100%;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label for="protoRegistered" style="font-weight:600;font-size:0.85rem;">Registration <span style="color:#888;font-weight:400;">(item 24)</span></label>
+                            <select id="protoRegistered" onchange="document.getElementById('protoRegFields').style.display = this.value === 'yes' ? 'grid' : 'none';" style="width:100%;box-sizing:border-box;">
+                                <option value="no">Not registered</option>
+                                <option value="yes">Registered</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="protoSynthesis" style="font-weight:600;font-size:0.85rem;">Synthesis method <span style="color:#888;font-weight:400;">(item 13d)</span></label>
+                            <select id="protoSynthesis" style="width:100%;box-sizing:border-box;">
+                                <option value="">— not specified —</option>
+                                <option value="Narrative synthesis">Narrative synthesis</option>
+                                <option value="Thematic synthesis">Thematic synthesis</option>
+                                <option value="Meta-analysis">Meta-analysis</option>
+                                <option value="Descriptive mapping">Descriptive mapping</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="protoRob" style="font-weight:600;font-size:0.85rem;">Risk-of-bias / quality tool <span style="color:#888;font-weight:400;">(item 11)</span></label>
+                            <select id="protoRob" style="width:100%;box-sizing:border-box;">
+                                <option value="">— not specified —</option>
+                                <option value="None — no formal assessment">None — no formal assessment</option>
+                                <option value="Custom quality checklist">Custom quality checklist</option>
+                                <option value="CASP">CASP</option>
+                                <option value="ROBIS">ROBIS</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="protoRegFields" style="display:none;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.9rem;margin-top:0.9rem;">
+                        <div><label for="protoRegName" style="font-weight:600;font-size:0.85rem;">Register name</label><input type="text" id="protoRegName" placeholder="e.g. PROSPERO, OSF" style="width:100%;box-sizing:border-box;"></div>
+                        <div><label for="protoRegNumber" style="font-weight:600;font-size:0.85rem;">Registration number</label><input type="text" id="protoRegNumber" style="width:100%;box-sizing:border-box;"></div>
+                        <div><label for="protoRegDate" style="font-weight:600;font-size:0.85rem;">Registration date</label><input type="date" id="protoRegDate" style="width:100%;box-sizing:border-box;"></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.9rem;margin-top:0.9rem;">
+                        <div><label for="protoEffect" style="font-weight:600;font-size:0.85rem;">Effect measures <span style="color:#888;font-weight:400;">(item 12)</span></label><input type="text" id="protoEffect" placeholder="e.g. N/A — qualitative synthesis" style="width:100%;box-sizing:border-box;"></div>
+                        <div><label for="protoRepBias" style="font-weight:600;font-size:0.85rem;">Reporting-bias method <span style="color:#888;font-weight:400;">(item 14)</span></label><input type="text" id="protoRepBias" placeholder="e.g. None performed" style="width:100%;box-sizing:border-box;"></div>
+                        <div><label for="protoCertainty" style="font-weight:600;font-size:0.85rem;">Certainty assessment <span style="color:#888;font-weight:400;">(item 15)</span></label><input type="text" id="protoCertainty" placeholder="e.g. None / GRADE" style="width:100%;box-sizing:border-box;"></div>
+                        <div><label for="protoFunding" style="font-weight:600;font-size:0.85rem;">Funding / support <span style="color:#888;font-weight:400;">(item 25)</span></label><input type="text" id="protoFunding" placeholder="e.g. No external funding" style="width:100%;box-sizing:border-box;"></div>
+                        <div><label for="protoCOI" style="font-weight:600;font-size:0.85rem;">Competing interests <span style="color:#888;font-weight:400;">(item 26)</span></label><input type="text" id="protoCOI" placeholder="e.g. The authors declare none" style="width:100%;box-sizing:border-box;"></div>
+                    </div>
+                    <div style="margin-top:1rem;">
+                        <button class="btn btn-primary btn-sm" onclick="saveProtocol()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Protocol</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRISMA Checklist -->
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
+                    <h2 style="margin:0;border:none;padding:0;">PRISMA 2020 Evidence Checklist</h2>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button class="btn btn-danger btn-sm" onclick="resetManualChecklist()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg> Reset inputs</button>
+                        <button class="btn btn-purple btn-sm" onclick="exportChecklist()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export PNG</button>
+                    </div>
+                </div>
+                <p style="font-size:0.82rem; color:#666; margin-bottom:1rem;">Based on the <strong>PRISMA 2020 Statement</strong> (Page et al., 2021, <em>BMJ</em> 372:n71). All 27 official items are listed. <span style="background:#eaf5fc;color:#1a5276;font-size:0.7rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;border:1px solid #aed6f1;">AUTO</span> items are assessed from your search data. <span style="background:#fef9e7;color:#7d6608;font-size:0.7rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;border:1px solid #f9e79f;">MANUAL</span> items require your input — check the box and add your notes.</p>
+                <div id="clProgress" style="margin-bottom:1.25rem;"></div>
+                <div id="checklistContent"></div>
+                <table class="checklist-table" id="checklistTable" style="display:none;"></table>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        const RSP_VERSION = {{ rsp_version | tojson }};
+        let prisma = JSON.parse(localStorage.getItem('lastPrismaData') || 'null');
+        const docs = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
+        const formState = JSON.parse(localStorage.getItem('searchFormState') || '{}');
+        const excludedDocs = JSON.parse(localStorage.getItem('lastExcludedDocs') || '{}');
+        let manualSteps = JSON.parse(localStorage.getItem('prismaManualSteps') || '[]');
+        let snowballing = JSON.parse(localStorage.getItem('prismaSnowballing') || 'null');
+
+        // ── Try to hydrate taScreening from server if we have a lastScreeningRunId ──
+        (async function() {
+            const runId = localStorage.getItem('lastScreeningRunId');
+            // Only merge screening counts that belong to THIS run — grafting
+            // another run's counts onto this flow corrupts published numbers.
+            if (runId && prisma && prisma.identification && prisma.runId === runId) {
+                try {
+                    const resp = await fetch('/api/results/run/adhoc/' + encodeURIComponent(runId));
+                    if (resp.ok) {
+                        const run = await resp.json();
+                        if (!run.error) {
+                            const decisions = run.screeningDecisions || {};
+                            let inc = 0, exc = 0, uns = 0, aiAssisted = 0;
+                            const reasonCounts = {};
+                            const aiModels = {};
+                            Object.values(decisions).forEach(d => {
+                                if (!d || typeof d !== 'object') return;
+                                if (d.decision === 'include') inc++;
+                                else if (d.decision === 'exclude') {
+                                    exc++;
+                                    const r = (d.reason || '').trim() || 'No reason given';
+                                    reasonCounts[r] = (reasonCounts[r] || 0) + 1;
+                                }
+                                else if (d.decision === 'unsure') uns++;
+                                if (d.aiAssisted) {
+                                    aiAssisted++;
+                                    if (d.aiModel) aiModels[d.aiModel] = true;
+                                }
+                            });
+                            const total = (run.docs || []).length;
+                            const screened = inc + exc + uns;
+                            prisma.taScreening = { screened, included: inc, excluded: exc, unsure: uns, total, runId, reasonCounts, aiAssisted, aiModels: Object.keys(aiModels) };
+                            // Persist so PRISMA page shows up-to-date data without server round-trip next time
+                            localStorage.setItem('lastPrismaData', JSON.stringify(prisma));
+                            // Re-render with updated data (checklist too — 16b
+                            // shows the exclusion-reason histogram)
+                            renderPrismaFlow(prisma);
+                            renderChecklist(prisma, formState);
+                        }
+                    }
+                } catch(e) { /* ignore — fall back to localStorage.lastPrismaData.taScreening */ }
+            }
+        })();
+
+        // ── Review Protocol: server-persisted review-level facts ──
+        let reviewProtocol = {};
+
+        function toggleProtocolForm() {
+            const form = document.getElementById('protocolForm');
+            const btn = document.getElementById('protocolToggle');
+            const open = form.style.display !== 'none';
+            form.style.display = open ? 'none' : 'block';
+            btn.textContent = open ? '+ Show' : '− Hide';
+        }
+
+        function populateProtocolForm(pr) {
+            document.getElementById('protoRQ').value = pr.researchQuestions || '';
+            document.getElementById('protoRationale').value = pr.rationale || '';
+            document.getElementById('protoOutcomes').value = pr.outcomes || '';
+            document.getElementById('protoScreening').value = pr.screeningProcess || '';
+            document.getElementById('protoReviewers').value = pr.reviewers || 1;
+            document.getElementById('protoRegistered').value = pr.registered ? 'yes' : 'no';
+            document.getElementById('protoRegFields').style.display = pr.registered ? 'grid' : 'none';
+            document.getElementById('protoRegName').value = pr.registerName || '';
+            document.getElementById('protoRegNumber').value = pr.registrationNumber || '';
+            document.getElementById('protoRegDate').value = pr.registrationDate || '';
+            document.getElementById('protoSynthesis').value = pr.synthesisMethod || '';
+            document.getElementById('protoRob').value = pr.robTool || '';
+            document.getElementById('protoEffect').value = pr.effectMeasures || '';
+            document.getElementById('protoRepBias').value = pr.reportingBiasMethod || '';
+            document.getElementById('protoCertainty').value = pr.certaintyMethod || '';
+            document.getElementById('protoFunding').value = pr.funding || '';
+            document.getElementById('protoCOI').value = pr.competingInterests || '';
+        }
+
+        async function saveProtocol() {
+            const payload = {
+                researchQuestions: document.getElementById('protoRQ').value.trim(),
+                rationale: document.getElementById('protoRationale').value.trim(),
+                outcomes: document.getElementById('protoOutcomes').value.trim(),
+                screeningProcess: document.getElementById('protoScreening').value.trim(),
+                reviewers: parseInt(document.getElementById('protoReviewers').value, 10) || 1,
+                registered: document.getElementById('protoRegistered').value === 'yes',
+                registerName: document.getElementById('protoRegName').value.trim(),
+                registrationNumber: document.getElementById('protoRegNumber').value.trim(),
+                registrationDate: document.getElementById('protoRegDate').value.trim(),
+                synthesisMethod: document.getElementById('protoSynthesis').value,
+                robTool: document.getElementById('protoRob').value,
+                effectMeasures: document.getElementById('protoEffect').value.trim(),
+                reportingBiasMethod: document.getElementById('protoRepBias').value.trim(),
+                certaintyMethod: document.getElementById('protoCertainty').value.trim(),
+                funding: document.getElementById('protoFunding').value.trim(),
+                competingInterests: document.getElementById('protoCOI').value.trim(),
+            };
+            try {
+                const resp = await fetch('/api/protocol', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                reviewProtocol = (await resp.json()).protocol || payload;
+                showToast('Protocol saved — checklist updated.', 'success');
+                if (prisma && prisma.identification) renderChecklist(prisma, formState);
+            } catch (e) {
+                showToast('Failed to save protocol: ' + e.message, 'error');
+            }
+        }
+
+        (async function loadProtocol() {
+            try {
+                const resp = await fetch('/api/protocol');
+                if (!resp.ok) return;
+                reviewProtocol = await resp.json() || {};
+                populateProtocolForm(reviewProtocol);
+                // Re-render so protocol-fed checklist items pick it up
+                if (prisma && prisma.identification) renderChecklist(prisma, formState);
+            } catch (e) { /* protocol stays empty — checklist falls back to prompts */ }
+        })();
+
+        if (!prisma || !prisma.identification) {
+            // A partial object (e.g. only taScreening) must not reach
+            // renderPrismaFlow — it dereferences identification.total_found.
+            document.getElementById('emptyState').style.display = 'block';
+        } else {
+            document.getElementById('prismaContent').style.display = 'block';
+            renderPrismaFlow(prisma);
+            renderChecklist(prisma, formState);
+        }
+
+        // ── Paper Panel logic ──────────────────────────────────────────────
+        const _PP_PAGE_SIZE = 20;
+        let _ppCurrentDocs = [];
+        let _ppPage = 0;
+        let _ppSelectedEl = null;
+        let _ppView = 'card';
+
+        function _ppSetView(v) {
+            _ppView = v;
+            document.getElementById('ppBtnCard').classList.toggle('active', v === 'card');
+            document.getElementById('ppBtnList').classList.toggle('active', v === 'list');
+            _ppPage = 0;
+            _ppRenderPage();
+        }
+
+        function _ppEscape(text) {
+            // Escapes quotes too — values are interpolated into HTML attributes.
+            return String(text == null ? '' : text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function _ppSourceClass(source) {
+            const map = { 'HAL':'source-hal','arXiv':'source-arxiv','IEEE':'source-ieee',
+                          'Scopus':'source-scopus','Inspec':'source-inspec',
+                          'ScienceDirect':'source-sciencedirect','Springer Nature':'source-springer',
+                          'PubMed':'source-pubmed','ACM':'source-acm','OpenAlex':'source-openalex' };
+            return map[source] || 'source-arxiv';
+        }
+
+        function _ppRenderCard(doc) {
+            const source   = doc.source   || 'Unknown';
+            const title    = doc.title    || 'Untitled';
+            const authors  = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || 'Unknown authors');
+            const year     = doc.year     || '';
+            const journal  = doc.journal  || '';
+            const abstract = doc.abstract || '';
+            const url      = doc.url      || '';
+            const doi      = doc.doi      || '';
+            const keywords = doc.keywords || [];
+            const docType  = doc.docType  || '';
+            const link     = url || (doi ? `https://doi.org/${encodeURIComponent(doi)}` : '');
+            const srcClass = _ppSourceClass(source);
+
+            let html = '<div class="paper">';
+            html += `<div class="paper-title"><span class="source-badge ${srcClass}">${_ppEscape(source)}</span>`;
+            if (link) html += `<a href="${_ppEscape(link)}" target="_blank" rel="noopener">${_ppEscape(title)}</a>`;
+            else html += _ppEscape(title);
+            html += '</div>';
+            html += `<div class="paper-authors">${_ppEscape(authors)}</div>`;
+            let meta = year ? _ppEscape(String(year)) : '';
+            if (journal) meta += ` &mdash; ${_ppEscape(journal)}`;
+            if (docType) meta += ` &mdash; <em>${_ppEscape(docType)}</em>`;
+            if (meta) html += `<div class="paper-meta">${meta}</div>`;
+            if (doi) html += `<div class="doi-link">DOI: <a href="https://doi.org/${encodeURIComponent(doi)}" target="_blank" rel="noopener">${_ppEscape(doi)}</a></div>`;
+            if (abstract) {
+                const short = abstract.length > 300 ? abstract.substring(0, 300) + '...' : abstract;
+                html += `<div class="paper-abstract">${_ppEscape(short)}</div>`;
+            }
+            if (keywords.length > 0) {
+                html += `<div class="paper-keywords">${keywords.slice(0,8).map(k => `<span class="keyword-tag">${_ppEscape(k)}</span>`).join('')}</div>`;
+            }
+            if (link) html += `<div class="paper-link"><a href="${_ppEscape(link)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></div>`;
+            html += '</div>';
+            return html;
+        }
+
+        function _ppRenderList(doc, idx) {
+            const source   = doc.source  || 'Unknown';
+            const title    = doc.title   || 'Untitled';
+            const authors  = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || 'Unknown authors');
+            const year     = doc.year    || '—';
+            const journal  = doc.journal || '';
+            const abstract = doc.abstract|| '';
+            const url      = doc.url     || '';
+            const doi      = doc.doi     || '';
+            const keywords = doc.keywords|| [];
+            const docType  = doc.docType || '';
+            const link     = url || (doi ? `https://doi.org/${encodeURIComponent(doi)}` : '');
+            const srcClass = _ppSourceClass(source);
+            const rowId    = `pp-row-${idx}`;
+
+            let detail = '';
+            detail += `<div class="paper-authors">${_ppEscape(authors)}</div>`;
+            let meta = doc.year ? _ppEscape(String(doc.year)) : '';
+            if (journal) meta += ` &mdash; ${_ppEscape(journal)}`;
+            if (docType) meta += ` &mdash; <em>${_ppEscape(docType)}</em>`;
+            if (meta) detail += `<div class="paper-meta">${meta}</div>`;
+            if (doi) detail += `<div class="doi-link">DOI: <a href="https://doi.org/${encodeURIComponent(doi)}" target="_blank" rel="noopener">${_ppEscape(doi)}</a></div>`;
+            if (abstract) {
+                const short = abstract.length > 300 ? abstract.substring(0, 300) + '...' : abstract;
+                detail += `<div class="paper-abstract">${_ppEscape(short)}</div>`;
+            }
+            if (keywords.length > 0) {
+                detail += `<div class="paper-keywords">${keywords.slice(0,8).map(k => `<span class="keyword-tag">${_ppEscape(k)}</span>`).join('')}</div>`;
+            }
+            if (link) detail += `<div class="paper-link"><a href="${_ppEscape(link)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></div>`;
+
+            return `<div class="pp-paper-row" id="${rowId}">
+                <span class="row-source"><span class="source-badge ${srcClass}">${_ppEscape(source)}</span></span>
+                <span class="row-title" onclick="_ppToggleRow(this)" title="Click to expand details">${_ppEscape(title)}<span class="row-chevron">&#9654;</span></span>
+                <span class="row-year">${_ppEscape(String(year))}</span>
+                <span class="row-link">${link ? `<span class="paper-link"><a href="${_ppEscape(link)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></span>` : '<span style="color:#aaa">No link</span>'}</span>
+                <div class="pp-row-detail">${detail}</div>
+            </div>`;
+        }
+
+        function _ppToggleRow(titleEl) {
+            const row    = titleEl.closest('.pp-paper-row');
+            const detail = row.querySelector('.pp-row-detail');
+            const chev   = row.querySelector('.row-chevron');
+            const open   = detail.style.display === 'grid';
+            detail.style.display = open ? 'none' : 'grid';
+            row.classList.toggle('expanded', !open);
+            chev.style.transform = open ? '' : 'rotate(90deg)';
+        }
+
+        function _ppRenderPage() {
+            const body = document.getElementById('ppBody');
+            const bar  = document.getElementById('ppPageBar');
+            const start = _ppPage * _PP_PAGE_SIZE;
+            const page  = _ppCurrentDocs.slice(start, start + _PP_PAGE_SIZE);
+            if (page.length === 0) {
+                const isExcluded = _ppCurrentDocs === null || _ppCurrentDocs.length === 0;
+                body.innerHTML = isExcluded
+                    ? '<p style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No paper details available for this category. ' +
+                      'Run a new search to enable browsing excluded papers here.</p>'
+                    : '<p style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No papers in this stage.</p>';
+                bar.innerHTML = '';
+                return;
+            }
+            if (_ppView === 'list') {
+                let html = '<div class="pp-row-header"><span>Source</span><span>Title</span><span>Year</span><span>Link</span></div>';
+                html += page.map((doc, i) => _ppRenderList(doc, start + i)).join('');
+                body.innerHTML = html;
+            } else {
+                body.innerHTML = page.map(doc => _ppRenderCard(doc)).join('');
+            }
+            const totalPages = Math.ceil(_ppCurrentDocs.length / _PP_PAGE_SIZE);
+            bar.innerHTML = totalPages <= 1 ? '' : `
+                <button class="pg-btn" onclick="_ppGo(-1)" ${_ppPage===0?'disabled':''}>&#8592; Prev</button>
+                <span class="pg-info">Page ${_ppPage+1} of ${totalPages}</span>
+                <button class="pg-btn" onclick="_ppGo(1)" ${_ppPage>=totalPages-1?'disabled':''}>Next &#8594;</button>`;
+        }
+
+        function _ppGo(dir) {
+            const totalPages = Math.ceil(_ppCurrentDocs.length / _PP_PAGE_SIZE);
+            _ppPage = Math.max(0, Math.min(_ppPage + dir, totalPages - 1));
+            _ppRenderPage();
+        }
+
+        function showPaperPanel(title, papersArray, triggerEl) {
+            _ppCurrentDocs = papersArray;
+            _ppPage = 0;
+            document.getElementById('ppTitle').textContent = title;
+            document.getElementById('ppCount').textContent = `${papersArray.length} paper${papersArray.length!==1?'s':''}`;
+            _ppRenderPage();
+            const panel = document.getElementById('paperPanel');
+            panel.style.display = 'block';
+            // highlight selected
+            if (_ppSelectedEl) _ppSelectedEl.classList.remove('selected');
+            if (triggerEl) { triggerEl.classList.add('selected'); _ppSelectedEl = triggerEl; }
+            // scroll into view
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closePaperPanel() {
+            document.getElementById('paperPanel').style.display = 'none';
+            if (_ppSelectedEl) { _ppSelectedEl.classList.remove('selected'); _ppSelectedEl = null; }
+        }
+
+        // Compute which docs belong to each PRISMA stage (client-side, using formState filters)
+        function _computeStageDocs() {
+            // All docs stored are already fully filtered (the "Included" set)
+            // We re-derive earlier stages by reversing the filters
+            const state = formState;
+            const allFinal = docs; // fully filtered & deduplicated
+
+            // Stage: Screening – apply include-terms, include-venues, exclude-venues filters back off
+            // Since we only have the final set, we cannot fully reconstruct earlier sets.
+            // Approach: show docs filtered to the stage from the available final set,
+            // with additional note for identification which shows per-source subsets.
+            return {
+                identification: allFinal,          // best approx: all retrieved (may be trimmed in storage)
+                dedup:          allFinal,           // after dedup = same as final (dedup already applied)
+                screening:      allFinal,           // after screening
+                eligibility:    allFinal,           // after eligibility
+                included:       allFinal,           // final included
+            };
+        }
+
+        function _docsForDb(dbKey) {
+            const dbMap = { 'hal':'HAL','arxiv':'arXiv','ieee':'IEEE','scopus':'Scopus',
+                            'inspec':'Inspec','sciencedirect':'ScienceDirect',
+                            'springer':'Springer Nature','pubmed':'PubMed','acm':'ACM',
+                            'openalex':'OpenAlex' };
+            const label = dbMap[dbKey] || dbKey;
+            return docs.filter(d => d.source === label);
+        }
+
+        // Attach click handlers after flow is rendered
+        function _attachFlowClicks() {
+            const stageDocs = _computeStageDocs();
+            const stageLabels = {
+                'Identification': 'Identification – Records retrieved',
+                'Deduplication':  'After Deduplication',
+                'Screening':      'After Screening',
+                'Eligibility':    'After Eligibility assessment',
+                'Included':       'Included in review',
+            };
+            document.querySelectorAll('#prismaFlow .flow-box').forEach(box => {
+                const labelEl = box.querySelector('.box-label');
+                if (!labelEl) return;
+                const stageKey = labelEl.textContent.trim();
+                const title = stageLabels[stageKey] || stageKey;
+                let papers;
+                if (stageKey === 'Identification') papers = stageDocs.identification;
+                else if (stageKey === 'Deduplication') papers = stageDocs.dedup;
+                else if (stageKey === 'Screening') papers = stageDocs.screening;
+                else if (stageKey === 'Eligibility') papers = stageDocs.eligibility;
+                else papers = stageDocs.included;
+                box.addEventListener('click', () => showPaperPanel(title, papers, box));
+            });
+            document.querySelectorAll('#prismaFlow .db-chip').forEach(chip => {
+                const nameEl = chip.querySelector('.db-name');
+                if (!nameEl) return;
+                const dbLabel = nameEl.textContent.trim();
+                const papers = docs.filter(d => d.source === dbLabel);
+                chip.addEventListener('click', () => showPaperPanel(`${dbLabel} – retrieved papers`, papers, chip));
+            });
+            // Excluded side boxes — always clickable
+            document.querySelectorAll('#prismaFlow .flow-excluded[data-excl]').forEach(box => {
+                const key = box.dataset.excl;
+                let papers = [], title = 'Excluded papers';
+                if (key === 'duplicates') {
+                    papers = excludedDocs.duplicates || [];
+                    title = 'Duplicate records removed';
+                } else if (key === 'screening') {
+                    ['year_range', 'doc_type', 'language'].forEach(k => {
+                        if (excludedDocs[k]) papers = papers.concat(excludedDocs[k]);
+                    });
+                    title = 'Records excluded at screening';
+                } else if (key === 'eligibility') {
+                    // exclude_terms is counted under eligibility in the flow
+                    // boxes (it lives in prisma.eligibility), so its papers
+                    // must be listed here too or box counts ≠ listed papers
+                    ['must_include_terms', 'exclude_terms', 'include_venues', 'exclude_venues'].forEach(k => {
+                        if (excludedDocs[k]) papers = papers.concat(excludedDocs[k]);
+                    });
+                    title = 'Records excluded at eligibility assessment';
+                }
+                box.addEventListener('click', () => showPaperPanel(title, papers, box));
+            });
+        }
+
+        function buildSubBox(label, isActive, value, inactiveText, removedCount, isQueryLevel) {
+            const cls = isActive ? 'active' : 'inactive';
+            const display = isActive ? (Array.isArray(value) ? value.join(', ') : value) : inactiveText;
+            let countHtml = '';
+            if (removedCount !== undefined && removedCount !== null) {
+                if (removedCount > 0) {
+                    countHtml = `<div class="sub-count">−${removedCount} removed</div>`;
+                } else if (isActive && isQueryLevel) {
+                    countHtml = `<div class="sub-count" style="color:#7f8c8d;font-style:italic;">Via query filter</div>`;
+                } else {
+                    countHtml = `<div class="sub-count">0 removed</div>`;
+                }
+            }
+            return `<div class="sub-box ${cls}">
+                <div class="sub-label">${label}</div>
+                <div class="sub-value">${display}</div>
+                ${countHtml}
+            </div>`;
+        }
+
+        function renderPrismaFlow(p) {
+            const container = document.getElementById('prismaFlow');
+            const screening = p.screening || {};
+            const eligibility = p.eligibility || {};
+
+            const totalIdentified = p.identification.total_found;
+            const retrieved = p.identification.retrieved;
+            const databases = p.identification.databases || {};
+            const included = p.included;
+
+            // Duplicates are tracked separately
+            const duplicatesRemoved = (screening.duplicates || 0);
+            const afterDedup = retrieved - duplicatesRemoved;
+
+            // Calculate screening and eligibility exclusions (exclude duplicates from screening box)
+            const screeningExcluded = Object.entries(screening).filter(([k,v]) => typeof v === 'number' && k !== 'duplicates');
+            const screeningTotal = screeningExcluded.reduce((s, [k,v]) => s + v, 0);
+            const afterScreening = afterDedup - screeningTotal;
+
+            const eligibilityExcluded = Object.entries(eligibility).filter(([k,v]) => typeof v === 'number');
+            const eligibilityTotal = eligibilityExcluded.reduce((s, [k,v]) => s + v, 0);
+
+            const reasonLabels = {
+                'duplicates': 'Duplicate removal',
+                'year_range': 'Year range filter',
+                'doc_type': 'Document type filter',
+                'language': 'Language filter',
+                'exclude_terms': 'Exclude terms',
+                'must_include_terms': 'Include terms',
+                'include_venues': 'Include venues',
+                'exclude_venues': 'Exclude venues',
+            };
+
+            // Database labels — must match the 'source' field stored by each search function
+            const dbLabels = { 'hal': 'HAL', 'arxiv': 'arXiv', 'ieee': 'IEEE', 'scopus': 'Scopus', 'inspec': 'Inspec', 'sciencedirect': 'ScienceDirect', 'springer': 'Springer Nature', 'pubmed': 'PubMed', 'acm': 'ACM', 'openalex': 'OpenAlex' };
+            const docTypeLabels = { ART: 'Articles', COMM: 'Conference', THESE: 'Thesis', COUV: 'Book chapter', REPORT: 'Report', PREPRINT: 'Preprint' };
+            const langLabels = { en: 'English', fr: 'French', de: 'German', es: 'Spanish', pt: 'Portuguese', it: 'Italian', zh: 'Chinese', ja: 'Japanese' };
+
+            let html = '';
+
+            // ─── IDENTIFICATION: Per-database grid ───
+            const dbEntries = Object.entries(databases);
+            if (dbEntries.length > 0) {
+                html += `<div class="db-grid">`;
+                dbEntries.forEach(([db, counts]) => {
+                    html += `<div class="db-chip">
+                        <div class="db-name">${dbLabels[db] || db}</div>
+                        <div class="db-count">${counts.found.toLocaleString()}</div>
+                        <div class="db-retrieved">Retrieved: ${counts.retrieved}</div>
+                    </div>`;
+                });
+                html += `</div>`;
+                html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+            }
+
+            // ─── IDENTIFICATION: Combined total ───
+            const sb = snowballing;
+            const sbTotal    = sb ? (sb.backward||0) + (sb.forward||0) + (sb.other||0) : 0;
+            const sbExcl     = sb ? (sb.excluded||0) : 0;
+            const sbNet      = Math.max(0, sbTotal - sbExcl);
+            html += `<div class="flow-row">`;
+            // Left: snowballing box (if configured)
+            if (sb && sbTotal > 0) {
+                const sbParts = [];
+                if (sb.backward) sbParts.push(`↩ Backward: ${sb.backward}`);
+                if (sb.forward)  sbParts.push(`↪ Forward: ${sb.forward}`);
+                if (sb.other)    sbParts.push(`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z"/><polyline points="9,2 9,6 13,6"/></svg> Other: ${sb.other}`);
+                html += `<div class="flow-side-left">
+                    <div class="flow-box snowballing" style="text-align:left;">
+                        <span class="box-label">Other Sources</span>
+                        <div class="box-title">Snowballing &amp; Other</div>
+                        <div class="box-count">${sbTotal.toLocaleString()}</div>
+                        <div class="box-detail">${sbParts.join(' | ')}</div>
+                        <div class="box-detail" style="margin-top:0.25rem;">Excluded: ${sbExcl} | Net added: ${sbNet}</div>
+                        ${sb.desc ? `<div class="box-desc">${escapeXml(sb.desc)}</div>` : ''}
+                    </div>
+                    <div class="flow-connector-left"><span class="connector-tip" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/></svg></span></div>
+                </div>`;
+            } else {
+                html += `<div class="flow-side-left"></div>`;
+            }
+            html += `<div class="flow-main">`;
+            html += `<div class="flow-box identification">
+                <span class="box-label">Identification</span>
+                <div class="box-title">Records identified</div>
+                <div class="box-count">${totalIdentified.toLocaleString()}</div>
+                <div class="box-detail">Retrieved for processing: ${retrieved.toLocaleString()}${sbNet > 0 ? ` | + ${sbNet} via snowballing` : ''}</div>
+                <div class="box-desc">Total number of records found across all searched databases before any filtering or deduplication is applied.</div>
+            </div>`;
+            html += `</div>`;
+            // Right: snowballing exclusions (if any) — same red "excluded" styling as every other exclusion box
+            if (sb && sbExcl > 0) {
+                html += `<div class="flow-side">
+                    <div class="flow-connector"><span class="connector-tip" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/></svg></span></div>
+                    <div class="flow-excluded">
+                        <span class="excl-label">Excluded</span>
+                        <div class="excl-count">${sbExcl.toLocaleString()}</div>
+                        <div class="excl-title">Snowballing: excluded after T&amp;A screening</div>
+                        <ul><li><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em;flex-shrink:0"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>Assessed &amp; excluded: ${sbExcl}</li></ul>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="flow-side"></div>`;
+            }
+            html += `</div>`;
+
+            html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+
+            // ─── DEDUPLICATION ───
+            html += `<div class="flow-row">`;
+            html += `<div class="flow-side-left"></div>`;
+            html += `<div class="flow-main">
+                <div class="flow-box screening">
+                    <span class="box-label">Deduplication</span>
+                    <div class="box-title">Records after duplicates removed</div>
+                    <div class="box-count">${afterDedup.toLocaleString()}</div>
+                    <div class="box-detail">Duplicates removed: ${duplicatesRemoved}</div>
+                    <div class="box-desc">Papers appearing in multiple databases are merged into a single entry, matched by DOI or normalised title.</div>
+                </div>
+            </div>`;
+            if (duplicatesRemoved > 0) {
+                html += `<div class="flow-side">
+                    <div class="flow-connector"><span class="connector-tip" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/></svg></span></div>
+                    <div class="flow-excluded" data-excl="duplicates">
+                        <span class="excl-label">Removed</span>
+                        <div class="excl-count">${duplicatesRemoved.toLocaleString()}</div>
+                        <div class="excl-title">Duplicate records excluded</div>
+                        <ul><li><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em;flex-shrink:0"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>Matched by DOI or normalised title</li></ul>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="flow-side"></div>`;
+            }
+            html += `</div>`;
+
+            html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+
+            // ─── SCREENING ───
+            html += `<div class="flow-row">`;
+            html += `<div class="flow-side-left"></div>`;
+            html += `<div class="flow-main">
+                <div class="flow-box screening">
+                    <span class="box-label">Screening</span>
+                    <div class="box-title">Records after screening</div>
+                    <div class="box-count">${afterScreening.toLocaleString()}</div>
+                    <div class="box-detail">Screened: ${afterDedup} &nbsp;|&nbsp; Excluded (post-filter): ${screeningTotal}${screeningExcluded.length > screeningExcluded.filter(([,v])=>v>0).length ? ' + query-level filters' : ''}</div>
+                    <div class="box-desc">Records filtered by metadata criteria (publication year, document type, language, and exclusion keywords in title/abstract).</div>
+                </div>
+            </div>`;
+            // Which filters are query-level (APIs apply them, post-filter catches stragglers → count is usually 0)
+            const _queryLevelKeys = new Set(['year_range', 'language']);
+
+            if (screeningExcluded.length > 0) {
+                const listHtml = screeningExcluded.map(([k, v]) => {
+                    const lbl = reasonLabels[k] || k;
+                    if (v === 0 && _queryLevelKeys.has(k)) {
+                        return `<li><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em;flex-shrink:0"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>${lbl}: <em style="color:#7f8c8d;font-size:0.85em;">applied at query level</em></li>`;
+                    }
+                    return `<li><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em;flex-shrink:0"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>${lbl}: ${v}</li>`;
+                }).join('');
+                const boxLabel = screeningTotal > 0 ? 'Excluded' : 'Filters applied';
+                html += `<div class="flow-side">
+                    <div class="flow-connector"><span class="connector-tip" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/></svg></span></div>
+                    <div class="flow-excluded" data-excl="screening">
+                        <span class="excl-label">${boxLabel}</span>
+                        ${screeningTotal > 0 ? `<div class="excl-count">${screeningTotal.toLocaleString()}</div>` : ''}
+                        <div class="excl-title">Screening filters</div>
+                        <ul>${listHtml}</ul>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="flow-side"></div>`;
+            }
+            html += `</div>`;
+
+            // Screening sub-criteria
+            html += `<div class="sub-criteria">
+                ${buildSubBox('Year Range', !!(formState.yearFrom || formState.yearTo), formState.yearFrom && formState.yearTo ? formState.yearFrom + ' – ' + formState.yearTo : (formState.yearFrom ? formState.yearFrom + ' – present' : (formState.yearTo ? 'up to ' + formState.yearTo : '')), 'No restriction', screening.year_range || 0, true)}
+                ${buildSubBox('Document Type', !!(formState.docTypes && formState.docTypes.length > 0), formState.docTypes ? formState.docTypes.map(t => docTypeLabels[t] || t).join(', ') : '', 'All types', screening.doc_type || 0, false)}
+                ${buildSubBox('Language', !!(formState.languages && formState.languages.length > 0), formState.languages ? formState.languages.map(l => langLabels[l] || l).join(', ') : '', 'All languages', screening.language || 0, true)}
+            </div>`;
+
+            html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+
+            // ─── ELIGIBILITY ───
+            html += `<div class="flow-row">`;
+            html += `<div class="flow-side-left"></div>`;
+            html += `<div class="flow-main">
+                <div class="flow-box eligibility">
+                    <span class="box-label">Eligibility</span>
+                    <div class="box-title">Records assessed for eligibility</div>
+                    <div class="box-count">${afterScreening.toLocaleString()}</div>
+                    <div class="box-detail">Assessed: ${afterScreening} &nbsp;|&nbsp; Excluded: ${eligibilityTotal}</div>
+                    <div class="box-desc">Content-level assessment: records evaluated against include/exclude terms and venue inclusion/exclusion criteria to determine relevance.</div>
+                </div>
+            </div>`;
+            if (eligibilityTotal > 0) {
+                html += `<div class="flow-side">
+                    <div class="flow-connector"><span class="connector-tip" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/></svg></span></div>
+                    <div class="flow-excluded" data-excl="eligibility">
+                        <span class="excl-label">Excluded</span>
+                        <div class="excl-count">${eligibilityTotal.toLocaleString()}</div>
+                        <div class="excl-title">Eligibility criteria not met</div>
+                        <ul>${eligibilityExcluded.map(([k,v]) => `<li><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em;flex-shrink:0"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>${reasonLabels[k] || k}: ${v}</li>`).join('')}</ul>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="flow-side"></div>`;
+            }
+            html += `</div>`;
+
+            // Eligibility sub-criteria
+            html += `<div class="sub-criteria">
+                ${buildSubBox('Include Terms', formState.includeTerms && formState.includeTerms.length > 0, formState.includeTerms || '', 'None required', eligibility.must_include_terms || 0)}
+                ${buildSubBox('Exclude Terms', !!(formState.excludeTerms && formState.excludeTerms.length > 0), formState.excludeTerms || '', 'None', eligibility.exclude_terms || 0, false)}
+                ${buildSubBox('Include Venues', formState.includeVenues && formState.includeVenues.length > 0, formState.includeVenues || '', 'All venues', eligibility.include_venues || 0)}
+                ${buildSubBox('Exclude Venues', formState.excludeVenues && formState.excludeVenues.length > 0, formState.excludeVenues || '', 'None excluded', eligibility.exclude_venues || 0)}
+            </div>`;
+
+            html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+
+            // ─── TITLE & ABSTRACT SCREENING (manual, from Screening page) ───
+            const taScreening = p.taScreening || null;
+            if (taScreening && taScreening.total > 0) {
+                const taExcluded = taScreening.excluded || 0;
+                const taIncluded = taScreening.included || 0;
+                const taUnsure   = taScreening.unsure   || 0;
+                const taScreened = taScreening.screened || 0;
+                const taTotal    = taScreening.total    || 0;
+                const taPending  = taTotal - taScreened;
+                const taPct      = taTotal > 0 ? Math.round(taScreened / taTotal * 100) : 0;
+                html += `<div class="flow-row">`;
+                html += `<div class="flow-side-left"></div>`;
+                html += `<div class="flow-main">
+                    <div class="flow-box screening" style="border-color:#7c3aed; background:#f5f3ff;">
+                        <span class="box-label" style="background:#7c3aed;">T&amp;A Screening</span>
+                        <div class="box-title">Title &amp; Abstract Screening</div>
+                        <div class="box-count" style="color:#7c3aed;">${taIncluded.toLocaleString()}</div>
+                        <div class="box-detail">Screened: ${taScreened}/${taTotal} (${taPct}%)
+                            &nbsp;|&nbsp; ${taIncluded} included
+                            &nbsp;|&nbsp; ${taExcluded} excluded
+                            &nbsp;|&nbsp; ${taUnsure} unsure
+                            ${taPending > 0 ? ` &nbsp;|&nbsp; ${taPending} pending` : ''}
+                        </div>
+                        <div class="box-desc">Manual title &amp; abstract screening performed via the Screening page. Each record was independently assessed for relevance.</div>
+                    </div>
+                </div>`;
+                if (taExcluded > 0 || taUnsure > 0 || taPending > 0) {
+                    // Count every non-included paper so the columns sum:
+                    // included + (excluded + unsure + pending) === total
+                    const taNotRetained = taExcluded + taUnsure + taPending;
+                    html += `<div class="flow-side">
+                        <div class="flow-connector" style="background:#7c3aed; color:#7c3aed;"><span class="connector-tip" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/></svg></span></div>
+                        <div class="flow-excluded" style="border-color:#7c3aed; background:#f5f3ff;">
+                            <span class="excl-label" style="background:#7c3aed;">Not retained</span>
+                            <div class="excl-count" style="color:#7c3aed;">${taNotRetained.toLocaleString()}</div>
+                            <div class="excl-title" style="color:#5b21b6;">Not retained after T&amp;A screening</div>
+                            <ul>
+                                <li style="color:#5b21b6;"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em;flex-shrink:0"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>Manually excluded: ${taExcluded}</li>
+                                ${taUnsure > 0 ? `<li style="color:#5b21b6;">Unsure / deferred: ${taUnsure}</li>` : ''}
+                                ${taPending > 0 ? `<li style="color:#5b21b6;">Awaiting decision: ${taPending}</li>` : ''}
+                            </ul>
+                        </div>
+                    </div>`;
+                } else {
+                    html += `<div class="flow-side"></div>`;
+                }
+                html += `</div>`;
+                html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+            }
+
+            // ─── INCLUDED ───
+            const finalIncluded = (taScreening && taScreening.total > 0 && taScreening.included >= 0)
+                ? taScreening.included
+                : included;
+            const sbNetFinal = sb && sbNet > 0 ? sbNet : 0;
+            const grandTotal = finalIncluded + sbNetFinal;
+            const includedDetail = (taScreening && taScreening.total > 0)
+                ? `After manual T&amp;A screening${sbNetFinal > 0 ? ` + ${sbNetFinal} from snowballing` : ''}`
+                : `After all automated screening &amp; eligibility filters${sbNetFinal > 0 ? ` + ${sbNetFinal} from snowballing` : ''}`;
+            html += `<div class="flow-row"><div class="flow-main">`;
+            html += `<div class="flow-box included">
+                <span class="box-label">Included</span>
+                <div class="box-title">Studies included in review</div>
+                <div class="box-count">${grandTotal.toLocaleString()}</div>
+                <div class="box-detail">${includedDetail}</div>
+                <div class="box-desc">Final set of papers that passed all screening and eligibility criteria — ready for full-text analysis and data extraction.</div>
+            </div>`;
+            html += `</div></div>`;
+
+            // ─── MANUAL STEPS (post-inclusion) ───
+            const manualSteps = JSON.parse(localStorage.getItem('prismaManualSteps') || '[]');
+            if (manualSteps.length > 0) {
+                // Chain from the number shown in the Included box directly
+                // above (T&A screening + snowballing), not the automated
+                // count — adjacent boxes must never disagree.
+                let runningTotal = grandTotal;
+                manualSteps.forEach((step, idx) => {
+                    runningTotal = runningTotal + (step.added || 0) - (step.removed || 0);
+                    html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+                    html += `<div class="flow-row">`;
+                    html += `<div class="flow-side-left"></div>`;
+                    html += `<div class="flow-main">
+                        <div class="flow-box manual">
+                            <span class="box-label">${_ppEscape(step.name)}</span>
+                            <div class="box-title">${_ppEscape(step.name)}</div>
+                            <div class="box-count">${runningTotal.toLocaleString()}</div>
+                            <div class="box-detail">+${step.added} added, −${step.removed} removed</div>
+                        </div>
+                    </div>`;
+                    if (step.removed > 0) {
+                        html += `<div class="flow-side">
+                            <div class="flow-connector connector-purple"><span class="connector-tip" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/></svg></span></div>
+                            <div class="flow-excluded" data-excl="manual-${idx}" style="border-color:#8e44ad; background:#f9f2fc;">
+                                <span class="excl-label" style="background:#8e44ad;">Removed</span>
+                                <div class="excl-count" style="color:#6c3483;">${step.removed.toLocaleString()}</div>
+                                <div class="excl-title" style="color:#6c3483;">Manual step exclusions</div>
+                                ${step.desc ? `<ul><li style="color:#6c3483;">${_ppEscape(step.desc)}</li></ul>` : ''}
+                            </div>
+                        </div>`;
+                    } else {
+                        html += `<div class="flow-side"></div>`;
+                    }
+                    html += `</div>`;
+                });
+
+                // Final result
+                html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+                html += `<div class="flow-row"><div class="flow-main">`;
+                html += `<div class="flow-box final">
+                    <span class="box-label">Final</span>
+                    <div class="box-title">Final studies for synthesis</div>
+                    <div class="box-count">${runningTotal.toLocaleString()}</div>
+                    <div class="box-detail">After all manual review steps</div>
+                </div>`;
+                html += `</div></div>`;
+            }
+
+            container.innerHTML = html;
+            // Attach click handlers now that the DOM is populated
+            setTimeout(_attachFlowClicks, 0);
+        }
+
+        // --- Manual Steps Management ---
+        // (manualSteps and snowballing declared at top of script)
+
+        function _sbVal(id) { return Math.max(0, parseInt(document.getElementById(id).value) || 0); }
+
+        function updateSbTotal() {
+            const total = _sbVal('sbBackward') + _sbVal('sbForward') + _sbVal('sbOther');
+            const excl  = _sbVal('sbExcluded');
+            const net   = Math.max(0, total - excl);
+            const el = document.getElementById('sbTotalLine');
+            if (el) el.textContent = `Total identified: ${total} | Excluded: ${excl} | Net added to review: ${net}`;
+        }
+
+        function _loadSnowballingInputs() {
+            const sb = snowballing || {};
+            document.getElementById('sbBackward').value = sb.backward || 0;
+            document.getElementById('sbForward').value  = sb.forward  || 0;
+            document.getElementById('sbOther').value    = sb.other    || 0;
+            document.getElementById('sbExcluded').value = sb.excluded || 0;
+            document.getElementById('sbDesc').value     = sb.desc    || '';
+            updateSbTotal();
+        }
+
+        function saveSnowballing() {
+            const bk = _sbVal('sbBackward'), fw = _sbVal('sbForward'), ot = _sbVal('sbOther');
+            const ex = _sbVal('sbExcluded');
+            const desc = (document.getElementById('sbDesc').value || '').trim();
+            if (bk + fw + ot === 0) { clearSnowballing(); return; }
+            snowballing = { backward: bk, forward: fw, other: ot, excluded: ex, desc };
+            localStorage.setItem('prismaSnowballing', JSON.stringify(snowballing));
+            if (prisma) renderPrismaFlow(prisma);
+            showToast('Snowballing data saved.', 'success');
+        }
+
+        function clearSnowballing() {
+            snowballing = null;
+            localStorage.removeItem('prismaSnowballing');
+            ['sbBackward','sbForward','sbOther','sbExcluded'].forEach(id => document.getElementById(id).value = 0);
+            document.getElementById('sbDesc').value = '';
+            updateSbTotal();
+            if (prisma) renderPrismaFlow(prisma);
+            showToast('Snowballing data cleared.', 'info');
+        }
+
+        function renderManualStepsList() {
+            const container = document.getElementById('manualStepsList');
+            if (manualSteps.length === 0) {
+                container.innerHTML = '<p style="font-size:0.8rem; color:#aaa; font-style:italic;">No manual steps added yet.</p>';
+                return;
+            }
+            container.innerHTML = manualSteps.map((step, idx) => `
+                <div class="manual-step-item">
+                    <div class="step-info">
+                        <div class="step-name">${idx + 1}. ${_ppEscape(step.name)}</div>
+                        <div class="step-counts">
+                            <span class="added">+${step.added} added</span> | 
+                            <span class="removed">−${step.removed} removed</span>
+                            ${step.desc ? ` — <em>${_ppEscape(step.desc)}</em>` : ''}
+                        </div>
+                    </div>
+                    <button class="btn btn-neutral btn-sm" onclick="moveStep(${idx}, -1)" title="Move up">↑</button>
+                    <button class="btn btn-neutral btn-sm" onclick="moveStep(${idx}, 1)" title="Move down">↓</button>
+                    <button class="btn btn-danger btn-sm" onclick="removeManualStep(${idx})" title="Remove"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg></button>
+                </div>
+            `).join('');
+        }
+
+        function addManualStep() {
+            const name = document.getElementById('stepName').value.trim();
+            const added = parseInt(document.getElementById('stepAdded').value) || 0;
+            const removed = parseInt(document.getElementById('stepRemoved').value) || 0;
+            const desc = document.getElementById('stepDesc').value.trim();
+            if (!name) { showToast('Please enter a step name.', 'warning'); return; }
+            manualSteps.push({ name, added, removed, desc });
+            // Clear form before rendering so UI resets even if a render error occurs
+            document.getElementById('stepName').value = '';
+            document.getElementById('stepAdded').value = '0';
+            document.getElementById('stepRemoved').value = '0';
+            document.getElementById('stepDesc').value = '';
+            saveManualSteps();
+        }
+
+        function removeManualStep(idx) {
+            manualSteps.splice(idx, 1);
+            saveManualSteps();
+        }
+
+        function moveStep(idx, dir) {
+            const newIdx = idx + dir;
+            if (newIdx < 0 || newIdx >= manualSteps.length) return;
+            [manualSteps[idx], manualSteps[newIdx]] = [manualSteps[newIdx], manualSteps[idx]];
+            saveManualSteps();
+        }
+
+        function saveManualSteps() {
+            localStorage.setItem('prismaManualSteps', JSON.stringify(manualSteps));
+            renderManualStepsList();
+            if (prisma) {
+                try { renderPrismaFlow(prisma); } catch(e) { console.error('PRISMA flow render error:', e); }
+                try { renderChecklist(prisma, formState); } catch(e) { console.error('Checklist render error:', e); }
+            }
+        }
+
+        renderManualStepsList();
+        _loadSnowballingInputs();
+
+        function renderChecklist(p, state) {
+            const _DT = {ART:'Articles',COMM:'Conference',THESE:'Thesis',COUV:'Book chapter',REPORT:'Report',PREPRINT:'Preprint'};
+            const _LG = {en:'English',fr:'French',de:'German',es:'Spanish',pt:'Portuguese',it:'Italian',zh:'Chinese',ja:'Japanese'};
+            const hasYear = !!(state.yearFrom || state.yearTo);
+            const hasDT   = !!(state.docTypes   && state.docTypes.length);
+            const hasLang = !!(state.languages  && state.languages.length);
+            const hasExcT = !!(state.excludeTerms  && state.excludeTerms.length);
+            const hasIncT = !!(state.includeTerms  && state.includeTerms.length);
+            const hasIncV = !!(state.includeVenues && state.includeVenues.length);
+            const hasExcV = !!(state.excludeVenues && state.excludeVenues.length);
+            const hasFilter = hasYear||hasDT||hasLang||hasExcT||hasIncT||hasIncV||hasExcV;
+            // Keep both the backend key (matches p.identification.databases)
+            // and the display label for each selected database
+            const dbPairs = [];
+            if (state.dbHal !== false)  dbPairs.push(['hal', 'HAL']);
+            if (state.dbArxiv !== false) dbPairs.push(['arxiv', 'arXiv']);
+            if (state.dbIeee)           dbPairs.push(['ieee', 'IEEE Xplore']);
+            if (state.dbScopus)         dbPairs.push(['scopus', 'Scopus']);
+            if (state.dbInspec)         dbPairs.push(['inspec', 'Inspec']);
+            if (state.dbSciencedirect)  dbPairs.push(['sciencedirect', 'ScienceDirect']);
+            if (state.dbSpringer)       dbPairs.push(['springer', 'Springer Nature']);
+            if (state.dbPubmed)         dbPairs.push(['pubmed', 'PubMed']);
+            if (state.dbAcm)            dbPairs.push(['acm', 'ACM Digital Library']);
+            if (state.dbOpenalex !== false) dbPairs.push(['openalex', 'OpenAlex']);
+            const dbs = dbPairs.map(p => p[1]);
+            const sc = p.screening || {}, el = p.eligibility || {};
+            const ta = p.taScreening || null;  // manual T&A screening results
+
+            function limitsStr() {
+                const parts = [];
+                if (hasYear) parts.push(`Year: ${state.yearFrom||'*'}–${state.yearTo||'*'}`);
+                if (hasDT)   parts.push(`Types: ${state.docTypes.map(t=>_DT[t]||t).join(', ')}`);
+                if (hasLang) parts.push(`Languages: ${state.languages.map(l=>_LG[l]||l).join(', ')}`);
+                return parts.join('; ') || 'None';
+            }
+            function eligStr() {
+                const inc=[], exc=[];
+                if (hasYear) inc.push(`Year ${state.yearFrom||'*'}–${state.yearTo||'*'}`);
+                if (hasDT)   inc.push(`Types: ${state.docTypes.map(t=>_DT[t]||t).join(', ')}`);
+                if (hasLang) inc.push(`Languages: ${state.languages.map(l=>_LG[l]||l).join(', ')}`);
+                if (hasIncT) {
+                    const mode = (state.includeTermsMode||'all').toUpperCase();
+                    inc.push(`Include terms [${mode}]: ${Array.isArray(state.includeTerms) ? state.includeTerms.join(', ') : state.includeTerms}`);
+                }
+                if (hasIncV) {
+                    const mode = (state.includeVenuesMode||'any').toUpperCase();
+                    inc.push(`Include venues [${mode}]: ${Array.isArray(state.includeVenues) ? state.includeVenues.join(', ') : state.includeVenues}`);
+                }
+                if (hasExcT) {
+                    const mode = (state.excludeTermsMode||'any').toUpperCase();
+                    exc.push(`Exclude terms [${mode}]: ${Array.isArray(state.excludeTerms) ? state.excludeTerms.join(', ') : state.excludeTerms}`);
+                }
+                if (hasExcV) {
+                    const mode = (state.excludeVenuesMode||'any').toUpperCase();
+                    exc.push(`Exclude venues [${mode}]: ${Array.isArray(state.excludeVenues) ? state.excludeVenues.join(', ') : state.excludeVenues}`);
+                }
+                const parts=[];
+                if (inc.length) parts.push('Inclusion — ' + inc.join('; '));
+                if (exc.length) parts.push('Exclusion — ' + exc.join('; '));
+                return parts.join(' | ') || 'No eligibility criteria configured';
+            }
+            function exclStr() {
+                const parts=[];
+                if (sc.duplicates)  parts.push(`Duplicates: ${sc.duplicates}`);
+                if (sc.year_range)  parts.push(`Year range: ${sc.year_range}`);
+                if (sc.doc_type)    parts.push(`Document type: ${sc.doc_type}`);
+                if (sc.language)    parts.push(`Language: ${sc.language}`);
+                if (el.exclude_terms)      parts.push(`Exclude terms: ${el.exclude_terms}`);
+                if (el.must_include_terms) parts.push(`Include terms: ${el.must_include_terms}`);
+                if (el.include_venues)     parts.push(`Include venues: ${el.include_venues}`);
+                if (el.exclude_venues)     parts.push(`Exclude venues: ${el.exclude_venues}`);
+                return parts.join(' | ') || 'No exclusion data recorded';
+            }
+
+            function _fmtCitation(doc) {
+                const authors = doc.authors;
+                const first = Array.isArray(authors) ? (authors[0] || '') : String(authors || '').split(';')[0];
+                const parts = [];
+                if (first) parts.push(first.trim() + (Array.isArray(authors) && authors.length > 1 ? ' et al.' : ''));
+                if (doc.year) parts.push(`(${doc.year})`);
+                parts.push(`"${doc.title || 'Untitled'}"`);
+                if (doc.doi) parts.push(`doi:${doc.doi}`);
+                return parts.join(' ');
+            }
+
+            const _exclReasonLabels = {
+                duplicates: 'Duplicates', year_range: 'Outside year range',
+                doc_type: 'Document type', language: 'Language',
+                exclude_terms: 'Matched exclude term', must_include_terms: 'Missing include term',
+                include_venues: 'Venue not in include list', exclude_venues: 'Excluded venue',
+            };
+
+            // Review-protocol facts (server-persisted; empty object until
+            // the researcher fills in the Review Protocol form above)
+            const proto = reviewProtocol || {};
+            const _protoItem = (value, prefix, prompt) => value
+                ? {s: 'yes', d: `${prefix}${value}`}
+                : {s: 'partial', d: prompt};
+
+            // Auto-assessed items keyed by item id
+            const AUTO = {
+                '1':   {s:'yes',     d:`Report identified as a systematic literature review conducted using Review Sentinel Prime (RSP) ${RSP_VERSION}.`},
+                '2':   {s:'partial', d:(() => {
+                    const kw = state.keywords || '';
+                    if (!kw || !p.identification) return 'Insufficient data to draft an abstract — run a search first.';
+                    const ident = p.identification.total_found ?? 0;
+                    const finalN = (ta && ta.total > 0) ? ta.included : (p.included || 0);
+                    return `Draft structured abstract (review and edit before publication) — ` +
+                        `Objective: systematic review addressing the query "${kw}". ` +
+                        `Methods: ${dbs.length} databases searched (${dbs.join(', ')})` +
+                        `${p.search_date ? ' on ' + p.search_date : ''}; ` +
+                        `${hasFilter ? 'eligibility criteria: ' + eligStr() + '; ' : ''}` +
+                        `records deduplicated and screened${ta && ta.total > 0 ? ' with manual title & abstract screening' : ' by automated filters'}. ` +
+                        `Results: ${ident.toLocaleString()} records identified, ${finalN.toLocaleString()} studies included. ` +
+                        `Still needed from the author: interpretation of findings, limitations summary, and funding/registration statements.`;
+                })()},
+                '3':   _protoItem(proto.rationale, 'Rationale (from Review Protocol): ',
+                    'State the rationale for the review in the Review Protocol form above — it will be reported here and exported with the replication package.'),
+                '4':   {s: proto.researchQuestions ? 'yes' : 'partial', d:(() => {
+                    if (proto.researchQuestions) {
+                        return `Objectives / research question(s) (from Review Protocol): ${proto.researchQuestions}`;
+                    }
+                    const kw = state.keywords || '';
+                    return kw
+                        ? `Research objective inferred from keyword query: "${kw}". Add your formal research question(s) in the Review Protocol form above to complete this item.`
+                        : 'No keyword query recorded. Please state the explicit objective(s) or research question(s) the review addresses.';
+                })()},
+                '5':   {s: hasFilter?'yes':'partial', d: eligStr()},
+                '6':   {s: dbs.length?'yes':'no',     d: (() => {
+                    if (!dbs.length) return 'No databases selected';
+                    const dbCounts = p.identification?.databases || {};
+                    const dbLines = dbPairs.map(([key, label]) => {
+                        const info = dbCounts[key];
+                        // Never fall back to today's date — asserting a wrong
+                        // search date in an evidence document is worse than
+                        // stating it was not recorded.
+                        const date = info?.date || p.search_date || '';
+                        const parts = [];
+                        if (date) parts.push(`searched ${date}`);
+                        if (info?.found != null) parts.push(`${info.found.toLocaleString()} records found`);
+                        if (info?.retrieved != null && info.retrieved !== info.found) parts.push(`${info.retrieved.toLocaleString()} retrieved`);
+                        let line = parts.length ? `${label} (${parts.join(', ')})` : `${label} (search date not recorded)`;
+                        if (info?.warning) line += ` — CAUTION: ${info.warning}`;
+                        if (info?.error) line += ` — ERROR: ${info.error}`;
+                        return line;
+                    });
+                    return dbLines.join('; ');
+                })()},
+                '7':   {s: state.keywords?'yes':'no', d: state.keywords ? `Query: "${state.keywords}"${hasFilter?' | Limits: '+limitsStr():''}` : 'No search query defined'},
+                '8':   {s:'yes', d:(() => {
+                    const nRev = proto.reviewers || 1;
+                    let d = `Automated pipeline by RSP ${RSP_VERSION}: deduplication by DOI/title, year range, document type, language applied at screening; include terms (ANY or ALL match mode), exclude terms, include venues, and exclude venues applied at eligibility.`;
+                    if (ta && ta.total > 0) {
+                        const pct = Math.round((ta.screened / ta.total) * 100);
+                        d += ` Manual Title & Abstract screening was additionally performed via the RSP Screening page by ${nRev} reviewer${nRev > 1 ? 's' : ''}: ${ta.screened.toLocaleString()}/${ta.total.toLocaleString()} records screened (${pct}%) — ${ta.included} included, ${ta.excluded} excluded, ${ta.unsure} unsure/deferred.`;
+                        if (ta.aiAssisted > 0) {
+                            // PRISMA item 8 explicitly asks for details of
+                            // automation tools used in the selection process
+                            const models = (ta.aiModels || []).join(', ') || 'local LLM';
+                            d += ` Automation tool: ${ta.aiAssisted} of these decisions were accepted from suggestions generated by the RSP AI Screening Assistant (model: ${models}); every suggestion was reviewed and confirmed by the human reviewer.`;
+                        }
+                    } else {
+                        d += ` No manual screening stage was performed — selection relied on the automated filters above.`;
+                    }
+                    if (proto.screeningProcess) d += ` Process notes (from Review Protocol): ${proto.screeningProcess}`;
+                    return d;
+                })()},
+                '9':   {s:'yes', d:`Metadata extracted automatically by RSP ${RSP_VERSION} from ${dbs.length ? dbs.join(', ') : 'configured databases'} via their public APIs. Fields collected per record: title, authors, year, venue/journal, DOI, abstract, keywords, document type, and source database. Single automated data collector — no manual extraction required. ${(p.included||0)} records collected.`},
+                '10a': _protoItem(proto.outcomes, 'Outcomes / data items sought (from Review Protocol): ',
+                    'List the outcomes and data items sought in the Review Protocol form above to complete this item.'),
+                '10b': {s:'yes', d:`Variables extracted per record by RSP ${RSP_VERSION}: Title, Authors, Publication Year, Journal/Venue, DOI, URL, Abstract, Keywords, Document Type, Source Database. All fields extracted automatically via database APIs; missing fields default to empty string or empty array.`},
+                '11':  _protoItem(proto.robTool, 'Risk-of-bias / quality assessment (from Review Protocol): ',
+                    'Specify the risk-of-bias or quality tool used (or "None — no formal assessment") in the Review Protocol form above.'),
+                '12':  _protoItem(proto.effectMeasures, 'Effect measures (from Review Protocol): ',
+                    'Specify the effect measures — or "N/A — qualitative synthesis" — in the Review Protocol form above.'),
+                '13d': _protoItem(proto.synthesisMethod && (proto.synthesisMethod + (proto.synthesisNotes ? ' — ' + proto.synthesisNotes : '')),
+                    'Synthesis method (from Review Protocol): ',
+                    'Select the synthesis method in the Review Protocol form above.'),
+                '14':  _protoItem(proto.reportingBiasMethod, 'Reporting-bias assessment (from Review Protocol): ',
+                    'Describe the reporting-bias assessment method — or "None performed" — in the Review Protocol form above.'),
+                '15':  _protoItem(proto.certaintyMethod, 'Certainty assessment (from Review Protocol): ',
+                    'Describe the certainty assessment method — or "None performed" — in the Review Protocol form above.'),
+                '25':  _protoItem(proto.funding, 'Support (from Review Protocol): ',
+                    'State the funding / support sources in the Review Protocol form above.'),
+                '26':  _protoItem(proto.competingInterests, 'Competing interests (from Review Protocol): ',
+                    'Declare competing interests in the Review Protocol form above.'),
+                '13a': {s:'yes', d:(() => {
+                    const crit = [];
+                    if (state.yearFrom || state.yearTo) crit.push(`publication year ${state.yearFrom||'*'}–${state.yearTo||'*'}`);
+                    if (state.docTypes && state.docTypes.length) crit.push(`document type restricted to: ${state.docTypes.map(t=>_DT[t]||t).join(', ')}`);
+                    if (state.languages && state.languages.length) crit.push(`language restricted to: ${state.languages.map(l=>_LG[l]||l).join(', ')}`);
+                    if (state.includeTerms) crit.push(`must include terms: "${state.includeTerms}"`);
+                    if (state.excludeTerms) crit.push(`exclude terms: "${state.excludeTerms}"`);
+                    if (state.includeVenues) crit.push(`include venues: "${state.includeVenues}"`);
+                    if (state.excludeVenues) crit.push(`exclude venues: "${state.excludeVenues}"`);
+                    const critStr = crit.length ? crit.join('; ') : 'no post-retrieval filters applied';
+                    return `Eligibility determined through automated multi-criterion filtering by RSP ${RSP_VERSION}. Applied criteria: ${critStr}. All records passing all criteria are included in the final set. No manual screening of individual records was required.`;
+                })()},
+                '13b': {s:'yes', d:`Data prepared for synthesis by RSP ${RSP_VERSION}: all API-specific field schemas normalised to a common document model (title, authors, year, journal, DOI, URL, abstract, keywords, docType, source). Missing fields set to empty string or empty array. Cross-database deduplication applied: exact DOI match first, then normalised-title comparison as fallback.`},
+                '13c': {s:(p.included||0)>0?'yes':'partial', d:(() => {
+                    let d = (p.included||0)>0
+                        ? `Results displayed by RSP ${RSP_VERSION} as: (1) sortable/filterable paper list with source badges; (2) publication-year trend bar chart; (3) top-venue distribution chart; (4) document-type distribution chart; (5) keyword frequency word cloud. All visualisations generated automatically from retrieved metadata.`
+                        : `RSP ${RSP_VERSION} provides automatic result visualisations (year trend, venue distribution, document type, keyword frequency) once records are retrieved.`;
+                    if (ta && ta.total > 0) {
+                        const pct = Math.round((ta.screened / ta.total) * 100);
+                        d += ` Title & Abstract screening decisions are displayed in the RSP Screening page: ${ta.screened}/${ta.total} screened (${pct}%) with include/exclude/unsure classification and optional free-text reasons.`;
+                    }
+                    return d;
+                })()},
+                '16a': {s:'yes', d:(() => {
+                    let d = `${(p.identification?.total_found ?? 0).toLocaleString()} records identified \u2192 ${(p.identification?.retrieved ?? 0).toLocaleString()} retrieved`;
+                    d += ` \u2192 ${(p.included ?? 0).toLocaleString()} included after automated screening & eligibility filters`;
+                    if (ta && ta.total > 0) {
+                        d += ` \u2192 ${ta.included.toLocaleString()} included after manual T&A screening (${ta.excluded} excluded, ${ta.unsure} unsure)`;
+                    }
+                    d += `. PRISMA 2020 flow diagram${ta && ta.total > 0 ? ' (including T&A Screening stage)' : ''} generated on this page.`;
+                    return d;
+                })()},
+                '16b': {s:'yes', d:(() => {
+                    let d = exclStr();
+                    // PRISMA asks to CITE excluded studies, not just count
+                    // them — sample citations per reason, full lists in
+                    // excluded_studies.csv of the replication package.
+                    const cites = [];
+                    Object.keys(excludedDocs || {}).forEach(key => {
+                        const list = excludedDocs[key] || [];
+                        if (!list.length) return;
+                        const sample = list.slice(0, 3).map(_fmtCitation).join('; ');
+                        cites.push(`${_exclReasonLabels[key] || key} — ${sample}${list.length > 3 ? `; … and ${list.length - 3} more` : ''}`);
+                    });
+                    if (cites.length) {
+                        d += ` || Excluded studies (sample citations per reason; full lists in excluded_studies.csv): ${cites.join(' | ')}`;
+                    }
+                    if (ta && ta.excluded > 0) {
+                        d += ` | T&A Screening: ${ta.excluded} records excluded after manual title & abstract assessment`;
+                        if (ta.unsure > 0) d += `; ${ta.unsure} marked unsure/deferred`;
+                        const rc = ta.reasonCounts;
+                        if (rc && Object.keys(rc).length) {
+                            const hist = Object.entries(rc).sort((a, b) => b[1] - a[1])
+                                .map(([r, c]) => `${r}: ${c}`).join(', ');
+                            d += `. Exclusion reasons — ${hist}`;
+                        }
+                        d += `. Full decision log (including per-paper reasons) available in screening_decisions.csv.`;
+                    }
+                    return d;
+                })()},
+                '17':  {s: (p.included||0)>0?'yes':'no', d: (() => {
+                    const finalCount = (ta && ta.total > 0 && ta.included >= 0) ? ta.included : (p.included || 0);
+                    return finalCount > 0
+                        ? `${finalCount} studies included${ta && ta.total > 0 ? ' after manual T&A screening' : ' after automated filters'} with metadata per record: title, authors, year, journal/venue, DOI, URL, abstract, keywords, document type, source database.`
+                        : 'No studies included after filtering.';
+                })()},
+                '23c': {s:'partial', d:(() => {
+                    // Draft the process-limitations statement from machine-
+                    // known facts about how this review was actually run.
+                    const lim = [];
+                    lim.push(`Screening and eligibility decisions were made by a single reviewer${ta && ta.total > 0 ? ' (manual title & abstract screening via RSP)' : ' (automated filters only)'}, without independent duplicate assessment.`);
+                    const dbCounts = p.identification?.databases || {};
+                    const truncated = Object.entries(dbCounts).filter(([, v]) => v && v.warning);
+                    if (truncated.length) {
+                        lim.push(`Retrieval was incomplete for: ${truncated.map(([k, v]) => `${k} (${v.warning})`).join('; ')}.`);
+                    }
+                    const errored = Object.entries(dbCounts).filter(([, v]) => v && v.error);
+                    if (errored.length) {
+                        lim.push(`Database access errors occurred: ${errored.map(([k, v]) => `${k} (${v.error})`).join('; ')}.`);
+                    }
+                    lim.push('Deduplication used exact DOI matching with a year-corroborated normalised-title fallback; near-duplicates with differing titles may remain.');
+                    lim.push('Automated term filters match titles and abstracts only, so records lacking an abstract in the source API metadata may be misclassified.');
+                    if (state.yearFrom || state.yearTo) {
+                        lim.push('Records with an unknown publication year were retained despite the year-range filter.');
+                    }
+                    const anyCapped = Object.values(excludedDocs || {}).some(list => (list || []).length >= 200);
+                    if (anyCapped) {
+                        lim.push('Stored excluded-paper citation lists are capped at 200 records per exclusion reason; totals are reported in the flow diagram.');
+                    }
+                    return `Draft process-limitations statement (review and edit): ${lim.join(' ')}`;
+                })()},
+                '24':  {s: proto.updatedAt ? 'yes' : 'partial', d:(() => {
+                    const kw = state.keywords || '';
+                    const dt = p.search_date || '';
+                    let d = `Search conducted using RSP ${RSP_VERSION}${dt ? ' on ' + dt : ' (search date not recorded)'}${kw ? ' with query: "'+kw+'"' : ''}. `;
+                    if (proto.registered) {
+                        d += `Review registered in ${proto.registerName || 'a protocol register'}` +
+                             `${proto.registrationNumber ? ', registration no. ' + proto.registrationNumber : ''}` +
+                             `${proto.registrationDate ? ', on ' + proto.registrationDate : ''}.`;
+                    } else if (proto.updatedAt) {
+                        d += 'The review was not registered in PROSPERO or an equivalent protocol registry (author-confirmed via the Review Protocol form).';
+                    } else {
+                        d += 'Registration status not recorded — confirm it in the Review Protocol form above.';
+                    }
+                    return d;
+                })()},
+                '27':  {s:'yes', d:(() => {
+                    let d = `RSP ${RSP_VERSION} Replication Package export (ZIP) includes: search_configuration.json, results in CSV (initial, deduplicated, included, excluded), PRISMA flow diagram (SVG), evidence checklist, and README.md.`;
+                    if (ta && ta.screened > 0) d += ` screening_decisions.csv is also included with per-paper include/exclude/unsure decisions and reasons.`;
+                    d += ` Run ZIP (from Results page) includes: run.json, included_docs.csv, raw_docs.csv, excluded_docs.json, summary.json${ta && ta.screened > 0 ? ', screening_decisions.csv' : ''}.`;
+                    return d;
+                })()},
+            };
+
+            const ITEMS = [
+                {section:'TITLE'},
+                {id:'1',   name:'Title',                               desc:'Identify the report as a systematic review.',                                                                                                                                                                                                mode:'auto'},
+                {section:'ABSTRACT'},
+                {id:'2',   name:'Abstract',                            desc:'See the PRISMA 2020 for Abstracts checklist.',                                                                                                                                                                                               mode:'auto'},
+                {section:'INTRODUCTION'},
+                {id:'3',   name:'Rationale',                           desc:'Describe the rationale for the review in the context of existing knowledge.',                                                                                                                                                                 mode:'auto'},
+                {id:'4',   name:'Objectives',                          desc:'Provide an explicit statement of the objective(s) or question(s) the review addresses.',                                                                                                                                                     mode:'auto'},
+                {section:'METHODS'},
+                {id:'5',   name:'Eligibility criteria',                desc:'Specify the inclusion and exclusion criteria for the review and how studies were grouped for the syntheses.',                                                                                                                                 mode:'auto'},
+                {id:'6',   name:'Information sources',                 desc:'Specify all databases, registers, websites, organisations, reference lists and other sources searched or consulted to identify studies. Specify the date when each source was last searched or consulted.',                                    mode:'auto'},
+                {id:'7',   name:'Search strategy',                     desc:'Present the full search strategies for all databases, registers and websites, including any filters and limits used.',                                                                                                                         mode:'auto'},
+                {id:'8',   name:'Selection process',                   desc:'Specify the methods used to decide whether a study met the inclusion criteria of the review, including how many reviewers screened each record, whether they worked independently, and if applicable, details of automation tools used.',     mode:'auto'},
+                {id:'9',   name:'Data collection process',             desc:'Specify the methods used to collect data from reports, including how many reviewers collected data from each report, whether they worked independently, and any processes for obtaining or confirming data from study investigators.',         mode:'auto'},
+                {id:'10a', name:'Data items – outcomes',               desc:'List and define all outcomes for which data were sought. Specify whether all results compatible with each outcome domain in each study were sought.',                                                                                          mode:'auto'},
+                {id:'10b', name:'Data items – other variables',        desc:'List and define all other variables for which data were sought (e.g. participant and intervention characteristics, funding sources). Describe any assumptions made about missing or unclear information.',                                    mode:'auto'},
+                {id:'11',  name:'Study risk of bias assessment',       desc:'Specify the methods used to assess risk of bias in the included studies, including details of the tool(s) used, how many reviewers assessed each study and whether they worked independently.',                                               mode:'auto'},
+                {id:'12',  name:'Effect measures',                     desc:'Specify for each outcome the effect measure(s) (e.g. risk ratio, mean difference) used in the synthesis or presentation of results.',                                                                                                        mode:'auto'},
+                {id:'13a', name:'Synthesis methods – eligibility',     desc:'Describe the processes used to decide which studies were eligible for each synthesis (e.g. tabulating the study intervention characteristics and comparing against the planned groups for each synthesis).',                                  mode:'auto'},
+                {id:'13b', name:'Synthesis methods – data preparation',desc:'Describe any methods required to prepare the data for presentation or synthesis, such as handling of missing summary statistics, or data conversions.',                                                                                       mode:'auto'},
+                {id:'13c', name:'Synthesis methods – display',         desc:'Describe any methods used to tabulate or visually display results of individual studies and syntheses.',                                                                                                                                      mode:'auto'},
+                {id:'13d', name:'Synthesis methods – synthesis',       desc:'Describe any methods used to synthesise results and provide a rationale for the choice(s). If meta-analysis was performed, describe the model(s), method(s) to identify statistical heterogeneity, and software package(s) used.',          mode:'auto'},
+                {id:'13e', name:'Synthesis methods – heterogeneity',   desc:'Describe any methods used to explore possible causes of heterogeneity among study results (e.g. subgroup analysis, meta-regression).',                                                                                                       mode:'manual'},
+                {id:'13f', name:'Synthesis methods – sensitivity',     desc:'Describe any sensitivity analyses conducted to assess robustness of the synthesised results.',                                                                                                                                                mode:'manual'},
+                {id:'14',  name:'Reporting bias assessment',           desc:'Describe any methods used to assess risk of bias due to missing results in a synthesis (arising from reporting biases).',                                                                                                                     mode:'auto'},
+                {id:'15',  name:'Certainty assessment',                desc:'Describe any methods used to assess certainty (or confidence) in the body of evidence for an outcome.',                                                                                                                                      mode:'auto'},
+                {section:'RESULTS'},
+                {id:'16a', name:'Study selection – flow diagram',      desc:'Describe the results of the search and selection process, from the number of records identified in the search to the number of studies included in the review, ideally using a flow diagram.',                                               mode:'auto'},
+                {id:'16b', name:'Study selection – excluded studies',  desc:'Cite studies that might appear to meet the inclusion criteria but which were excluded, and explain why they were excluded.',                                                                                                                  mode:'auto'},
+                {id:'17',  name:'Study characteristics',               desc:'Cite each included study and present its characteristics.',                                                                                                                                                                                  mode:'auto'},
+                {id:'18',  name:'Risk of bias in studies',             desc:'Present assessments of risk of bias for each included study.',                                                                                                                                                                               mode:'manual'},
+                {id:'19',  name:'Results of individual studies',       desc:'For all outcomes, present for each study: (a) summary statistics for each group (where appropriate) and (b) an effect estimate and its precision (e.g. confidence/credible interval), ideally using structured tables or plots.',           mode:'manual'},
+                {id:'20a', name:'Results of syntheses – characteristics',desc:'For each synthesis, briefly summarise the characteristics and risk of bias among contributing studies.',                                                                                                                                   mode:'manual'},
+                {id:'20b', name:'Results of syntheses – statistics',   desc:'Present results of all statistical syntheses conducted. If meta-analysis was done, present for each the summary estimate and its precision (e.g. confidence/credible interval) and measures of statistical heterogeneity.',                 mode:'manual'},
+                {id:'20c', name:'Results of syntheses – heterogeneity',desc:'Present results of all investigations of possible causes of heterogeneity among study results.',                                                                                                                                             mode:'manual'},
+                {id:'20d', name:'Results of syntheses – sensitivity',  desc:'Present results of all sensitivity analyses conducted to assess the robustness of the synthesised results.',                                                                                                                                 mode:'manual'},
+                {id:'21',  name:'Reporting biases',                    desc:'Present assessments of risk of bias due to missing results (arising from reporting biases) for each synthesis assessed.',                                                                                                                    mode:'manual'},
+                {id:'22',  name:'Certainty of evidence',               desc:'Present assessments of certainty (or confidence) in the body of evidence for each outcome assessed.',                                                                                                                                       mode:'manual'},
+                {section:'DISCUSSION'},
+                {id:'23a', name:'Discussion – interpretation',         desc:'Provide a general interpretation of the results in the context of other evidence.',                                                                                                                                                          mode:'manual'},
+                {id:'23b', name:'Discussion – limitations of evidence',desc:'Discuss any limitations of the evidence included in the review.',                                                                                                                                                                           mode:'manual'},
+                {id:'23c', name:'Discussion – limitations of process', desc:'Discuss any limitations of the review processes used.',                                                                                                                                                                                     mode:'auto'},
+                {section:'OTHER INFORMATION'},
+                {id:'24',  name:'Registration and protocol',           desc:'Provide registration information for the review, including register name and registration number, or state that the review was not registered. If registered, provide the date of registration.',                                            mode:'auto'},
+                {id:'25',  name:'Support',                             desc:'Describe sources of financial or non-financial support for the review, and the role of the funders or sponsors in the review.',                                                                                                              mode:'auto'},
+                {id:'26',  name:'Competing interests',                 desc:'Declare any competing interests of review authors.',                                                                                                                                                                                         mode:'auto'},
+                {id:'27',  name:'Availability of data, code and other materials', desc:'Report which of the following are publicly available and where they can be found: template data collection forms; data extracted from included studies; data used for all analyses; analytic code; any other materials used in the review.', mode:'auto'},
+            ];
+
+            const saved = JSON.parse(localStorage.getItem('prismaManualChecklist') || '{}');
+
+            // Compute progress and section counts
+            let total = 0, done = 0;
+            const secCounts = {};
+            let curSec = '';
+            ITEMS.forEach(it => {
+                if (it.section) { curSec = it.section; secCounts[curSec] = {t:0,d:0}; return; }
+                secCounts[curSec].t++; total++;
+                const isAuto = it.mode === 'auto';
+                const aStatus = isAuto ? ((AUTO[it.id]||{}).s) : null;
+                const complete = isAuto
+                    ? (aStatus === 'yes' || (aStatus === 'partial' && !!(saved[it.id] && saved[it.id].checked)))
+                    : !!(saved[it.id] && saved[it.id].checked);
+                if (complete) { done++; secCounts[curSec].d++; }
+            });
+            const pct = total ? Math.round((done/total)*100) : 0;
+            const progEl = document.getElementById('clProgress');
+            if (progEl) progEl.innerHTML = `
+                <div class="cl-progress-wrap"><div class="cl-progress-fill" style="width:${pct}%"></div></div>
+                <div class="cl-progress-lbl"><strong>${done}</strong> of <strong>${total}</strong> items addressed &mdash; ${pct}% complete</div>`;
+
+            // Build interactive HTML
+            let html = '';
+            ITEMS.forEach(it => {
+                if (it.section) {
+                    const sc2 = secCounts[it.section] || {t:0,d:0};
+                    html += `<div class="cl-section-hdr">${escapeXml(it.section)}<span class="cl-section-cnt">${sc2.d}/${sc2.t} addressed</span></div>`;
+                    return;
+                }
+                const isAuto = it.mode === 'auto';
+                const aData  = isAuto ? (AUTO[it.id] || {s:'partial', d:'Not auto-assessed for this item.'}) : null;
+                const sv2    = saved[it.id] || {};
+                const complete = isAuto
+                    ? (aData && (aData.s === 'yes' || (aData.s === 'partial' && !!(sv2.checked))))
+                    : !!(sv2.checked);
+                let cls = 'cl-item';
+                if (isAuto && aData && aData.s === 'yes') cls += ' is-auto-yes';
+                else if (complete) cls += ' is-complete';
+
+                let body = `<div class="cl-top">
+                    <div class="cl-name">${escapeXml(it.name)}</div>
+                    <span class="cl-badge ${isAuto?'cl-badge-auto':'cl-badge-manual'}">${isAuto?'AUTO':'MANUAL'}</span>
+                </div>
+                <div class="cl-desc">${escapeXml(it.desc)}</div>`;
+
+                if (isAuto && aData) {
+                    const _clIcons = { yes: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em;flex-shrink:0"><polyline points="2,9 6,13 14,3"/></svg>', no: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em;flex-shrink:0"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>', partial: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em;flex-shrink:0"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>' };
+                    const _clIcon = _clIcons[aData.s] || '';
+                    body += `<div class="cl-auto-val st-${aData.s}">${_clIcon}${escapeXml(aData.d)}</div>`;
+                    if (aData.s === 'partial') {
+                        const spTxt = sv2.text || '';
+                        const spChk = sv2.checked || false;
+                        body += `<div class="cl-supplement">
+                            <div class="cl-supplement-lbl"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M11 2l3 3-9 9H2v-3z"/><line x1="9" y1="4" x2="12" y2="7"/></svg> Add your notes to complete this item:</div>
+                            <div class="cl-manual-row">
+                                <input type="checkbox" class="cl-check" id="clchk-${it.id}" ${spChk?'checked':''} onchange="saveClCheck('${it.id}')">
+                                <textarea class="cl-txt${spTxt?' has-val':''}" id="cltxt-${it.id}" placeholder="Enter your notes or response here…" oninput="saveClText('${it.id}')">${escapeXml(spTxt)}</textarea>
+                            </div>
+                        </div>`;
+                    }
+                } else {
+                    const sv  = saved[it.id] || {};
+                    const txt = sv.text || '';
+                    const chk = sv.checked || false;
+                    body += `<div class="cl-manual-row">
+                        <input type="checkbox" class="cl-check" id="clchk-${it.id}" ${chk?'checked':''} onchange="saveClCheck('${it.id}')">
+                        <textarea class="cl-txt${txt?' has-val':''}" id="cltxt-${it.id}" placeholder="Enter your notes or response here…" oninput="saveClText('${it.id}')">${escapeXml(txt)}</textarea>
+                    </div>`;
+                }
+
+                html += `<div class="${cls}"><div class="cl-num">${escapeXml(it.id)}</div><div class="cl-body">${body}</div></div>`;
+            });
+
+            const contentEl = document.getElementById('checklistContent');
+            if (contentEl) contentEl.innerHTML = html;
+
+            // Populate hidden table (used by exportChecklist PNG function)
+            let tHtml = '<thead><tr><th>#</th><th>Item</th><th>Description</th><th>Status</th><th>Notes / Details</th></tr></thead><tbody>';
+            ITEMS.forEach(it => {
+                if (it.section) { tHtml += `<tr class="section-header"><td colspan="5">${escapeXml(it.section)}</td></tr>`; return; }
+                const isAuto = it.mode === 'auto';
+                const aData  = isAuto ? (AUTO[it.id]||{s:'partial',d:''}) : null;
+                const sv     = saved[it.id] || {};
+                const partialComplete = isAuto && aData && aData.s === 'partial' && !!(sv.checked);
+                const stHtml = isAuto
+                    ? (aData.s==='yes' ? '<span class="check-yes">Yes <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg></span>' : aData.s==='no' ? '<span class="check-no">No <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></span>' : partialComplete ? '<span class="check-yes">Yes <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg></span>' : '<span class="check-na">Partial</span>')
+                    : (sv && sv.checked ? '<span class="check-yes">Yes <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg></span>' : '<span class="check-no">Incomplete</span>');
+                const detail = isAuto ? ((aData.d||'') + (sv.text ? ' | Researcher notes: ' + sv.text : '')) : (sv.text||'');
+                tHtml += `<tr><td>${escapeXml(it.id)}</td><td><strong>${escapeXml(it.name)}</strong></td><td>${escapeXml(it.desc)}</td><td>${stHtml}</td><td>${escapeXml(detail)}</td></tr>`;
+            });
+            tHtml += '</tbody>';
+            const tableEl = document.getElementById('checklistTable');
+            if (tableEl) tableEl.innerHTML = tHtml;
+        }
+
+        function saveClCheck(id) {
+            const chk = document.getElementById('clchk-' + id);
+            const txt = document.getElementById('cltxt-' + id);
+            const sv = JSON.parse(localStorage.getItem('prismaManualChecklist') || '{}');
+            if (!sv[id]) sv[id] = {checked: false, text: ''};
+            if (chk) sv[id].checked = chk.checked;
+            if (txt) sv[id].text = txt.value;
+            localStorage.setItem('prismaManualChecklist', JSON.stringify(sv));
+            if (prisma) renderChecklist(prisma, formState);
+        }
+
+        function saveClText(id) {
+            const txt = document.getElementById('cltxt-' + id);
+            const chk = document.getElementById('clchk-' + id);
+            if (!txt) return;
+            const sv = JSON.parse(localStorage.getItem('prismaManualChecklist') || '{}');
+            if (!sv[id]) sv[id] = {checked: chk ? chk.checked : false, text: ''};
+            sv[id].text = txt.value;
+            localStorage.setItem('prismaManualChecklist', JSON.stringify(sv));
+            txt.className = 'cl-txt' + (txt.value ? ' has-val' : '');
+        }
+
+        function resetManualChecklist() {
+            if (!confirm('Reset all manual checklist inputs? This cannot be undone.')) return;
+            localStorage.removeItem('prismaManualChecklist');
+            if (prisma) renderChecklist(prisma, formState);
+        }
+
+        async function exportPrisma() {
+            const flowEl = document.getElementById('prismaFlow');
+            if (!flowEl || !prisma) { showToast('No PRISMA data to export.', 'error'); return; }
+            if (typeof html2canvas === 'undefined') { showToast('Export library not loaded. Check your internet connection.', 'error'); return; }
+            try {
+                showToast('Generating PNG…', 'info', 2500);
+                const canvas = await html2canvas(flowEl, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    useCORS: true,
+                    logging: false,
+                    scrollX: 0,
+                    scrollY: -window.scrollY,
+                    width: flowEl.scrollWidth,
+                    height: flowEl.scrollHeight,
+                    windowWidth: document.documentElement.scrollWidth,
+                    windowHeight: document.documentElement.scrollHeight
+                });
+                const dataUrl = canvas.toDataURL('image/png');
+                try { localStorage.setItem('rsp_prisma_flow_png', dataUrl); } catch(e) {}
+                await saveImageAs(dataUrl, 'prisma_flow_diagram.png');
+            } catch(e) {
+                showToast('Failed to export diagram.', 'error');
+                console.error('exportPrisma error:', e);
+            }
+        }
+
+        // Auto-save PRISMA PNG to localStorage when page loads (for Export ZIP)
+        function _savePrismaFlowPng() {
+            const flowEl = document.getElementById('prismaFlow');
+            if (!flowEl || !prisma || typeof html2canvas === 'undefined') return;
+            html2canvas(flowEl, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                logging: false,
+                scrollX: 0,
+                scrollY: 0,
+                width: flowEl.scrollWidth,
+                height: flowEl.scrollHeight
+            }).then(canvas => {
+                try { localStorage.setItem('rsp_prisma_flow_png', canvas.toDataURL('image/png')); } catch(e) {}
+            }).catch(e => console.warn('Auto-save PRISMA PNG failed:', e));
+        }
+        if (prisma) { setTimeout(_savePrismaFlowPng, 600); }
+
+        async function exportChecklist() {
+            const table = document.getElementById('checklistTable');
+            const rows = table.querySelectorAll('tr');
+            const colWidths = [40, 160, 220, 60, 280];
+            const totalWidth = colWidths.reduce((a, b) => a + b, 0) + 40;
+            const rowHeight = 32;
+            const headerHeight = 36;
+            const sectionHeight = 30;
+            const padding = 20;
+
+            // Calculate total height
+            let totalHeight = padding * 2 + 50; // title + padding
+            rows.forEach(row => {
+                if (row.classList.contains('section-header')) {
+                    totalHeight += sectionHeight;
+                } else {
+                    totalHeight += rowHeight;
+                }
+            });
+            totalHeight += headerHeight; // for thead
+
+            let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}">`;
+            svg += `<rect width="${totalWidth}" height="${totalHeight}" fill="#fff"/>`;
+            svg += `<style>text { font-family: 'Segoe UI', sans-serif; font-size: 11px; } .header { font-weight: 700; font-size: 12px; fill: #2c3e50; } .section { font-weight: 700; font-size: 11px; fill: #fff; } .yes { fill: #27ae60; font-weight: 600; } .no { fill: #e74c3c; font-weight: 600; } .na { fill: #999; } .title { font-size: 14px; font-weight: 700; fill: #2c3e50; }</style>`;
+
+            // Title
+            svg += `<text x="${totalWidth/2}" y="30" text-anchor="middle" class="title">PRISMA 2020 Evidence Checklist</text>`;
+
+            let y = 50;
+
+            // Draw table
+            rows.forEach((row, rowIdx) => {
+                const cells = row.querySelectorAll('th, td');
+                if (row.parentElement.tagName === 'THEAD') {
+                    // Header row
+                    svg += `<rect x="${padding}" y="${y}" width="${totalWidth - padding*2}" height="${headerHeight}" fill="#ecf0f1"/>`;
+                    let x = padding + 8;
+                    cells.forEach((cell, i) => {
+                        const text = escapeXml(cell.textContent.trim());
+                        svg += `<text x="${x}" y="${y + 22}" class="header">${text}</text>`;
+                        x += colWidths[i];
+                    });
+                    svg += `<line x1="${padding}" y1="${y + headerHeight}" x2="${totalWidth - padding}" y2="${y + headerHeight}" stroke="#ddd" stroke-width="1"/>`;
+                    y += headerHeight;
+                } else if (row.classList.contains('section-header')) {
+                    // Section header
+                    svg += `<rect x="${padding}" y="${y}" width="${totalWidth - padding*2}" height="${sectionHeight}" fill="#2c3e50"/>`;
+                    svg += `<text x="${padding + 8}" y="${y + 20}" class="section">${escapeXml(cells[0].textContent.trim())}</text>`;
+                    y += sectionHeight;
+                } else {
+                    // Data row
+                    const bgFill = rowIdx % 2 === 0 ? '#f9f9f9' : '#fff';
+                    svg += `<rect x="${padding}" y="${y}" width="${totalWidth - padding*2}" height="${rowHeight}" fill="${bgFill}"/>`;
+                    let x = padding + 8;
+                    cells.forEach((cell, i) => {
+                        let text = escapeXml(cell.textContent.trim());
+                        let cls = '';
+                        if (i === 3) {
+                            if (text.includes('Yes')) cls = 'yes';
+                            else if (text.includes('No')) cls = 'no';
+                            else if (text.includes('N/A')) cls = 'na';
+                        }
+                        // Truncate long text
+                        const maxChars = Math.floor(colWidths[i] / 6.5);
+                        if (text.length > maxChars) text = text.substring(0, maxChars - 1) + '\u2026';
+                        svg += `<text x="${x}" y="${y + 20}" ${cls ? 'class="'+cls+'"' : ''}>${text}</text>`;
+                        x += colWidths[i];
+                    });
+                    svg += `<line x1="${padding}" y1="${y + rowHeight}" x2="${totalWidth - padding}" y2="${y + rowHeight}" stroke="#eee" stroke-width="0.5"/>`;
+                    y += rowHeight;
+                }
+            });
+
+            // Border
+            svg += `<rect x="${padding}" y="50" width="${totalWidth - padding*2}" height="${y - 50}" fill="none" stroke="#ddd" stroke-width="1" rx="4"/>`;
+            svg += `</svg>`;
+
+            // Convert SVG to PNG
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            img.onload = async function() {
+                canvas.width = img.width * 2;
+                canvas.height = img.height * 2;
+                ctx.scale(2, 2);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                const dataUrl = canvas.toDataURL('image/png');
+                URL.revokeObjectURL(url);
+                await saveImageAs(dataUrl, 'prisma_checklist.png');
+            };
+            img.src = url;
+        }
+
+        function escapeXml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+        }
+
+        function flowToSVG() {
+            const p = JSON.parse(localStorage.getItem('lastPrismaData'));
+            if (!p) return '';
+            const state = JSON.parse(localStorage.getItem('searchFormState') || '{}');
+            const steps = JSON.parse(localStorage.getItem('prismaManualSteps') || '[]');
+
+            const screening    = p.screening    || {};
+            const eligibility  = p.eligibility  || {};
+            const totalIdentified = p.identification.total_found;
+            const retrieved       = p.identification.retrieved;
+            const databases       = p.identification.databases || {};
+            const included        = p.included;
+
+            const duplicatesRemoved  = screening.duplicates || 0;
+            const afterDedup         = retrieved - duplicatesRemoved;
+            const screeningExcluded  = Object.entries(screening).filter(([k,v]) => typeof v === 'number' && k !== 'duplicates');
+            const screeningTotal     = screeningExcluded.reduce((s,[,v]) => s+v, 0);
+            const afterScreening     = afterDedup - screeningTotal;
+            const eligibilityExcluded = Object.entries(eligibility).filter(([k,v]) => typeof v === 'number');
+            const eligibilityTotal    = eligibilityExcluded.reduce((s,[,v]) => s+v, 0);
+
+            const reasonLabels = {
+                'year_range':'Year range filter','doc_type':'Document type filter',
+                'language':'Language filter','exclude_terms':'Exclude terms',
+                'must_include_terms':'Must-include terms','include_venues':'Venue inclusion filter',
+                'exclude_venues':'Venue exclusion filter',
+            };
+            const dbLabels = {'hal':'HAL','arxiv':'arXiv','ieee':'IEEE Xplore','scopus':'Scopus',
+                'inspec':'Inspec','sciencedirect':'ScienceDirect',
+                'springer':'Springer Nature','pubmed':'PubMed','acm':'ACM DL','openalex':'OpenAlex'};
+
+            // ── Layout ──
+            const mainX = 40, bw = 380, bh = 120;
+            const exclGap = 55, exclX = mainX + bw + exclGap, exclW = 245;
+            const arrowGap = 28, subBoxH = 65, subGap = 8;
+            const totalW = exclX + exclW + 25;
+            const midX   = mainX + bw / 2;
+
+            const esc = s => String(s)
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+
+            function wrapText(text, maxCharsPerLine) {
+                const words = String(text).split(' ');
+                const lines = [];
+                let line = '';
+                words.forEach(w => {
+                    if ((line ? line + ' ' + w : w).length <= maxCharsPerLine) {
+                        line = line ? line + ' ' + w : w;
+                    } else {
+                        if (line) lines.push(line);
+                        line = w.length > maxCharsPerLine ? w.substring(0, maxCharsPerLine - 1) + '…' : w;
+                    }
+                });
+                if (line) lines.push(line);
+                return lines;
+            }
+
+            // Draw a main flow box (label badge + title + large count + detail + description)
+            function box(x, y, fill, border, labelTxt, title, count, detail, desc) {
+                const lblW = labelTxt.length * 7.5 + 14;
+                let s = `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="8" fill="${fill}" stroke="${border}" stroke-width="2.5"/>`;
+                s += `<rect x="${x+10}" y="${y-10}" width="${lblW}" height="20" rx="4" fill="${border}"/>`;
+                s += `<text x="${x+17}" y="${y+5}" style="font-size:9.5px;font-weight:700;fill:#fff;letter-spacing:0.5px;">${esc(labelTxt)}</text>`;
+                s += `<text x="${x+bw/2}" y="${y+32}" text-anchor="middle" style="font-size:13px;font-weight:600;fill:#2c3e50;">${esc(title)}</text>`;
+                s += `<text x="${x+bw/2}" y="${y+62}" text-anchor="middle" style="font-size:28px;font-weight:700;fill:#2c3e50;">${esc(String(count))}</text>`;
+                s += `<text x="${x+bw/2}" y="${y+82}" text-anchor="middle" style="font-size:11px;fill:#555;">${esc(detail)}</text>`;
+                if (desc) {
+                    const lines = wrapText(desc, Math.floor((bw - 24) / 6.3)).slice(0, 2);
+                    lines.forEach((l, i) => {
+                        s += `<text x="${x+bw/2}" y="${y+97+i*14}" text-anchor="middle" style="font-size:9.5px;fill:#888;font-style:italic;">${esc(l)}</text>`;
+                    });
+                }
+                return s;
+            }
+
+            // Draw excluded/removed side box with bullet list of reasons
+            function exclBox(x, y, title, reasons) {
+                const lineH = 15;
+                const h = 32 + reasons.length * lineH + 8;
+                let s = `<rect x="${x}" y="${y}" width="${exclW}" height="${h}" rx="5" fill="#fdedec" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+                s += `<text x="${x+10}" y="${y+20}" style="font-size:11px;font-weight:700;fill:#c0392b;">${esc(title)}</text>`;
+                reasons.forEach((r, i) => {
+                    const maxC = Math.floor((exclW - 22) / 6.2);
+                    const disp = r.length > maxC ? r.substring(0, maxC - 1) + '…' : r;
+                    s += `<text x="${x+14}" y="${y+32+i*lineH}" style="font-size:9.5px;fill:#c0392b;">• ${esc(disp)}</text>`;
+                });
+                return { svg: s, h };
+            }
+
+            // Draw a sub-criteria pill
+            function subPill(x, y, w, label, value, count, isActive) {
+                const border = isActive ? '#3498db' : '#bdc3c7';
+                const fill   = isActive ? '#eaf5fc' : '#f8f9fa';
+                const txtCol = isActive ? '#2c3e50' : '#95a5a6';
+                const maxC   = Math.floor((w - 12) / 6.3);
+                const valStr = String(value);
+                const disp   = valStr.length > maxC ? valStr.substring(0, maxC - 1) + '…' : valStr;
+                let s = `<rect x="${x}" y="${y}" width="${w}" height="${subBoxH}" rx="5" fill="${fill}" stroke="${border}" stroke-width="1.5"/>`;
+                s += `<text x="${x+w/2}" y="${y+14}" text-anchor="middle" style="font-size:8.5px;font-weight:700;fill:${border};letter-spacing:0.3px;">${esc(label.toUpperCase())}</text>`;
+                s += `<text x="${x+w/2}" y="${y+30}" text-anchor="middle" style="font-size:9.5px;fill:${txtCol};">${esc(disp)}</text>`;
+                if (count !== null && count !== undefined) {
+                    const cColor = count > 0 ? '#e74c3c' : '#27ae60';
+                    s += `<text x="${x+w/2}" y="${y+47}" text-anchor="middle" style="font-size:9px;fill:${cColor};">${count > 0 ? '−'+count+' removed' : '0 removed'}</text>`;
+                }
+                return s;
+            }
+
+            function arrowD(x, y, len) {
+                return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+len-6}" stroke="#555" stroke-width="2" marker-end="url(#ah)"/>`;
+            }
+            function arrowR(x1, y, x2) {
+                return `<line x1="${x1}" y1="${y}" x2="${x2-5}" y2="${y}" stroke="#e74c3c" stroke-width="2" marker-end="url(#ah-red)"/>`;
+            }
+
+            let body = '', y = 35;
+
+            // Title
+            body += `<text x="${midX}" y="${y}" text-anchor="middle" style="font-size:17px;font-weight:700;fill:#2c3e50;">PRISMA 2020 Flow Diagram</text>`;
+            y += 30;
+
+            // DB chips
+            const dbEntries = Object.entries(databases);
+            if (dbEntries.length > 0) {
+                const cols  = Math.min(dbEntries.length, 5);
+                const rows  = Math.ceil(dbEntries.length / cols);
+                const chipH = 65, chipGap = 8;
+                const chipW = Math.min(112, Math.floor((bw - (cols-1)*chipGap) / cols));
+                const gridW = cols * chipW + (cols-1) * chipGap;
+                const startX = midX - gridW / 2;
+                dbEntries.forEach(([db, counts], i) => {
+                    const col = i % cols, row = Math.floor(i / cols);
+                    const cx = startX + col * (chipW + chipGap);
+                    const cy = y + row * (chipH + chipGap);
+                    body += `<rect x="${cx}" y="${cy}" width="${chipW}" height="${chipH}" rx="5" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>`;
+                    body += `<text x="${cx+chipW/2}" y="${cy+16}" text-anchor="middle" style="font-size:9.5px;font-weight:600;fill:#2c3e50;">${esc(dbLabels[db]||db)}</text>`;
+                    body += `<text x="${cx+chipW/2}" y="${cy+36}" text-anchor="middle" style="font-size:17px;font-weight:700;fill:#3498db;">${counts.found.toLocaleString()}</text>`;
+                    body += `<text x="${cx+chipW/2}" y="${cy+52}" text-anchor="middle" style="font-size:8.5px;fill:#555;">Retrieved: ${counts.retrieved}</text>`;
+                });
+                y += rows * (chipH + chipGap) + 6;
+                body += arrowD(midX, y, arrowGap); y += arrowGap;
+            }
+
+            // Identification
+            body += box(mainX, y, '#eaf5fc', '#3498db', 'Identification',
+                'Records identified', totalIdentified,
+                `Retrieved for processing: ${retrieved.toLocaleString()}`,
+                'Total records found across all searched databases before any filtering or deduplication.');
+            y += bh; body += arrowD(midX, y, arrowGap); y += arrowGap;
+
+            // Deduplication
+            body += box(mainX, y, '#fef9e7', '#f39c12', 'Deduplication',
+                'Records after duplicates removed', afterDedup,
+                `Duplicates removed: ${duplicatesRemoved}`,
+                'Papers appearing in multiple databases are merged into a single entry, matched by DOI or normalised title.');
+            if (duplicatesRemoved > 0) {
+                const { svg: es } = exclBox(exclX, y + bh/2 - 28, `Removed (n = ${duplicatesRemoved})`, ['Matched by DOI or title']);
+                body += arrowR(mainX + bw, y + bh/2, exclX) + es;
+            }
+            y += bh; body += arrowD(midX, y, arrowGap); y += arrowGap;
+
+            // Screening
+            body += box(mainX, y, '#fef9e7', '#f39c12', 'Screening',
+                'Records after screening', afterScreening,
+                `Screened: ${afterDedup}  |  Excluded: ${screeningTotal}`,
+                'Records filtered by metadata criteria: publication year, document type, language, and exclusion keywords.');
+            if (screeningTotal > 0) {
+                const reasons = screeningExcluded.map(([k,v]) => `${reasonLabels[k]||k}: ${v}`);
+                const { svg: es } = exclBox(exclX, y + bh/2 - 20, `Excluded (n = ${screeningTotal})`, reasons);
+                body += arrowR(mainX + bw, y + bh/2, exclX) + es;
+            }
+            y += bh + 8;
+
+            // Screening sub-criteria
+            const screenSubs = [
+                { label:'Year Range',      active:!!(state.yearFrom||state.yearTo),
+                  value:(state.yearFrom&&state.yearTo)?`${state.yearFrom} – ${state.yearTo}`:(state.yearFrom?`${state.yearFrom} – present`:(state.yearTo?`up to ${state.yearTo}`:'—')),
+                  count: screening.year_range||0 },
+                { label:'Document Type',   active:!!(state.docTypes&&state.docTypes.length),
+                  value:(state.docTypes&&state.docTypes.length)?state.docTypes.join(', '):'All types', count:screening.doc_type||0 },
+                { label:'Language',        active:!!(state.languages&&state.languages.length),
+                  value:(state.languages&&state.languages.length)?state.languages.join(', '):'All languages', count:screening.language||0 },
+                { label:'Exclusion Terms', active:!!(state.excludeTerms&&state.excludeTerms.length),
+                  value:state.excludeTerms||'None', count:typeof screening.exclude_terms==='number'?screening.exclude_terms:null },
+            ];
+            const subW = Math.floor((bw - (screenSubs.length-1)*subGap) / screenSubs.length);
+            screenSubs.forEach((s, i) => { body += subPill(mainX + i*(subW+subGap), y, subW, s.label, s.value, s.count, s.active); });
+            y += subBoxH + 10; body += arrowD(midX, y, arrowGap); y += arrowGap;
+
+            // Eligibility
+            body += box(mainX, y, '#fdebd0', '#e67e22', 'Eligibility',
+                'Records assessed for eligibility', afterScreening,
+                `Assessed: ${afterScreening}  |  Excluded: ${eligibilityTotal}`,
+                'Content-level assessment: records evaluated against must-include terms and venue inclusion/exclusion criteria.');
+            if (eligibilityTotal > 0) {
+                const reasons = eligibilityExcluded.map(([k,v]) => `${reasonLabels[k]||k}: ${v}`);
+                const { svg: es } = exclBox(exclX, y + bh/2 - 20, `Excluded (n = ${eligibilityTotal})`, reasons);
+                body += arrowR(mainX + bw, y + bh/2, exclX) + es;
+            }
+            y += bh + 8;
+
+            // Eligibility sub-criteria
+            const eligSubs = [
+                { label:'Must-Include Terms', active:!!(state.includeTerms&&state.includeTerms.length),
+                  value:state.includeTerms||'None required', count:eligibility.must_include_terms||0 },
+                { label:'Include Venues',     active:!!(state.includeVenues&&state.includeVenues.length),
+                  value:state.includeVenues||'All venues',    count:eligibility.include_venues||0 },
+                { label:'Exclude Venues',     active:!!(state.excludeVenues&&state.excludeVenues.length),
+                  value:state.excludeVenues||'None excluded', count:eligibility.exclude_venues||0 },
+            ];
+            const eligSubW = Math.floor((bw - (eligSubs.length-1)*subGap) / eligSubs.length);
+            eligSubs.forEach((s, i) => { body += subPill(mainX + i*(eligSubW+subGap), y, eligSubW, s.label, s.value, s.count, s.active); });
+            y += subBoxH + 10; body += arrowD(midX, y, arrowGap); y += arrowGap;
+
+            // Included
+            body += box(mainX, y, '#d4efdf', '#27ae60', 'Included',
+                'Studies included in review', included,
+                'After all automated screening & eligibility filters',
+                'Final set of papers that passed all criteria — ready for full-text analysis and data extraction.');
+            y += bh;
+
+            // Manual steps
+            if (steps.length > 0) {
+                let running = included;
+                steps.forEach(step => {
+                    running += (step.added||0) - (step.removed||0);
+                    body += arrowD(midX, y, arrowGap); y += arrowGap;
+                    body += box(mainX, y, '#f9f2fc', '#8e44ad', step.name,
+                        step.name, running, `+${step.added} added, −${step.removed} removed`, step.desc||'');
+                    if (step.removed > 0) {
+                        const { svg: es } = exclBox(exclX, y + bh/2 - 20, `−${step.removed} removed`, step.desc?[step.desc]:[]);
+                        body += arrowR(mainX + bw, y + bh/2, exclX) + es;
+                    }
+                    y += bh;
+                });
+                body += arrowD(midX, y, arrowGap); y += arrowGap;
+                body += box(mainX, y, '#d4efdf', '#27ae60', 'Final',
+                    'Final studies for synthesis', running, 'After all manual review steps', '');
+                y += bh;
+            }
+
+            y += 30; // bottom padding
+
+            const defs = `<defs>
+                <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+                <marker id="ah-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker>
+            </defs>`;
+
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${y}" viewBox="0 0 ${totalW} ${y}">
+                <rect width="${totalW}" height="${y}" fill="#fff"/>
+                ${defs}
+                ${body}
+            </svg>`;
+        }
+    </script>
+{% endblock %}

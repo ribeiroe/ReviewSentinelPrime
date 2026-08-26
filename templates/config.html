@@ -1,0 +1,1558 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime – Saved Searches{% endblock %}
+{% block head_extra %}
+<style>
+        .container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; box-sizing: border-box; }
+        h1 { text-align: center; margin-bottom: 0.3rem; color: #2c3e50; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 1.5rem; }
+
+
+        .card {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #2c3e50; }
+
+        label { font-weight: 600; display: block; margin-bottom: 0.3rem; font-size: 0.9rem; }
+        .help-text { font-size: 0.8rem; color: #888; margin-bottom: 0.5rem; }
+        input[type="text"], input[type="number"], select {
+            margin-bottom: 1rem;
+        }
+        .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .row .col { flex: 1; min-width: 200px; }
+
+        .checkbox-group { margin-bottom: 1rem; }
+        .checkbox-group label {
+            display: inline-flex;
+            align-items: center;
+            font-weight: normal;
+            margin-right: 1.5rem;
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] { margin-right: 0.4rem; }
+
+        .schedule-row { display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 1rem; }
+        .schedule-row .col-type { min-width: 200px; width: auto; }
+        .schedule-row .col-value { width: 100px; }
+
+        .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+
+        /* ── Saved search card ───────────────────────────────── */
+        .search-item {
+            background: #fff;
+            border: 1px solid var(--c-border);
+            border-radius: var(--r-lg);
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+            transition: box-shadow 0.15s;
+        }
+        .search-item:hover { box-shadow: var(--shadow-md); }
+
+        /* Header: name + action buttons */
+        .si-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem 0.55rem;
+        }
+        .si-name {
+            flex: 1;
+            font-size: 0.97rem;
+            font-weight: 700;
+            color: var(--c-text);
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .si-actions {
+            display: flex;
+            gap: 0.3rem;
+            flex-shrink: 0;
+        }
+
+        /* Query line */
+        .si-query-wrap { padding: 0 1rem 0.65rem; }
+        .si-query {
+            display: block;
+            font-family: 'SFMono-Regular', 'Consolas', 'Menlo', monospace;
+            font-size: 0.78rem;
+            color: var(--c-text-2);
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            border-radius: var(--r-sm);
+            padding: 0.3rem 0.65rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Divider */
+        .si-divider { height: 1px; background: var(--c-border); }
+
+        /* Metadata section */
+        .si-meta {
+            padding: 0.6rem 1rem 0.65rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+        .si-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+        .si-dot { color: var(--c-text-3); user-select: none; }
+
+        /* Result count */
+        .si-result-ok   { font-weight: 700; color: var(--c-success); }
+        .si-result-fail { font-weight: 700; color: var(--c-danger); }
+        .si-result-none { font-weight: 500; color: var(--c-text-3); font-style: italic; }
+
+        /* Relative timestamp */
+        .si-last-run {
+            color: var(--c-text-2);
+            font-size: 0.8rem;
+            cursor: default;
+        }
+
+        /* Filter tags */
+        .si-filters {
+            padding: 0 1rem 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+        .si-filter-tag {
+            font-size: 0.72rem;
+            font-weight: 500;
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            background: var(--c-bg);
+            border: 1px solid var(--c-border);
+            color: var(--c-text-2);
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 0.3rem;
+        }
+        .badge-hal { background: #d4efdf; color: #1e8449; }
+        .badge-arxiv { background: #fdebd0; color: #b9770e; }
+        .badge-ieee { background: #d6eaf8; color: #1a5276; }
+        .badge-scopus { background: #f5e6ff; color: #6c3483; }
+        .badge-inspec { background: #fce4ec; color: #880e4f; }
+        .badge-sciencedirect { background: #fff3e0; color: #e65100; }
+        .badge-springer { background: #e3f2fd; color: #0d47a1; }
+        .badge-pubmed { background: #fce4ec; color: #880e4f; }
+        .badge-acm { background: #fff8e1; color: #e65100; }
+        .badge-openalex { background: #e8f4fd; color: #1a5276; }
+        .badge-schedule { background: #d6eaf8; color: #2471a3; }
+        .badge-schedule-auto { background: #eaecee; color: #555; }
+        .badge-schedule-active { background: #d5f5e3; color: #1e8449; font-weight: 600; }
+
+        .empty-state { text-align: center; color: #999; padding: 2rem; }
+
+        /* Countdown timer */
+        .countdown-timer {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            background: #eaf4fb;
+            color: #2471a3;
+            border: 1px solid #aed6f1;
+            border-radius: 4px;
+            padding: 0.15rem 0.5rem;
+            margin-left: 0.3rem;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        /* overdue < 30 min — amber */
+        .countdown-timer.overdue {
+            background: #fef9e7;
+            color: #b7950b;
+            border-color: #f9e79f;
+        }
+        /* overdue ≥ 30 min — red, may have failed */
+        .countdown-timer.failed {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+
+        .results-panel {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        .results-panel.visible { display: block; }
+        .results-panel h3 { margin-bottom: 1rem; }
+        .result-timestamp { font-size: 0.8rem; color: #888; margin-bottom: 0.75rem; }
+
+        /* View toggle & pagination */
+        #rpViewToggle { display:flex; align-items:center; justify-content:flex-end; gap:0.5rem; margin-bottom:0.75rem; }
+        #rpPaginationBar { display:flex; align-items:center; justify-content:center; gap:0.6rem; margin-top:1.25rem; flex-wrap:wrap; }
+
+        /* Paper cards */
+        .paper { background:#fafafa; padding:1.25rem; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,0.08); margin-bottom:1rem; }
+        .paper-title { font-size:1.05rem; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; }
+        .paper-title a { color:#2c3e50; text-decoration:none; }
+        .paper-title a:hover { color:#3498db; text-decoration:underline; }
+        .paper-meta { font-size:0.85rem; color:#777; margin-bottom:0.4rem; }
+        .paper-authors { font-style:italic; margin-bottom:0.3rem; font-size:0.9rem; }
+        .paper-abstract { font-size:0.9rem; color:#555; line-height:1.5; margin-top:0.5rem; }
+        .paper-keywords { margin-top:0.5rem; display:flex; flex-wrap:wrap; gap:0.3rem; }
+        .keyword-tag { background:#eaf2f8; color:#2980b9; padding:0.2rem 0.5rem; border-radius:3px; font-size:0.8rem; }
+        .doi-link { font-size:0.85rem; margin-top:0.4rem; }
+        .doi-link a { color:#3498db; }
+        .paper-link { margin-top:0.5rem; }
+        .paper-link a { display:inline-block; background:var(--c-primary); color:#fff; padding:0.3rem 0.8rem; border-radius:var(--r-sm); font-size:0.82rem; text-decoration:none; font-weight:600; }
+        .paper-link a:hover { background:var(--c-primary-dk); }
+
+        /* List view */
+        .paper-row { display:grid; grid-template-columns:90px 1fr 60px 130px; align-items:center; gap:0.6rem; padding:0.55rem 0.9rem; background:#fff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.07); margin-bottom:0.4rem; font-size:0.9rem; }
+        .paper-row:hover { background:#f5faff; }
+        .paper-row.expanded { background:#f0f8ff; border-left:3px solid #3498db; }
+        .paper-row .row-source { font-weight:700; font-size:0.78rem; }
+        .paper-row .row-title { font-weight:500; color:#1a1a1a; cursor:pointer; }
+        .paper-row .row-year  { color:#666; text-align:center; }
+        .paper-row .row-link  { text-align:right; white-space:nowrap; }
+        .paper-row .row-link a { font-size:0.82rem; }
+        .row-chevron { font-size:0.7rem; color:#3498db; margin-left:0.35rem; transition:transform 0.2s; display:inline-block; }
+        .row-detail { display:none; grid-column:1/-1; border-top:1px solid #dce9f5; margin-top:0.5rem; padding-top:0.75rem; }
+        .row-detail .paper-authors  { font-size:0.88rem; color:#444; margin-bottom:0.25rem; }
+        .row-detail .paper-meta     { font-size:0.85rem; color:#666; margin-bottom:0.25rem; }
+        .row-detail .doi-link       { font-size:0.82rem; margin-bottom:0.4rem; }
+        .row-detail .paper-abstract { font-size:0.88rem; color:#333; margin-bottom:0.5rem; line-height:1.5; }
+        .row-detail .paper-keywords { margin-bottom:0.4rem; }
+        .paper-row-header { display:grid; grid-template-columns:90px 1fr 60px 130px; gap:0.6rem; padding:0.35rem 0.9rem; font-size:0.78rem; font-weight:700; text-transform:uppercase; color:#888; letter-spacing:0.06em; }
+
+        /* Source badges */
+        .source-badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:3px; font-size:0.75rem; font-weight:600; text-transform:uppercase; margin-right:0.5rem; vertical-align:middle; }
+        .source-hal { background:#d4efdf; color:#1e8449; }
+        .source-arxiv { background:#fdebd0; color:#b9770e; }
+        .source-ieee { background:#d6eaf8; color:#1a5276; }
+        .source-scopus { background:#f5e6ff; color:#6c3483; }
+        .source-inspec { background:#fce4ec; color:#880e4f; }
+        .source-sciencedirect { background:#fff3e0; color:#e65100; }
+        .source-springer { background:#e3f2fd; color:#0d47a1; }
+        .source-pubmed { background:#fce4ec; color:#880e4f; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+
+        <!-- Create / Edit form -->
+        <div class="card" id="formCard">
+            <h2 id="formTitle">Create New Search</h2>
+
+            <label for="searchName">Search Name</label>
+            <input type="text" id="searchName" placeholder="e.g. My Climate Research">
+
+            <label for="searchQuery">Query</label>
+            <input type="text" id="searchQuery" placeholder="e.g. (deep learning OR neural network) AND protein folding" oninput="if(!this.value.includes(',')) document.getElementById('searchQuery-error').style.display='none';">
+            <p id="searchQuery-error" class="field-error" style="display:none;">Commas are not allowed. Use <strong>OR</strong> or <strong>AND</strong> to combine terms, e.g. <code>deep learning OR neural network</code>.</p>
+            <details class="query-tips">
+              <summary>Query tips</summary>
+              <ul>
+                <li>Use <strong>AND</strong> to require both terms: <code>climate AND adaptation</code></li>
+                <li>Use <strong>OR</strong> to accept either term: <code>deep learning OR neural network</code></li>
+                <li>Use <strong>parentheses</strong> to group: <code>(deep learning OR neural network) AND protein</code></li>
+                <li>Use <strong>quotes</strong> for an exact phrase: <code>"machine learning"</code></li>
+              </ul>
+            </details>
+
+            <div style="display:flex; gap:1rem; align-items:flex-end; margin-bottom:1rem;">
+                <div style="width:175px; margin-right:0.5rem;">
+                    <label for="maxResults" style="white-space:nowrap;">Max Results per Page</label>
+                    <input type="number" id="maxResults" value="25" min="1" max="200" style="margin-bottom:0;">
+                </div>
+                <div style="flex:1; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <button id="saveBtn" onclick="saveSearch()" class="btn btn-success"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Create Search</button>
+                    <button id="cancelBtn" class="btn btn-neutral" style="display:none;" onclick="cancelEdit()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg> Cancel</button>
+                    <button onclick="confirmClearForm()" class="btn btn-danger"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+                <label style="margin-bottom:0.4rem;">Databases</label>
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem 1.2rem; padding:0.5rem 0;">
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbIeee" value="ieee"> IEEE Xplore</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbAcm" value="acm"> ACM DL</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbScopus" value="scopus"> Scopus</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbSciencedirect" value="sciencedirect"> ScienceDirect</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbSpringer" value="springer"> Springer</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbInspec" value="inspec"> Inspec</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbPubmed" value="pubmed"> PubMed</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbArxiv" value="arxiv" checked> arXiv</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbHal" value="hal" checked> HAL</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbOpenalex" value="openalex" checked> OpenAlex</label>
+                </div>
+                <div id="cfgIeeeKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> IEEE API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="cfgScopusKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Scopus API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="cfgInspecKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Inspec (Engineering Village) API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="cfgSciencedirectKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> ScienceDirect API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="cfgSpringerKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Springer Nature API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="cfgPubmedKeyNotice" style="display:none; font-size:0.75rem; color:#2980b9; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="5.5"/><line x1="8" y1="7.5" x2="8" y2="11"/></svg> PubMed API key is optional but recommended for higher rate limits. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="cfgAcmKeyNotice" style="display:none; font-size:0.75rem; color:#2980b9; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="5.5"/><line x1="8" y1="7.5" x2="8" y2="11"/></svg> ACM DL works without a key. An optional institutional key can be added in <a href="/settings" style="color:#2980b9;">Settings</a>.
+                </div>
+
+            </div>
+
+            <label>Schedule</label>
+            <div class="schedule-row">
+                <div class="col-type">
+                    <select id="scheduleType">
+                        <option value="manual">Manual (on demand)</option>
+                        <option value="hours">Every N hours</option>
+                        <option value="days">Every N days</option>
+                        <option value="months">Every N months</option>
+                    </select>
+                </div>
+                <div class="col-value" id="scheduleValueWrap" style="display:none;">
+                    <input type="number" id="scheduleValue" value="1" min="1" placeholder="N">
+                </div>
+            </div>
+
+            <div id="notifyEmailRow" style="display:none;margin-bottom:0.75rem;">
+                <label for="notifyEmail">Notify by email after each scheduled run</label>
+                <input type="text" id="notifyEmail" placeholder="e.g. you@example.com, colleague@example.com" autocomplete="off">
+                <div style="font-size:0.78rem;color:var(--c-text-3);margin-top:0.2rem;">Separate multiple addresses with commas. Leave blank to skip email notifications.</div>
+            </div>
+
+            <!-- Inclusion / Exclusion Criteria -->
+            <div style="margin-top:0.5rem; margin-bottom:1rem;">
+                <a href="#" onclick="toggleConfigFilters(); return false;" style="font-size:0.9rem; color:var(--c-primary); text-decoration:none;" id="configFilterToggle">+ Show Inclusion / Exclusion Criteria</a>
+            </div>
+            <div id="configFilterPanel" style="display:none; border-top:1px solid #eee; padding-top:1rem; margin-bottom:1rem;">
+                <div>
+                    <label>Year range</label>
+                    <p class="help-text">Filter results by publication year. Leave empty for no restriction.</p>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <input type="number" id="cfgYearFrom" placeholder="From" min="1900" max="2100" style="width:90px;">
+                        <span>to</span>
+                        <input type="number" id="cfgYearTo" placeholder="To" min="1900" max="2100" style="width:90px;">
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem;">
+                    <label>Include document types</label>
+                    <p class="help-text">Leave unchecked for all types.</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgDocType" value="ART"> Articles</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgDocType" value="COMM"> Conference</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgDocType" value="THESE"> Thesis</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgDocType" value="COUV"> Book chapter</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgDocType" value="REPORT"> Report</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgDocType" value="PREPRINT"> Preprint</label>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem;">
+                    <label>Language</label>
+                    <p class="help-text">Select which languages to include. Leave empty for all languages. (Applies to HAL, IEEE, Scopus, Inspec, Springer, and PubMed; arXiv and ScienceDirect do not support language filtering.)</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="en"> English</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="fr"> French</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="es"> Spanish</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="de"> German</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="pt"> Portuguese</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="it"> Italian</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="zh"> Chinese</label>
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="ja"> Japanese</label>
+                    </div>
+                    <div style="margin-top:0.35rem;">
+                        <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="cfgIncludeUnknownLanguage" checked>
+                            Also include papers whose language could not be detected
+                        </label>
+                    </div>
+                </div>
+                <!-- Filter fields -->
+                <div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.65rem;">
+
+                    <!-- Include terms -->
+                    <div style="border:1px solid #bbf7d0;border-radius:8px;padding:0.7rem 0.8rem;background:#f0fdf4;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><circle cx="8" cy="8" r="7" fill="#22c55e"/><path d="M5 8l2.5 2.5L11 5.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span style="color:#15803d;font-size:0.83rem;font-weight:700;">Include Terms</span>
+                            <select id="cfgIncludeTermsMode" title="Match mode for include terms" style="font-size:0.75rem;padding:0.18rem 0.3rem;border:1px solid #86efac;border-radius:5px;background:#fff;color:#15803d;font-weight:600;cursor:pointer;white-space:nowrap;width:auto;">
+                                <option value="all">ALL (AND)</option>
+                                <option value="any">ANY (OR)</option>
+                            </select>
+                        </div>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Only papers whose title or abstract contain these terms are kept.</p>
+                        <textarea id="cfgIncludeTerms" placeholder="e.g. machine learning, neural network" rows="3" style="width:100%;font-size:0.83rem;border-color:#86efac;resize:vertical;"></textarea>
+                    </div>
+
+                    <!-- Exclude terms -->
+                    <div style="border:1px solid #fecdd3;border-radius:8px;padding:0.7rem 0.8rem;background:#fff1f2;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><circle cx="8" cy="8" r="7" fill="#ef4444"/><path d="M5 5l6 6M11 5l-6 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            <span style="color:#b91c1c;font-size:0.83rem;font-weight:700;">Exclude Terms</span>
+                            <select id="cfgExcludeTermsMode" title="Match mode for exclude terms" style="font-size:0.75rem;padding:0.18rem 0.3rem;border:1px solid #fca5a5;border-radius:5px;background:#fff;color:#b91c1c;font-weight:600;cursor:pointer;white-space:nowrap;width:auto;">
+                                <option value="all">ALL (AND)</option>
+                                <option value="any" selected>ANY (OR)</option>
+                            </select>
+                        </div>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Papers whose title or abstract contain these terms are removed.</p>
+                        <textarea id="cfgExcludeTerms" placeholder="e.g. survey, review, grey literature" rows="3" style="width:100%;font-size:0.83rem;border-color:#fca5a5;resize:vertical;"></textarea>
+                    </div>
+
+                    <!-- Include venues -->
+                    <div style="border:1px solid #bbf7d0;border-radius:8px;padding:0.7rem 0.8rem;background:#f0fdf4;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><circle cx="8" cy="8" r="7" fill="#22c55e"/><path d="M5 8l2.5 2.5L11 5.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span style="color:#15803d;font-size:0.83rem;font-weight:700;">Include Venues</span>
+                            <select id="cfgIncludeVenuesMode" title="Match mode for include venues" style="font-size:0.75rem;padding:0.18rem 0.3rem;border:1px solid #86efac;border-radius:5px;background:#fff;color:#15803d;font-weight:600;cursor:pointer;white-space:nowrap;width:auto;">
+                                <option value="all">ALL (AND)</option>
+                                <option value="any" selected>ANY (OR)</option>
+                            </select>
+                        </div>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated journal/conference names. Leave empty to include all venues.</p>
+                        <textarea id="cfgIncludeVenues" placeholder="e.g. TSE, ICSE, JSS, TOSEM, EMSE" rows="3" style="width:100%;font-size:0.83rem;border-color:#86efac;resize:vertical;"></textarea>
+                    </div>
+
+                    <!-- Exclude venues -->
+                    <div style="border:1px solid #fecdd3;border-radius:8px;padding:0.7rem 0.8rem;background:#fff1f2;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.3rem;">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><circle cx="8" cy="8" r="7" fill="#ef4444"/><path d="M5 5l6 6M11 5l-6 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            <span style="color:#b91c1c;font-size:0.83rem;font-weight:700;">Exclude Venues</span>
+                            <select id="cfgExcludeVenuesMode" title="Match mode for exclude venues" style="font-size:0.75rem;padding:0.18rem 0.3rem;border:1px solid #fca5a5;border-radius:5px;background:#fff;color:#b91c1c;font-weight:600;cursor:pointer;white-space:nowrap;width:auto;">
+                                <option value="all">ALL (AND)</option>
+                                <option value="any" selected>ANY (OR)</option>
+                            </select>
+                        </div>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated journal/conference names. Papers from these venues are removed.</p>
+                        <textarea id="cfgExcludeVenues" placeholder="e.g. arXiv, workshop, poster, preprint" rows="3" style="width:100%;font-size:0.83rem;border-color:#fca5a5;resize:vertical;"></textarea>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Validation Papers -->
+            <div style="margin-bottom:1rem;">
+                <a href="#" onclick="toggleConfigValidation(); return false;" style="font-size:0.9rem; color:var(--c-primary); text-decoration:none;" id="configValidationToggle">+ Validation Papers (0)</a>
+            </div>
+            <div id="configValidationPanel" style="display:none; border-top:1px solid #eee; padding-top:1rem; margin-bottom:1rem;">
+                <p class="help-text">Reference papers that should appear in results. Used to verify search completeness.</p>
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+                    <input type="text" id="cfgValidationTitle" placeholder="Paste a paper title..." style="flex:1; margin-bottom:0;">
+                    <button class="btn btn-primary btn-sm" onclick="addConfigValidationPaper()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg> Add</button>
+                </div>
+                <div id="cfgValidationList"></div>
+            </div>
+
+            <!-- Citation Snowballing -->
+            <div style="margin-bottom:1rem;">
+                <a href="#" onclick="toggleConfigSnowball(); return false;" style="font-size:0.9rem; color:var(--c-primary); text-decoration:none;" id="configSnowballToggle">+ Citation Snowballing (0 seeds)</a>
+            </div>
+            <div id="configSnowballPanel" style="display:none; border-top:1px solid #eee; padding-top:1rem; margin-bottom:1rem;">
+                <p class="help-text">Add DOIs or paper titles of key seed papers. RSP will use <strong>OpenAlex</strong> (free, no API key) to find related papers when this search is run.</p>
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; align-items:center;">
+                    <input type="text" id="cfgSnowballSeed" placeholder="DOI (e.g. 10.1145/3519939) or paper title" style="flex:1; margin-bottom:0; font-size:0.83rem;">
+                    <button class="btn btn-success btn-sm" onclick="addConfigSnowballSeed()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg> Add</button>
+                </div>
+                <div id="cfgSnowballList" style="margin-bottom:0.5rem; display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
+            </div>
+        </div>
+
+        <!-- Saved searches list -->
+        <div class="card">
+            <h2>Saved Searches</h2>
+            <div id="searchList">
+                <div class="empty-state">No saved searches yet. Create one above.</div>
+            </div>
+            <div id="searchListPagination" style="display:flex;align-items:center;justify-content:center;gap:0.6rem;margin-top:1rem;flex-wrap:wrap;"></div>
+        </div>
+
+        <!-- Results panel -->
+        <div class="results-panel" id="resultsPanel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
+                <h3 id="resultsPanelTitle" style="margin:0;">Results</h3>
+                <button onclick="document.getElementById('resultsPanel').classList.remove('visible')" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#999;" title="Close">&#10005;</button>
+            </div>
+            <p id="rpTimestamp" class="result-timestamp"></p>
+            <div id="rpViewToggle" style="display:none;">
+                <span style="font-size:0.85rem;color:#555;margin-right:0.25rem;">View:</span>
+                <button class="view-btn active" id="rpBtnCard" onclick="rpSetView('card')">&#9646;&#9646; Cards</button>
+                <button class="view-btn"         id="rpBtnList" onclick="rpSetView('list')">&#9776; List</button>
+                <span style="font-size:0.85rem;color:#555;margin-left:0.75rem;margin-right:0.3rem;white-space:nowrap;">Per page:</span>
+                <input type="number" id="rpPageSizeInput" value="20" min="1" max="200"
+                       style="width:60px;margin-bottom:0;padding:0.3rem 0.4rem;font-size:0.85rem;"
+                       onchange="rpChangePageSize()" title="Results per page">
+            </div>
+            </div>
+            <div id="resultsPanelContent"></div>
+            <div id="rpPaginationBar"></div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        let editingId = null;
+        let cfgValidationPapers = [];
+        let cfgSnowballSeeds = [];
+        let _allSearches = [];
+        let _slPage     = 1;
+        const _slPageSize = 20;
+
+        // Schedule type toggle
+        document.getElementById('scheduleType').addEventListener('change', function() {
+            document.getElementById('scheduleValueWrap').style.display =
+                this.value === 'manual' ? 'none' : 'block';
+            document.getElementById('notifyEmailRow').style.display =
+                this.value === 'manual' ? 'none' : 'block';
+        });
+
+        function toggleConfigFilters() {
+            const panel = document.getElementById('configFilterPanel');
+            const toggle = document.getElementById('configFilterToggle');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                toggle.textContent = '\u2212 Hide Inclusion / Exclusion Criteria';
+            } else {
+                panel.style.display = 'none';
+                toggle.textContent = '+ Show Inclusion / Exclusion Criteria';
+            }
+            saveConfigFilterState();
+        }
+
+        function saveConfigFilterState() {
+            const panel = document.getElementById('configFilterPanel');
+            localStorage.setItem('cfgFilterPanelOpen', panel.style.display !== 'none');
+        }
+
+        function restoreConfigFilterState() {
+            const raw = localStorage.getItem('cfgFilterPanelOpen');
+            if (raw === null) return;
+            const panel = document.getElementById('configFilterPanel');
+            const toggle = document.getElementById('configFilterToggle');
+            const open = raw === 'true';
+            if (open) {
+                panel.style.display = 'block';
+                toggle.textContent = '\u2212 Hide Inclusion / Exclusion Criteria';
+            } else {
+                panel.style.display = 'none';
+                toggle.textContent = '+ Show Inclusion / Exclusion Criteria';
+            }
+        }
+
+        function toggleConfigValidation() {
+            const panel = document.getElementById('configValidationPanel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+            updateConfigValidationLabel();
+            saveConfigValidationState();
+        }
+
+        function saveConfigValidationState() {
+            const panel = document.getElementById('configValidationPanel');
+            localStorage.setItem('cfgValidationPanelOpen', panel.style.display !== 'none');
+        }
+
+        function restoreConfigValidationState() {
+            const raw = localStorage.getItem('cfgValidationPanelOpen');
+            if (raw === null) return;
+            const panel = document.getElementById('configValidationPanel');
+            const toggle = document.getElementById('configValidationToggle');
+            const open = raw === 'true';
+            if (open) {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+            updateConfigValidationLabel();
+        }
+
+        function updateConfigValidationLabel() {
+            const toggle = document.getElementById('configValidationToggle');
+            const isOpen = document.getElementById('configValidationPanel').style.display !== 'none';
+            const prefix = isOpen ? '\u2212' : '+';
+            toggle.textContent = `${prefix} Validation Papers (${cfgValidationPapers.length})`;
+        }
+
+        function addConfigValidationPaper() {
+            const input = document.getElementById('cfgValidationTitle');
+            const title = input.value.trim();
+            if (!title) return;
+            if (cfgValidationPapers.some(p => p.toLowerCase() === title.toLowerCase())) {
+                input.value = '';
+                return;
+            }
+            cfgValidationPapers.push(title);
+            input.value = '';
+            renderConfigValidationList();
+            updateConfigValidationLabel();
+        }
+
+        function removeConfigValidationPaper(index) {
+            cfgValidationPapers.splice(index, 1);
+            renderConfigValidationList();
+            updateConfigValidationLabel();
+        }
+
+        function renderConfigValidationList() {
+            const container = document.getElementById('cfgValidationList');
+            if (cfgValidationPapers.length === 0) {
+                container.innerHTML = '<p style="color:#999; font-size:0.85rem;">No validation papers added.</p>';
+                return;
+            }
+            container.innerHTML = cfgValidationPapers.map((title, i) =>
+                `<div style="display:flex; align-items:center; gap:0.5rem; padding:0.3rem 0; border-bottom:1px solid #f0f0f0; font-size:0.9rem;">
+                    <span style="flex:1;">${escapeHtml(title)}</span>
+                    <button class="btn btn-danger btn-sm" onclick="removeConfigValidationPaper(${i})">&times;</button>
+                </div>`
+            ).join('');
+        }
+
+        document.getElementById('cfgValidationTitle').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); addConfigValidationPaper(); }
+        });
+
+        // ── Citation Snowballing ──────────────────────────────────────────
+        function toggleConfigSnowball() {
+            const panel = document.getElementById('configSnowballPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            updateConfigSnowballLabel();
+        }
+
+        function updateConfigSnowballLabel() {
+            const toggle = document.getElementById('configSnowballToggle');
+            const isOpen = document.getElementById('configSnowballPanel').style.display !== 'none';
+            toggle.textContent = `${isOpen ? '\u2212' : '+'} Citation Snowballing (${cfgSnowballSeeds.length} seed${cfgSnowballSeeds.length !== 1 ? 's' : ''})`;
+        }
+
+        function addConfigSnowballSeed() {
+            const input = document.getElementById('cfgSnowballSeed');
+            const val = input.value.trim();
+            if (!val) return;
+            if (cfgSnowballSeeds.some(s => s.toLowerCase() === val.toLowerCase())) {
+                input.value = ''; return;
+            }
+            cfgSnowballSeeds.push(val);
+            input.value = '';
+            renderConfigSnowballList();
+            updateConfigSnowballLabel();
+        }
+
+        function removeConfigSnowballSeed(index) {
+            cfgSnowballSeeds.splice(index, 1);
+            renderConfigSnowballList();
+            updateConfigSnowballLabel();
+        }
+
+        function renderConfigSnowballList() {
+            const container = document.getElementById('cfgSnowballList');
+            if (cfgSnowballSeeds.length === 0) {
+                container.innerHTML = '<p style="color:var(--c-text-3); font-size:0.83rem;">No seeds added.</p>';
+                return;
+            }
+            container.innerHTML = cfgSnowballSeeds.map((seed, i) =>
+                `<span style="display:inline-flex;align-items:center;gap:0.3rem;background:var(--c-success-bg);color:#14532d;border:1px solid #a5d6a7;border-radius:999px;padding:0.2rem 0.6rem;font-size:0.78rem;">
+                    ${escapeHtml(seed)}
+                    <button onclick="removeConfigSnowballSeed(${i})" style="background:none;border:none;cursor:pointer;color:#15803d;font-size:0.9rem;padding:0;line-height:1;" title="Remove">&times;</button>
+                </span>`
+            ).join('');
+        }
+
+        document.getElementById('cfgSnowballSeed').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); addConfigSnowballSeed(); }
+        });
+
+
+        function getConfigFilters() {
+            const yearFrom = document.getElementById('cfgYearFrom').value;
+            const yearTo = document.getElementById('cfgYearTo').value;
+            const excludeTerms = document.getElementById('cfgExcludeTerms').value.trim();
+            const excludeTermsMode = document.getElementById('cfgExcludeTermsMode').value;
+            const includeTerms = document.getElementById('cfgIncludeTerms').value.trim();
+            const includeTermsMode = document.getElementById('cfgIncludeTermsMode').value;
+            const includeVenues = document.getElementById('cfgIncludeVenues').value.trim();
+            const includeVenuesMode = document.getElementById('cfgIncludeVenuesMode').value;
+            const excludeVenues = document.getElementById('cfgExcludeVenues').value.trim();
+            const excludeVenuesMode = document.getElementById('cfgExcludeVenuesMode').value;
+            const docTypes = Array.from(document.querySelectorAll('.cfgDocType:checked')).map(cb => cb.value);
+            const languages = Array.from(document.querySelectorAll('.cfgLang:checked')).map(cb => cb.value);
+            const includeUnknownLanguage = document.getElementById('cfgIncludeUnknownLanguage').checked;
+            return {
+                yearFrom: yearFrom ? parseInt(yearFrom) : null,
+                yearTo: yearTo ? parseInt(yearTo) : null,
+                excludeTerms: excludeTerms ? excludeTerms.split(',').map(t => t.trim()).filter(Boolean) : [],
+                excludeTermsMode: excludeTermsMode,
+                includeTerms: includeTerms ? includeTerms.split(',').map(t => t.trim()).filter(Boolean) : [],
+                includeTermsMode: includeTermsMode,
+                includeVenues: includeVenues ? includeVenues.split(',').map(t => t.trim()).filter(Boolean) : [],
+                includeVenuesMode: includeVenuesMode,
+                excludeVenues: excludeVenues ? excludeVenues.split(',').map(t => t.trim()).filter(Boolean) : [],
+                excludeVenuesMode: excludeVenuesMode,
+                docTypes: docTypes,
+                languages: languages,
+                includeUnknownLanguage: includeUnknownLanguage,
+            };
+        }
+
+        function setConfigFilters(filters) {
+            filters = filters || {};
+            document.getElementById('cfgYearFrom').value = filters.yearFrom || '';
+            document.getElementById('cfgYearTo').value = filters.yearTo || '';
+            document.getElementById('cfgExcludeTerms').value = (filters.excludeTerms || []).join(', ');
+            document.getElementById('cfgExcludeTermsMode').value = filters.excludeTermsMode || 'any';
+            document.getElementById('cfgIncludeTerms').value = (filters.includeTerms || []).join(', ');
+            document.getElementById('cfgIncludeTermsMode').value = filters.includeTermsMode || 'all';
+            document.getElementById('cfgIncludeVenues').value = (filters.includeVenues || []).join(', ');
+            document.getElementById('cfgIncludeVenuesMode').value = filters.includeVenuesMode || 'any';
+            document.getElementById('cfgExcludeVenues').value = (filters.excludeVenues || []).join(', ');
+            document.getElementById('cfgExcludeVenuesMode').value = filters.excludeVenuesMode || 'any';
+            // doc types
+            document.querySelectorAll('.cfgDocType').forEach(cb => {
+                cb.checked = (filters.docTypes || []).includes(cb.value);
+            });
+            // languages
+            document.querySelectorAll('.cfgLang').forEach(cb => {
+                cb.checked = (filters.languages || []).includes(cb.value);
+            });
+            document.getElementById('cfgIncludeUnknownLanguage').checked = filters.includeUnknownLanguage !== false;
+        }
+
+        async function loadSearches() {
+            const resp = await fetch('/api/searches');
+            _allSearches = await resp.json();
+            _slPage = 1;
+            renderSearchList(_allSearches);
+        }
+
+        function renderSearchList(searches) {
+            const container = document.getElementById('searchList');
+            const paginationBar = document.getElementById('searchListPagination');
+            if (searches.length === 0) {
+                container.innerHTML = '<div class="empty-state">No saved searches yet. Create one above.</div>';
+                paginationBar.innerHTML = '';
+                return;
+            }
+            const total = searches.length;
+            const totalPages = Math.max(1, Math.ceil(total / _slPageSize));
+            _slPage = Math.min(_slPage, totalPages);
+            const start = (_slPage - 1) * _slPageSize;
+            const end   = Math.min(start + _slPageSize, total);
+            const page  = searches.slice(start, end);
+            container.innerHTML = page.map(renderSearchItem).join('');
+            startCountdownTimers();
+            startSearchPoll();
+
+            // Pagination bar
+            if (totalPages <= 1) { paginationBar.innerHTML = ''; return; }
+            const s2 = start + 1, e2 = end;
+            paginationBar.innerHTML = `
+                <button class="pg-btn" onclick="slGotoPage(${_slPage - 1})" ${_slPage === 1 ? 'disabled' : ''}>&#8592; Prev</button>
+                <span class="pg-info">${s2}–${e2} of ${total} &nbsp;|&nbsp; Page ${_slPage} of ${totalPages}</span>
+                <button class="pg-btn" onclick="slGotoPage(${_slPage + 1})" ${_slPage === totalPages ? 'disabled' : ''}>Next &#8594;</button>
+            `;
+        }
+
+        function slGotoPage(n) {
+            _slPage = n;
+            renderSearchList(_allSearches);
+            document.getElementById('searchList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Returns a human-friendly relative timestamp ("2 hours ago", "3 days ago", etc.)
+        // The absolute date is shown as a tooltip via the title attribute on the element.
+        function relativeTime(dateStr) {
+            const diff = Date.now() - new Date(dateStr).getTime();
+            const sec  = Math.floor(diff / 1000);
+            const min  = Math.floor(sec  / 60);
+            const hr   = Math.floor(min  / 60);
+            const day  = Math.floor(hr   / 24);
+            const wk   = Math.floor(day  / 7);
+            const mo   = Math.floor(day  / 30);
+            if (sec < 60)  return 'just now';
+            if (min < 60)  return `${min} minute${min  !== 1 ? 's' : ''} ago`;
+            if (hr  < 24)  return `${hr}  hour${hr   !== 1 ? 's' : ''} ago`;
+            if (day <  7)  return `${day} day${day   !== 1 ? 's' : ''} ago`;
+            if (wk  <  5)  return `${wk}  week${wk   !== 1 ? 's' : ''} ago`;
+            return `${mo} month${mo !== 1 ? 's' : ''} ago`;
+        }
+
+        function renderSearchItem(s) {
+            // ── Database badges ───────────────────────────────────
+            const dbBadges = s.databases.map(db =>
+                `<span class="badge badge-${db}">${db}</span>`
+            ).join('');
+
+            // ── Schedule badge + countdown ────────────────────────
+            const isAuto = s.schedule.type !== 'manual';
+            const scheduleText = isAuto
+                ? `Every ${s.schedule.value} ${s.schedule.type}`
+                : 'Manual';
+            const scheduleBadgeClass = isAuto ? 'badge-schedule-active' : 'badge-schedule-auto';
+            const scheduleLabel = `<span class="badge ${scheduleBadgeClass}">${isAuto ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg>' : '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-9 9H2v-3z"/><line x1="9" y1="4" x2="12" y2="7"/></svg>'} ${scheduleText}</span>`;
+
+            let countdownHtml = '';
+            if (isAuto) {
+                const nextRunMs = computeNextRunMs(s);
+                if (nextRunMs !== null) {
+                    countdownHtml = `<span class="countdown-timer" data-next-run="${nextRunMs}" data-search-id="${s.id}" title="Time until next scheduled run"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><polyline points="8,5 8,8 10.5,8"/></svg> …</span>`;
+                }
+            }
+
+            // ── Last run row ──────────────────────────────────────
+            let lastRunHtml = '';
+            if (!s.lastRun) {
+                lastRunHtml = `<span class="si-result-none">Never run</span>`;
+            } else if (s.lastRunError) {
+                lastRunHtml = `
+                    <span class="si-result-fail" title="${escapeHtml(s.lastRunError)}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg> Failed</span>
+                    <span class="si-dot">·</span>
+                    <span class="si-last-run" title="${escapeHtml(new Date(s.lastRun).toLocaleString())}">${relativeTime(s.lastRun)}</span>`;
+            } else {
+                const count = s.lastRunCount !== undefined
+                    ? `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8.5 6,12.5 14,4"/></svg> ${s.lastRunCount.toLocaleString()} results`
+                    : '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8.5 6,12.5 14,4"/></svg> OK';
+                lastRunHtml = `
+                    <span class="si-result-ok">${count}</span>
+                    <span class="si-dot">·</span>
+                    <span class="si-last-run" title="${escapeHtml(new Date(s.lastRun).toLocaleString())}">${relativeTime(s.lastRun)}</span>`;
+            }
+
+            // ── Validation papers badge ───────────────────────────
+            const vpCount = (s.validationPapers || []).length;
+            const vpBadge = vpCount
+                ? `<span class="badge" style="background:#d6eaf8;color:#2471a3;">VP: ${vpCount}</span>`
+                : '';
+
+            // ── Filter tags ───────────────────────────────────────
+            const f = s.filters || {};
+            const filterTags = [];
+            if (f.yearFrom || f.yearTo)
+                filterTags.push(`${f.yearFrom || '*'}–${f.yearTo || '*'}`);
+            if (f.docTypes   && f.docTypes.length)
+                filterTags.push(f.docTypes.join(', '));
+            if (f.languages  && f.languages.length)
+                filterTags.push(f.languages.join(', '));
+            if (f.excludeTerms && f.excludeTerms.length)
+                filterTags.push(`Exclude (${f.excludeTermsMode === 'all' ? 'ALL' : 'ANY'}): ${f.excludeTerms.join(', ')}`);
+            if (f.includeVenues && f.includeVenues.length)
+                filterTags.push(`Venues (${f.includeVenuesMode === 'all' ? 'ALL' : 'ANY'}): ${f.includeVenues.join(', ')}`);
+            if (f.excludeVenues && f.excludeVenues.length)
+                filterTags.push(`Excl venues (${f.excludeVenuesMode === 'all' ? 'ALL' : 'ANY'}): ${f.excludeVenues.join(', ')}`);
+            if (f.includeTerms && f.includeTerms.length)
+                filterTags.push(`Include (${f.includeTermsMode === 'any' ? 'ANY' : 'ALL'}): ${f.includeTerms.join(', ')}`);
+            const filtersHtml = filterTags.length
+                ? `<div class="si-filters">${filterTags.map(t =>
+                    `<span class="si-filter-tag">${escapeHtml(t)}</span>`).join('')}</div>`
+                : '';
+
+            // ── Render ────────────────────────────────────────────
+            return `<div class="search-item">
+
+                <div class="si-header">
+                    <h3 class="si-name" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</h3>
+                    <div class="si-actions">
+                        <button onclick="runNow('${s.id}')" class="btn btn-amber btn-sm"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,3 13,8 5,13"/></svg> Run Now</button>
+                        <button onclick="viewResults('${s.id}')" class="btn btn-neutral btn-sm" title="View stored run results"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="5" y1="11" x2="5" y2="7"/><line x1="8" y1="11" x2="8" y2="5"/><line x1="11" y1="11" x2="11" y2="8.5"/></svg> Results</button>
+                        <button onclick="editSearch('${s.id}')" class="btn btn-neutral btn-sm" title="Edit search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-9 9H2v-3z"/><line x1="9" y1="4" x2="12" y2="7"/></svg> Edit</button>
+                        <button onclick="deleteSearch('${s.id}')" class="btn btn-danger btn-sm" title="Delete search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Delete</button>
+                    </div>
+                </div>
+
+                <div class="si-query-wrap">
+                    <code class="si-query" title="${escapeHtml(s.query)}">${escapeHtml(s.query)}</code>
+                </div>
+
+                <div class="si-divider"></div>
+
+                <div class="si-meta">
+                    <div class="si-meta-row">
+                        ${dbBadges}
+                        ${vpBadge}
+                        <span class="si-dot">·</span>
+                        ${scheduleLabel}
+                        ${countdownHtml}
+                    </div>
+                    <div class="si-meta-row">
+                        ${lastRunHtml}
+                    </div>
+                </div>
+
+                ${filtersHtml}
+            </div>`;
+        }
+
+        async function saveSearch() {
+            const payload = {
+                name: document.getElementById('searchName').value.trim() || 'Untitled Search',
+                query: document.getElementById('searchQuery').value.trim(),
+                databases: getSelectedDatabases(),
+                maxResults: 200,  // always fetch maximum per source; display page size is controlled by the frontend
+                pageSize: parseInt(document.getElementById('maxResults').value) || 20,
+                schedule: getSchedule(),
+                filters: getConfigFilters(),
+                validationPapers: cfgValidationPapers,
+                snowballSeeds: cfgSnowballSeeds,
+                notifyEmail: document.getElementById('scheduleType').value !== 'manual'
+                    ? (document.getElementById('notifyEmail').value.trim() || '')
+                    : '',
+            };
+
+            if (!payload.query) {
+                showToast('Please enter a query.', 'warning');
+                return;
+            }
+            if (payload.query.includes(',')) {
+                document.getElementById('searchQuery-error').style.display = '';
+                document.getElementById('searchQuery').focus();
+                return;
+            }
+            document.getElementById('searchQuery-error').style.display = 'none';
+            if (payload.databases.length === 0) {
+                showToast('Please select at least one database.', 'warning');
+                return;
+            }
+
+            let resp;
+            if (editingId) {
+                resp = await fetch(`/api/searches/${editingId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+            } else {
+                resp = await fetch('/api/searches', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+            }
+
+            if (resp.ok) {
+                resetForm();
+                loadSearches();
+            } else {
+                let msg = `Saving failed (HTTP ${resp.status}).`;
+                try {
+                    const err = await resp.json();
+                    if (err && err.error) msg = `Saving failed: ${err.error}`;
+                } catch (e) { /* non-JSON error body */ }
+                showToast(msg, 'error');
+            }
+        }
+
+        async function deleteSearch(id) {
+            showConfirmModal({
+                icon: RSP_ICONS.trash,
+                title: 'Delete this saved search?',
+                message: 'The search configuration and all its stored results will be permanently removed. This cannot be undone.',
+                confirmLabel: 'Yes, delete it',
+                cancelLabel: 'Keep it',
+                onConfirm: async function() {
+                    await fetch(`/api/searches/${id}`, { method: 'DELETE' });
+                    loadSearches();
+                    document.getElementById('resultsPanel').classList.remove('visible');
+                }
+            });
+        }
+
+        async function editSearch(id) {
+            const resp = await fetch('/api/searches');
+            const searches = await resp.json();
+            const s = searches.find(x => x.id === id);
+            if (!s) return;
+
+            editingId = id;
+            document.getElementById('formTitle').textContent = 'Edit Search';
+            document.getElementById('searchName').value = s.name;
+            document.getElementById('searchQuery').value = s.query;
+            document.getElementById('dbHal').checked = s.databases.includes('hal');
+            document.getElementById('dbArxiv').checked = s.databases.includes('arxiv');
+            document.getElementById('dbIeee').checked = s.databases.includes('ieee');
+            document.getElementById('dbScopus').checked = s.databases.includes('scopus');
+            document.getElementById('dbInspec').checked = s.databases.includes('inspec');
+            document.getElementById('dbSciencedirect').checked = s.databases.includes('sciencedirect');
+            document.getElementById('dbSpringer').checked = s.databases.includes('springer');
+            document.getElementById('dbPubmed').checked = s.databases.includes('pubmed');
+            document.getElementById('dbAcm').checked = s.databases.includes('acm');
+            document.getElementById('dbOpenalex').checked = s.databases.includes('openalex');
+            document.getElementById('maxResults').value = s.pageSize || 20;
+            document.getElementById('scheduleType').value = s.schedule.type;
+            document.getElementById('scheduleValue').value = s.schedule.value || 1;
+            document.getElementById('scheduleValueWrap').style.display =
+                s.schedule.type === 'manual' ? 'none' : 'block';
+            document.getElementById('notifyEmailRow').style.display =
+                s.schedule.type === 'manual' ? 'none' : 'block';
+            document.getElementById('notifyEmail').value = s.notifyEmail || '';
+            setConfigFilters(s.filters || {});
+            cfgValidationPapers = (s.validationPapers || []).slice();
+            renderConfigValidationList();
+            updateConfigValidationLabel();
+            cfgSnowballSeeds = (s.snowballSeeds || []).slice();
+            renderConfigSnowballList();
+            updateConfigSnowballLabel();
+            if (cfgSnowballSeeds.length) document.getElementById('configSnowballPanel').style.display = 'block';
+            document.getElementById('saveBtn').innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Update Search';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+            document.getElementById('formCard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function runNow(id) {
+            const btn = event.target;
+            const _RUN_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,3 13,8 5,13"/></svg>';
+            const _CLK_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg>';
+            btn.disabled = true;
+            btn.innerHTML = _CLK_SVG + ' Loading…';
+            try {
+                const resp = await fetch('/api/searches');
+                const searches = await resp.json();
+                const cfg = searches.find(s => s.id === id);
+                if (!cfg) { showToast('Search not found.', 'error'); return; }
+                localStorage.setItem('pendingSearch', JSON.stringify(cfg));
+                window.location.href = '/';
+            } catch(e) {
+                btn.disabled = false;
+                btn.innerHTML = _RUN_SVG + ' Run Now';
+                showToast('Failed to load search config: ' + e.message, 'error');
+            }
+        }
+
+        // --- Results panel rendering (same UX as Search page) ---
+        let _rpView     = 'card';
+        let _rpPage     = 1;
+        let _rpPageSize = 25;
+        let _rpDocs     = [];
+
+        function rpChangePageSize() {
+            const val = parseInt(document.getElementById('rpPageSizeInput').value) || 25;
+            _rpPageSize = Math.max(1, val);
+            _rpPage = 1;
+            rpRenderResults();
+        }
+
+        function rpSetView(v) {
+            _rpView = v;
+            _rpPage = 1;
+            document.getElementById('rpBtnCard').classList.toggle('active', v === 'card');
+            document.getElementById('rpBtnList').classList.toggle('active', v === 'list');
+            rpRenderResults();
+        }
+
+        function rpRenderResults() {
+            const content = document.getElementById('resultsPanelContent');
+            const total = _rpDocs.length;
+            if (total === 0) { content.innerHTML = '<p>No papers found.</p>'; rpRenderPagination(0,1); return; }
+            const totalPages = Math.max(1, Math.ceil(total / _rpPageSize));
+            _rpPage = Math.min(_rpPage, totalPages);
+            const start = (_rpPage - 1) * _rpPageSize;
+            const end   = Math.min(start + _rpPageSize, total);
+            const page  = _rpDocs.slice(start, end);
+            if (_rpView === 'list') {
+                let html = '<div class="paper-row-header"><span>Source</span><span>Title</span><span>Year</span><span>Link</span></div>';
+                html += page.map(doc => rpRenderPaperList(doc)).join('');
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = page.map(doc => rpRenderPaper(doc)).join('');
+            }
+            rpRenderPagination(total, totalPages);
+        }
+
+        function rpRenderPagination(total, totalPages) {
+            const bar = document.getElementById('rpPaginationBar');
+            if (totalPages <= 1) { bar.innerHTML = ''; return; }
+            const start = (_rpPage - 1) * _rpPageSize + 1;
+            const end   = Math.min(_rpPage * _rpPageSize, total);
+            bar.innerHTML = `
+                <button class="pg-btn" onclick="rpGotoPage(${_rpPage - 1})" ${_rpPage === 1 ? 'disabled' : ''}>&#8592; Prev</button>
+                <span class="pg-info">${start}–${end} of ${total} &nbsp;|&nbsp; Page ${_rpPage} of ${totalPages}</span>
+                <button class="pg-btn" onclick="rpGotoPage(${_rpPage + 1})" ${_rpPage === totalPages ? 'disabled' : ''}>Next &#8594;</button>
+            `;
+        }
+
+        function rpGotoPage(n) {
+            _rpPage = n;
+            rpRenderResults();
+            document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function rpToggleRowDetail(titleEl) {
+            const row    = titleEl.closest('.paper-row');
+            const detail = row.querySelector('.row-detail');
+            const chev   = row.querySelector('.row-chevron');
+            const open   = detail.style.display === 'grid';
+            detail.style.display = open ? 'none' : 'grid';
+            row.classList.toggle('expanded', !open);
+            chev.style.transform = open ? '' : 'rotate(90deg)';
+        }
+
+        function rpSourceClass(source) {
+            const map = { HAL:'source-hal', arXiv:'source-arxiv', IEEE:'source-ieee', Scopus:'source-scopus',
+                Inspec:'source-inspec', ScienceDirect:'source-sciencedirect',
+                'Springer Nature':'source-springer', PubMed:'source-pubmed', ACM:'source-acm',
+                OpenAlex:'source-openalex' };
+            return map[source] || 'source-arxiv';
+        }
+
+        function rpRenderPaperList(doc) {
+            const source  = doc.source  || 'Unknown';
+            const title   = doc.title   || 'Untitled';
+            const authors = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || '');
+            const year    = doc.year    || '—';
+            const journal = doc.journal || '';
+            const abstract= doc.abstract|| '';
+            const url     = doc.url     || '';
+            const doi     = doc.doi     || '';
+            const kws     = doc.keywords|| [];
+            const docType = doc.docType || '';
+            const link    = url || (doi ? `https://doi.org/${encodeURIComponent(doi)}` : '');
+            const sc      = rpSourceClass(source);
+            let detail = `<div class="paper-authors">${escapeHtml(authors)}</div>`;
+            let meta = doc.year ? escapeHtml(String(doc.year)) : '';
+            if (journal) meta += ` &mdash; ${escapeHtml(journal)}`;
+            if (docType) meta += ` &mdash; <em>${escapeHtml(docType)}</em>`;
+            if (meta) detail += `<div class="paper-meta">${meta}</div>`;
+            if (doi)  detail += `<div class="doi-link">DOI: <a href="https://doi.org/${encodeURIComponent(doi)}" target="_blank" rel="noopener">${escapeHtml(doi)}</a></div>`;
+            if (abstract) detail += `<div class="paper-abstract">${escapeHtml(abstract.length > 300 ? abstract.substring(0,300)+'...' : abstract)}</div>`;
+            if (kws.length) detail += `<div class="paper-keywords">${kws.slice(0,8).map(k=>`<span class="keyword-tag">${escapeHtml(k)}</span>`).join('')}</div>`;
+            if (link) detail += `<div class="paper-link"><a href="${escapeHtml(link)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></div>`;
+            return `<div class="paper-row">
+                <span class="row-source"><span class="source-badge ${sc}">${escapeHtml(source)}</span></span>
+                <span class="row-title" onclick="rpToggleRowDetail(this)" title="Click to expand">${escapeHtml(title)}<span class="row-chevron">&#9654;</span></span>
+                <span class="row-year">${escapeHtml(String(year))}</span>
+                <span class="row-link">${link ? `<span class="paper-link"><a href="${escapeHtml(link)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></span>` : '<span style="color:#aaa">No link</span>'}</span>
+                <div class="row-detail">${detail}</div>
+            </div>`;
+        }
+
+        function rpRenderPaper(doc) {
+            const source  = doc.source  || 'Unknown';
+            const title   = doc.title   || 'Untitled';
+            const authors = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || '');
+            const year    = doc.year    || '';
+            const journal = doc.journal || '';
+            const abstract= doc.abstract|| '';
+            const url     = doc.url     || '';
+            const doi     = doc.doi     || '';
+            const kws     = doc.keywords|| [];
+            const docType = doc.docType || '';
+            const sc      = rpSourceClass(source);
+            let html = `<div class="paper"><div class="paper-title"><span class="source-badge ${sc}">${escapeHtml(source)}</span>`;
+            if (url) html += `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(title)}</a>`;
+            else     html += escapeHtml(title);
+            html += `</div><div class="paper-authors">${escapeHtml(authors)}</div><div class="paper-meta">`;
+            if (year)    html += year;
+            if (journal) html += ` &mdash; ${escapeHtml(journal)}`;
+            if (docType) html += ` &mdash; <em>${escapeHtml(docType)}</em>`;
+            html += `</div>`;
+            if (doi) html += `<div class="doi-link">DOI: <a href="https://doi.org/${encodeURIComponent(doi)}" target="_blank" rel="noopener">${escapeHtml(doi)}</a></div>`;
+            if (abstract) html += `<div class="paper-abstract">${escapeHtml(abstract.length > 300 ? abstract.substring(0,300)+'...' : abstract)}</div>`;
+            if (kws.length) html += `<div class="paper-keywords">${kws.slice(0,8).map(k=>`<span class="keyword-tag">${escapeHtml(k)}</span>`).join('')}</div>`;
+            if (url) html += `<div class="paper-link"><a href="${escapeHtml(url)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3.5a1.5 1.5 0 00-1.5 1.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V9"/><polyline points="10,2 14,2 14,6"/><line x1="7" y1="9" x2="14" y2="2"/></svg> View Paper</a></div>`;
+            html += '</div>';
+            return html;
+        }
+
+        async function viewResults(id, name) {
+            if (!name) {
+                // Called from the item button with only the id — resolve the
+                // name here instead of interpolating it into an inline handler
+                try {
+                    const sr = await fetch('/api/searches');
+                    const cfg = (await sr.json()).find(s => s.id === id);
+                    name = (cfg && cfg.name) || 'Saved search';
+                } catch (e) { name = 'Saved search'; }
+            }
+            const resp = await fetch(`/api/searches/${id}/results`);
+            const history = await resp.json();
+            const panel = document.getElementById('resultsPanel');
+            document.getElementById('resultsPanelTitle').textContent = `Results: ${name}`;
+            document.getElementById('rpPaginationBar').innerHTML = '';
+            _rpPage = 1;
+            _rpView = 'card';
+            document.getElementById('rpBtnCard').classList.add('active');
+            document.getElementById('rpBtnList').classList.remove('active');
+
+            if (!history || history.length === 0) {
+                document.getElementById('rpTimestamp').textContent = '';
+                document.getElementById('rpViewToggle').style.display = 'none';
+                document.getElementById('resultsPanelContent').innerHTML = '<p>No results yet. Click "Run Now" to execute this search.</p>';
+                panel.classList.add('visible');
+                panel.scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
+
+            const latest = history[0];
+            _rpDocs = latest.docs || [];
+            // look up pageSize from saved search config
+            try {
+                const sr = await fetch('/api/searches');
+                const searches = await sr.json();
+                const cfg = searches.find(s => s.id === id);
+                _rpPageSize = (cfg && cfg.pageSize) ? cfg.pageSize : 25;
+            } catch(e) { _rpPageSize = 25; }
+
+            document.getElementById('rpTimestamp').textContent =
+                `Run at: ${new Date(latest.timestamp).toLocaleString()} — ${(latest.numFound||_rpDocs.length).toLocaleString()} total found, ${_rpDocs.length} retrieved`;
+            document.getElementById('rpPageSizeInput').value = _rpPageSize;
+            document.getElementById('rpViewToggle').style.display = _rpDocs.length ? 'flex' : 'none';
+            rpRenderResults();
+            panel.classList.add('visible');
+            panel.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            resetForm();
+        }
+
+        function confirmClearForm() {
+            showConfirmModal({
+                icon: RSP_ICONS.sparkles,
+                title: 'Clear form?',
+                message: 'All search details will be reset to defaults. This cannot be undone.',
+                confirmLabel: 'Yes, clear',
+                cancelLabel: 'Keep details',
+                onConfirm: resetForm
+            });
+        }
+
+        function resetForm() {
+            editingId = null;
+            document.getElementById('formTitle').textContent = 'Create New Search';
+            document.getElementById('searchName').value = '';
+            document.getElementById('searchQuery').value = '';
+            document.getElementById('dbHal').checked = true;
+            document.getElementById('dbArxiv').checked = true;
+            document.getElementById('dbIeee').checked = isConnOk('ieee');
+            document.getElementById('dbAcm').checked = isConnOk('acm');
+            document.getElementById('dbScopus').checked = isConnOk('scopus');
+            document.getElementById('dbInspec').checked = isConnOk('inspec');
+            document.getElementById('dbSciencedirect').checked = isConnOk('sciencedirect');
+            document.getElementById('dbSpringer').checked = isConnOk('springer');
+            document.getElementById('dbPubmed').checked = isConnOk('pubmed');
+            document.getElementById('dbOpenalex').checked = true;
+            document.getElementById('maxResults').value = 20;
+            document.getElementById('scheduleType').value = 'manual';
+            document.getElementById('scheduleValue').value = 1;
+            document.getElementById('scheduleValueWrap').style.display = 'none';
+            document.getElementById('notifyEmailRow').style.display = 'none';
+            document.getElementById('notifyEmail').value = '';
+            setConfigFilters({});
+            document.getElementById('configFilterPanel').style.display = 'none';
+            document.getElementById('configFilterToggle').textContent = '+ Show Inclusion / Exclusion Criteria';
+            cfgValidationPapers = [];
+            renderConfigValidationList();
+            updateConfigValidationLabel();
+            document.getElementById('configValidationPanel').style.display = 'none';
+            cfgSnowballSeeds = [];
+            renderConfigSnowballList();
+            updateConfigSnowballLabel();
+            document.getElementById('configSnowballPanel').style.display = 'none';
+            document.getElementById('saveBtn').innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Create Search';
+            document.getElementById('cancelBtn').style.display = 'none';
+        }
+
+        function getSelectedDatabases() {
+            const dbs = [];
+            if (document.getElementById('dbHal').checked) dbs.push('hal');
+            if (document.getElementById('dbArxiv').checked) dbs.push('arxiv');
+            if (document.getElementById('dbIeee').checked) dbs.push('ieee');
+            if (document.getElementById('dbScopus').checked) dbs.push('scopus');
+            if (document.getElementById('dbInspec').checked) dbs.push('inspec');
+            if (document.getElementById('dbSciencedirect').checked) dbs.push('sciencedirect');
+            if (document.getElementById('dbSpringer').checked) dbs.push('springer');
+            if (document.getElementById('dbPubmed').checked) dbs.push('pubmed');
+            if (document.getElementById('dbAcm').checked) dbs.push('acm');
+            if (document.getElementById('dbOpenalex').checked) dbs.push('openalex');
+            return dbs;
+        }
+
+        function getSchedule() {
+            const type = document.getElementById('scheduleType').value;
+            if (type === 'manual') return { type: 'manual' };
+            return { type, value: parseInt(document.getElementById('scheduleValue').value) || 1 };
+        }
+
+        // ── Countdown timer helpers ───────────────────────────────────────────
+        function computeNextRunMs(s) {
+            if (s.schedule.type === 'manual') return null;
+            // Prefer the scheduler's authoritative next_run_time when available
+            if (s.schedulerNextRun) return new Date(s.schedulerNextRun).getTime();
+            // Fall back: compute from lastRun; if never run, no reliable estimate
+            if (!s.lastRun) return null;
+            const refDate = new Date(s.lastRun);
+            const value   = s.schedule.value || 1;
+            const type    = s.schedule.type;
+            if (type === 'hours') return refDate.getTime() + value * 3600 * 1000;
+            if (type === 'days')  return refDate.getTime() + value * 86400 * 1000;
+            if (type === 'months') {
+                // Use real calendar arithmetic so e.g. Jan 31 + 1 month = Feb 28/29
+                const next = new Date(refDate);
+                next.setMonth(next.getMonth() + value);
+                return next.getTime();
+            }
+            return null;
+        }
+
+        function formatCountdown(diffMs) {
+            const totalSec = Math.floor(diffMs / 1000);
+            const days  = Math.floor(totalSec / 86400);
+            const hours = Math.floor((totalSec % 86400) / 3600);
+            const mins  = Math.floor((totalSec % 3600) / 60);
+            const secs  = totalSec % 60;
+            if (days > 0)  return `${days}d ${hours}h ${mins}m`;
+            if (hours > 0) return `${hours}h ${mins}m ${secs}s`;
+            return `${mins}m ${secs}s`;
+        }
+
+        let _countdownInterval = null;
+
+        function updateCountdowns() {
+            const TWO_MIN   = 2  * 60 * 1000;
+            const THIRTY_MIN = 30 * 60 * 1000;
+
+            document.querySelectorAll('.countdown-timer').forEach(function(el) {
+                const nextRun  = parseInt(el.dataset.nextRun, 10);
+                const diff     = nextRun - Date.now();
+                const overdue  = -diff; // positive when past due
+
+                if (diff > 0) {
+                    // ── Not yet due — show countdown ──────────────────
+                    el.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> ' + formatCountdown(diff);
+                    el.classList.remove('overdue', 'failed');
+
+                } else if (overdue < TWO_MIN) {
+                    // ── Tier 1: just turned due (0–2 min) ─────────────
+                    el.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> Running soon…';
+                    el.classList.add('overdue');
+                    el.classList.remove('failed');
+                    el.title = 'This search is due to run now';
+
+                } else if (overdue < THIRTY_MIN) {
+                    // ── Tier 2: 2–30 min overdue ──────────────────────
+                    el.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8,5.5 8,8.5 10.5,8.5"/><line x1="8" y1="2" x2="8" y2="3"/></svg> Overdue by ' + formatCountdown(overdue);
+                    el.classList.add('overdue');
+                    el.classList.remove('failed');
+                    el.title = 'The scheduler has not run this search yet';
+
+                } else {
+                    // ── Tier 3: 30+ min overdue — likely a problem ────
+                    el.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Overdue by ' + formatCountdown(overdue) + ' — may have failed';
+                    el.classList.add('failed');
+                    el.classList.remove('overdue');
+                    el.title = 'This search is significantly overdue. The scheduler may have stopped. Try restarting the app or running it manually.';
+                }
+            });
+        }
+
+        function startCountdownTimers() {
+            if (_countdownInterval) clearInterval(_countdownInterval);
+            if (!document.querySelector('.countdown-timer')) return;
+            updateCountdowns();
+            _countdownInterval = setInterval(updateCountdowns, 1000);
+        }
+
+        // ── Background poll: silently re-fetch searches every 30s and update
+        // countdown anchors if lastRun has changed (e.g. a scheduled run fired).
+        let _pollInterval = null;
+        function startSearchPoll() {
+            if (_pollInterval) clearInterval(_pollInterval);
+            _pollInterval = setInterval(async function() {
+                try {
+                    const resp = await fetch('/api/searches');
+                    if (!resp.ok) return;
+                    const searches = await resp.json();
+                    // Update _allSearches so re-renders have fresh data
+                    _allSearches = searches;
+                    // For each countdown element, check if nextRun has changed
+                    document.querySelectorAll('.countdown-timer').forEach(function(el) {
+                        const id = el.dataset.searchId;
+                        if (!id) return;
+                        const s = searches.find(function(x) { return x.id === id; });
+                        if (!s) return;
+                        const newNextRun = computeNextRunMs(s);
+                        if (newNextRun === null) return;
+                        const current = parseInt(el.dataset.nextRun, 10);
+                        // If lastRun changed the next-run timestamp by more than 5s, reset
+                        if (Math.abs(newNextRun - current) > 5000) {
+                            el.dataset.nextRun = newNextRun;
+                            el.classList.remove('overdue');
+                        }
+                    });
+                } catch(e) { /* silent — poll failure should not affect UX */ }
+            }, 30000);
+        }
+
+        function escapeHtml(text) {
+            // Must also escape quotes: escaped values are interpolated into
+            // HTML attributes, where an unescaped " breaks out of the value.
+            return String(text == null ? '' : text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // --- Export Replication Package from Saved Search ---
+        async function exportSavedSearch(id, name) {
+            // Get the search configuration
+            const searchesResp = await fetch('/api/searches');
+            const searches = await searchesResp.json();
+            const search = searches.find(s => s.id === id);
+            if (!search) { showToast('Search not found.', 'error'); return; }
+
+            // Get latest results
+            const resultsResp = await fetch(`/api/searches/${id}/results`);
+            const history = await resultsResp.json();
+
+            if (!history || history.length === 0) {
+                showToast('No results available. Please run the search first.', 'warning');
+                return;
+            }
+
+            const latest = history[0];
+            const now = new Date();
+            const dateStr = now.getFullYear() + '-' +
+                String(now.getMonth()+1).padStart(2,'0') + '-' +
+                String(now.getDate()).padStart(2,'0') + '_' +
+                String(now.getHours()).padStart(2,'0') + '-' +
+                String(now.getMinutes()).padStart(2,'0') + '-' +
+                String(now.getSeconds()).padStart(2,'0');
+
+            // The run entry stores the full provenance: rawDocs (pre-dedup)
+            // and per-reason excluded lists — flatten them for the export
+            // instead of shipping a placeholder excluded_studies.csv.
+            const reasonLabels = {
+                duplicates: 'Duplicate record',
+                year_range: 'Outside year range',
+                doc_type: 'Document type excluded',
+                language: 'Language excluded',
+                exclude_terms: 'Matched exclude term',
+                must_include_terms: 'Missing required include term',
+                include_venues: 'Venue not in include list',
+                exclude_venues: 'Venue in exclude list',
+            };
+            const excludedFlat = [];
+            const exclByReason = latest.excluded_docs || {};
+            Object.keys(exclByReason).forEach(function(key) {
+                (exclByReason[key] || []).forEach(function(d) {
+                    excludedFlat.push(Object.assign({}, d, { exclusion_reason: reasonLabels[key] || key }));
+                });
+            });
+
+            const payload = {
+                searchName: search.name,
+                keywords: search.query,
+                databases: search.databases,
+                filters: search.filters || {},
+                docs: latest.rawDocs && latest.rawDocs.length ? latest.rawDocs : (latest.docs || []),
+                prisma: latest.prisma || {},
+                executionDate: dateStr,
+                includedDocs: latest.docs || [],
+                dedupDocs: latest.docs || [],
+                excludedDocs: excludedFlat,
+            };
+
+            try {
+                const resp = await fetch('/api/export-replication-package', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    showToast('Failed to generate replication package.', 'error');
+                    return;
+                }
+
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = resp.headers.get('Content-Disposition')?.split('filename=')[1] || 'replication_package.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch(e) {
+                showToast('Error exporting package: ' + e.message, 'error');
+            }
+        }
+
+        // Load on page ready
+        loadSearches();
+        // Apply same checkbox defaults as search page (isConnOk for API-key DBs)
+        document.getElementById('dbIeee').checked = isConnOk('ieee');
+        document.getElementById('dbScopus').checked = isConnOk('scopus');
+        document.getElementById('dbInspec').checked = isConnOk('inspec');
+        document.getElementById('dbSciencedirect').checked = isConnOk('sciencedirect');
+        document.getElementById('dbSpringer').checked = isConnOk('springer');
+        document.getElementById('dbPubmed').checked = isConnOk('pubmed');
+
+        // ── Database checkbox helpers ──────────────────────────────────────
+        function isConnOk(api) {
+            try {
+                const raw = localStorage.getItem('connTest_' + api);
+                if (!raw) return false;
+                return JSON.parse(raw).state === 'ok';
+            } catch(e) { return false; }
+        }
+
+        const _cfgDbIds = ['dbHal','dbArxiv','dbIeee','dbScopus','dbInspec','dbSciencedirect','dbSpringer','dbPubmed'];
+        async function cfgCheckKey(apiPath, cbId, noticeId) {
+            try {
+                const resp = await fetch(apiPath);
+                const data = await resp.json();
+                const notice = document.getElementById(noticeId);
+                const checked = document.getElementById(cbId).checked;
+                notice.style.display = (!data.configured && checked) ? 'block' : 'none';
+            } catch(e) {}
+        }
+
+        function cfgCheckAllKeys() {
+            cfgCheckKey('/api/ieee-key',          'dbIeee',          'cfgIeeeKeyNotice');
+            cfgCheckKey('/api/scopus-key',         'dbScopus',        'cfgScopusKeyNotice');
+            cfgCheckKey('/api/inspec-key',         'dbInspec',        'cfgInspecKeyNotice');
+            cfgCheckKey('/api/sciencedirect-key',  'dbSciencedirect', 'cfgSciencedirectKeyNotice');
+            cfgCheckKey('/api/springer-key',       'dbSpringer',      'cfgSpringerKeyNotice');
+            cfgCheckKey('/api/pubmed-key',         'dbPubmed',        'cfgPubmedKeyNotice');
+            cfgCheckKey('/api/acm-key',            'dbAcm',           'cfgAcmKeyNotice');
+        }
+
+        // Attach change listeners
+        ['dbIeee','dbScopus','dbInspec','dbSciencedirect','dbSpringer','dbPubmed','dbAcm','dbOpenalex'].forEach(id => {
+            document.getElementById(id).addEventListener('change', cfgCheckAllKeys);
+        });
+        cfgCheckAllKeys();
+        restoreConfigFilterState();
+        restoreConfigValidationState();
+    </script>
+{% endblock %}
