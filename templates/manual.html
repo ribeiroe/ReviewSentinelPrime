@@ -195,7 +195,7 @@
         <!-- 1. Overview -->
         <div class="manual-section" id="overview">
             <h2>1. Overview &amp; Getting Started</h2>
-            <p><strong>Review Sentinel Prime (RSP)</strong> is a locally-run web application for systematic literature reviews (SLR). It helps researchers search, filter, monitor, and export scientific publications across 10 databases in a reproducible, PRISMA-compliant workflow.</p>
+            <p><strong>Review Sentinel Prime (RSP)</strong> is a locally-run web application for systematic literature reviews (SLR). It helps researchers search, filter, monitor, and export scientific publications across 12 databases in a reproducible, PRISMA-compliant workflow.</p>
 
             <div class="illustration">
                 <svg width="700" height="100" viewBox="0 0 700 100">
@@ -220,7 +220,7 @@
 
             <h3>Key Features:</h3>
             <ul>
-                <li>Search across 10 scientific databases simultaneously</li>
+                <li>Search across 12 scientific databases simultaneously</li>
                 <li>Apply multi-level inclusion/exclusion criteria (year, type, language, terms, venues)</li>
                 <li>Validate completeness using known reference papers</li>
                 <li>Screen titles &amp; abstracts manually — with optional local-LLM suggestions (human-in-the-loop)</li>
@@ -254,9 +254,9 @@
             <p>The <strong>Search</strong> page is the main interface for finding papers.</p>
 
             <div class="illustration">
-                <svg width="700" height="225" viewBox="0 0 700 225">
+                <svg width="700" height="270" viewBox="0 0 700 270">
                     <!-- outer card -->
-                    <rect x="20" y="10" width="660" height="208" rx="8" fill="#fff" stroke="#ddd" stroke-width="1"/>
+                    <rect x="20" y="10" width="660" height="252" rx="8" fill="#fff" stroke="#ddd" stroke-width="1"/>
                     <!-- Keywords label + input -->
                     <text x="40" y="35" font-size="11" font-weight="600" fill="#2c3e50">Keywords</text>
                     <rect x="40" y="42" width="620" height="28" rx="4" fill="#fff" stroke="#ddd" stroke-width="1"/>
@@ -284,47 +284,48 @@
                     <text x="647" y="128" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff">Clear</text>
                     <!-- Databases label -->
                     <text x="40" y="160" font-size="10" font-weight="600" fill="#2c3e50">Databases</text>
-                    <!-- IEEE unchecked -->
-                    <rect x="40" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
-                    <text x="55" y="176" font-size="9" fill="#333">IEEE</text>
-                    <!-- ACM DL checked (default) -->
-                    <rect x="95" y="167" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
-                    <polyline points="97,172 99,174.5 103.5,168.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <text x="110" y="176" font-size="9" fill="#333">ACM DL *</text>
-                    <!-- Scopus unchecked -->
-                    <rect x="160" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
-                    <text x="175" y="176" font-size="9" fill="#333">Scopus</text>
-                    <!-- ScienceDirect unchecked -->
-                    <rect x="220" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
-                    <text x="235" y="176" font-size="9" fill="#333">ScienceDirect</text>
-                    <!-- Springer unchecked -->
-                    <rect x="334" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
-                    <text x="349" y="176" font-size="9" fill="#333">Springer</text>
-                    <!-- Inspec unchecked -->
-                    <rect x="408" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
-                    <text x="423" y="176" font-size="9" fill="#333">Inspec</text>
-                    <!-- arXiv checked (default) -->
-                    <rect x="466" y="167" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
-                    <polyline points="468,172 470,174.5 474.5,168.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <text x="481" y="176" font-size="9" fill="#333">arXiv *</text>
-                    <!-- PubMed unchecked -->
-                    <rect x="524" y="167" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
-                    <text x="539" y="176" font-size="9" fill="#333">PubMed</text>
-                    <!-- HAL checked (default) -->
-                    <rect x="590" y="167" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
-                    <polyline points="592,172 594,174.5 598.5,168.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <text x="605" y="176" font-size="9" fill="#333">HAL *</text>
-                    <!-- OpenAlex checked (default) -->
-                    <rect x="633" y="167" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
-                    <polyline points="635,172 637,174.5 641.5,168.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <text x="648" y="176" font-size="9" fill="#333">OpenAlex *</text>
+
+                    <!-- Group 1: no API key required -->
+                    <text x="40" y="176" font-size="7.5" font-weight="700" fill="#6b7280" letter-spacing="0.5">READY TO USE — NO API KEY</text>
+                    <rect x="40" y="183" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+                    <polyline points="42,188 44,190.5 48.5,184.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="55" y="192" font-size="9" fill="#333">OpenAlex *</text>
+                    <rect x="120" y="183" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+                    <polyline points="122,188 124,190.5 128.5,184.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="135" y="192" font-size="9" fill="#333">HAL *</text>
+                    <rect x="180" y="183" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+                    <polyline points="182,188 184,190.5 188.5,184.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="195" y="192" font-size="9" fill="#333">arXiv *</text>
+                    <rect x="243" y="183" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="258" y="192" font-size="9" fill="#333">PubMed</text>
+                    <rect x="312" y="183" width="10" height="10" rx="2" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+                    <polyline points="314,188 316,190.5 320.5,184.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="327" y="192" font-size="9" fill="#333">ACM DL *</text>
+
+                    <!-- Group 2: API key required -->
+                    <line x1="40" y1="201" x2="660" y2="201" stroke="#eee" stroke-width="1"/>
+                    <text x="40" y="213" font-size="7.5" font-weight="700" fill="#6b7280" letter-spacing="0.5">REQUIRES AN API KEY</text>
+                    <rect x="40" y="220" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="55" y="229" font-size="9" fill="#333">Scopus</text>
+                    <rect x="110" y="220" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="125" y="229" font-size="9" fill="#333">Web of Science</text>
+                    <rect x="210" y="220" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="225" y="229" font-size="9" fill="#333">IEEE</text>
+                    <rect x="265" y="220" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="280" y="229" font-size="9" fill="#333">ScienceDirect</text>
+                    <rect x="370" y="220" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="385" y="229" font-size="9" fill="#333">Springer</text>
+                    <rect x="445" y="220" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="460" y="229" font-size="9" fill="#333">Inspec</text>
+                    <rect x="505" y="220" width="10" height="10" rx="2" fill="#fff" stroke="#aaa" stroke-width="1.5"/>
+                    <text x="520" y="229" font-size="9" fill="#333">EBSCO</text>
+
                     <!-- footnote -->
-                    <text x="40" y="196" font-size="8" fill="#888">* Checked by default — no API key required (HAL, arXiv, ACM DL, OpenAlex). The other databases require keys — configure them in Settings.</text>
+                    <text x="40" y="246" font-size="8" fill="#888">* = checked by default. Keyed databases switch on automatically once their Test Connection succeeds in Settings.</text>
                     <!-- Filter link -->
-                    <text x="40" y="210" font-size="9" fill="#2563eb">+ Show Inclusion / Exclusion Criteria</text>
-                    <text x="285" y="210" font-size="9" fill="#2563eb">+ Validation Papers (0)</text>
+                    <text x="400" y="246" font-size="9" fill="#2563eb">+ Show Inclusion / Exclusion Criteria</text>
                 </svg>
-                <div class="caption">Figure 2: The Search interface — keywords field, action buttons row, database checkboxes (HAL, arXiv, ACM DL, and OpenAlex checked by default), and collapsible filter / validation panels</div>
+                <div class="caption">Figure 2: The Search interface — keywords field, action buttons row, and the database checkboxes split into “Ready to use — no API key” and “Requires an API key” (HAL, arXiv, ACM DL and OpenAlex checked by default)</div>
             </div>
 
             <h3>Step-by-step:</h3>
@@ -334,7 +335,7 @@
                 <div><span class="step-num">2</span></div>
                 <div class="step-text">Set <strong>Results per Page</strong> (default 25). This controls only how many papers are shown per page — RSP always retrieves up to <strong>10,000 records per database</strong> regardless of this setting.</div>
                 <div><span class="step-num">3</span></div>
-                <div class="step-text">Select which <strong>databases</strong> to search. <strong>HAL</strong>, <strong>arXiv</strong>, <strong>ACM DL</strong>, and <strong>OpenAlex</strong> are checked by default (no API key required); enable the others once you have their API keys configured in Settings. Saved-search state also restores previous database selections automatically.</div>
+                <div class="step-text">Select which <strong>databases</strong> to search. They are grouped by whether they need credentials: <strong>Ready to use — no API key</strong> (OpenAlex, HAL, arXiv, PubMed, ACM DL) and <strong>Requires an API key</strong> (Scopus, Web of Science, IEEE, ScienceDirect, Springer, Inspec, EBSCO). <strong>HAL</strong>, <strong>arXiv</strong>, <strong>ACM DL</strong>, and <strong>OpenAlex</strong> are checked by default; enable the others once their keys are configured in Settings. Saved-search state also restores previous database selections automatically.</div>
                 <div><span class="step-num">4</span></div>
                 <div class="step-text">Optionally, click <em>"+ Show Inclusion / Exclusion Criteria"</em> to add filters. The filter panel open/closed state now persists across refreshes.</div>
                 <div><span class="step-num">5</span></div>
@@ -449,6 +450,8 @@
                     <tr><td><strong>arXiv</strong></td><td>Physics, Math, CS, Biology, Finance</td><td>Not required</td><td>Preprints; has rate limiting</td></tr>
                     <tr><td><strong>HAL Open Science</strong></td><td>Multi-disciplinary (French national archive)</td><td>Not required</td><td>Supports language/type filters server-side</td></tr>
                     <tr><td><strong>OpenAlex</strong></td><td>Multi-disciplinary open catalogue (250M+ works)</td><td>Not required</td><td>Free and open; also powers the Snowballing feature</td></tr>
+                    <tr><td><strong>EBSCO Discovery Service</strong></td><td>Multi-disciplinary aggregator (institutional collections)</td><td><strong>Required</strong></td><td>Needs an institutional EDS subscription: User ID, Password <em>and</em> Profile ID. EBSCO's licence restricts caching and redistribution of retrieved metadata</td></tr>
+                    <tr><td><strong>Web of Science</strong></td><td>Multi-disciplinary citation index (Core Collection)</td><td><strong>Required</strong></td><td>Two editions share one key, selectable in Settings. <em>Starter</em> is free from developer.clarivate.com but returns no abstracts (T&amp;A screening is limited) and allows as few as 50 requests/day; <em>Expanded</em> needs a paid subscription and returns full records with abstracts</td></tr>
                 </tbody>
             </table>
 
@@ -586,7 +589,7 @@
             </div>
 
             <h3>Include Terms <span style="display:inline-block;background:#f0fdf4;border:1px solid #86efac;color:#15803d;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;vertical-align:middle;">green</span></h3>
-            <p>Comma-separated keywords. Only papers whose <strong>title or abstract</strong> contain these terms are kept in the results.</p>
+            <p>Comma-separated keywords. Only papers whose <strong>title, abstract or author keywords</strong> contain these terms are kept in the results. Keywords are included so that records from connectors that return no abstract (e.g. Web of Science Starter) remain matchable.</p>
             <p>Matching is <strong>case-insensitive and whole-word</strong>: the term <code>art</code> matches "art" but not "art<em>ificial</em>". Multi-word terms match as phrases, and surrounding quotes are accepted — <code>"machine learning"</code> and <code>machine learning</code> behave the same.</p>
             <p>Example: <code>machine learning, neural network</code></p>
             <p><strong>Match mode:</strong></p>
@@ -596,7 +599,7 @@
             </ul>
 
             <h3>Exclude Terms <span style="display:inline-block;background:#fff1f2;border:1px solid #fca5a5;color:#b91c1c;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;vertical-align:middle;">red</span></h3>
-            <p>Comma-separated keywords. Papers whose <strong>title or abstract</strong> match these terms are <strong>removed</strong>. The same case-insensitive, whole-word matching as Include Terms applies.</p>
+            <p>Comma-separated keywords. Papers whose <strong>title, abstract or author keywords</strong> match these terms are <strong>removed</strong>. The same case-insensitive, whole-word matching as Include Terms applies.</p>
             <p>Example: <code>survey, review, grey literature</code></p>
             <p><strong>Match mode:</strong></p>
             <ul>
@@ -1115,12 +1118,12 @@
                 <li><strong>02_data/deduplicated_records.csv</strong> — Papers after duplicate removal.</li>
                 <li><strong>02_data/included_studies.csv</strong> — Final included papers after all filters.</li>
                 <li><strong>02_data/excluded_studies.csv</strong> — Papers removed by filters, with exclusion reasons.</li>
-                <li><strong>02_data/screening_decisions.csv</strong> — Per-paper Title &amp; Abstract screening decisions with reasons (included when screening was performed; pulled from the server run record even if your browser copy is missing).</li>
+                <li><strong>02_data/screening_decisions.csv</strong> — Per-paper Title &amp; Abstract screening decisions with reasons, plus <code>ai_assisted</code> and <code>ai_model</code> columns recording where the AI assistant was involved (included when screening was performed; pulled from the server run record even if your browser copy is missing).</li>
                 <li><strong>02_data/prisma_data.json</strong> — PRISMA stage counts in JSON for programmatic use.</li>
                 <li><strong>03_protocol/protocol.md</strong> — Prose description of the search protocol (IC/EC criteria).</li>
                 <li><strong>03_protocol/review_protocol.json</strong> — Machine-readable Review Protocol (research questions, registration, reviewer team, synthesis/RoB methods) when filled in on the PRISMA page.</li>
                 <li><strong>04_images/</strong> — Server-generated <code>prisma_flow_diagram.svg</code> (always included, T&amp;A screening stage included when performed) plus chart and PRISMA PNG exports if captured before export.</li>
-                <li><strong>05_evidence_checklist/PRISMA_evidence_checklist.txt</strong> — Auto-assessed PRISMA 2020 compliance checklist.</li>
+                <li><strong>05_evidence_checklist/PRISMA_evidence_checklist.txt</strong> — Auto-assessed PRISMA 2020 checklist. It is generated last, so every artefact row is marked <code>[OK]</code> or <code>[--]</code> according to what the ZIP actually contains, and it reports per-reason exclusion counts, title &amp; abstract screening totals, identification split between databases and citation searching, validation seed-paper recall, any AI automation used, and a list of items still needing manual attention.</li>
                 <li><strong>README.md</strong> — Human-readable summary of the package for open science repositories.</li>
             </ul>
 

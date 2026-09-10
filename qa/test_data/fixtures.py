@@ -77,3 +77,51 @@ ARXIV_API_RESPONSE_1_DOC = """<?xml version="1.0" encoding="UTF-8"?>
         <category term="cs.LG"/>
     </entry>
 </feed>"""
+
+
+def _ebsco_record(i):
+    """One EDS Record in the nested shape the EDS API returns."""
+    return {
+        "ResultId": i + 1,
+        "Header": {"DbId": "edstst", "An": f"edstst.{i}", "PubTypeId": "academicJournal"},
+        "PLink": f"http://search.ebscohost.com/login.aspx?direct=true&db=edstst&AN={i}",
+        "Items": [
+            {"Name": "Abstract", "Group": "Ab", "Data": f"Abstract <i>{i}</i> from EDS."},
+        ],
+        "RecordInfo": {
+            "BibRecord": {
+                "BibEntity": {
+                    "Titles": [{"TitleFull": f"EBSCO Paper {i}", "Type": "main"}],
+                    "Identifiers": [{"Type": "doi", "Value": f"10.9999/ebsco{i}"}],
+                    "Languages": [{"Text": "English", "Code": "eng"}],
+                    "Subjects": [{"SubjectFull": "information retrieval", "Type": "general"}],
+                },
+                "BibRelationships": {
+                    "HasContributorRelationships": [
+                        {"PersonEntity": {"Name": {"NameFull": f"Author {i}"}}}
+                    ],
+                    "IsPartOfRelationships": [
+                        {
+                            "BibEntity": {
+                                "Titles": [{"TitleFull": "EBSCO Journal", "Type": "main"}],
+                                "Dates": [{"Y": str(2020 + i), "M": "06", "Type": "published"}],
+                            }
+                        }
+                    ],
+                },
+            }
+        },
+    }
+
+
+def ebsco_api_response(n=2):
+    """Fake EDS /Search response body containing n records."""
+    return {
+        "SearchResult": {
+            "Statistics": {"TotalHits": n},
+            "Data": {"Records": [_ebsco_record(i) for i in range(n)]},
+        }
+    }
+
+
+EBSCO_API_RESPONSE_2_DOCS = ebsco_api_response(2)

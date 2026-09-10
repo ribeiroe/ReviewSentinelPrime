@@ -259,6 +259,8 @@
         .source-pubmed { background: #fce4ec; color: #880e4f; }
         .source-acm { background: #fff8e1; color: #e65100; }
         .source-openalex { background: #e8f4fd; color: #1a5276; }
+        .source-ebsco { background: #e0f2f1; color: #00695c; }
+        .source-webofscience { background: #ede7f6; color: #4527a0; }
         .source-snowball { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; }
 
         nav .sep { color: #ddd; margin: 0 0.3rem; user-select: none; font-weight: 300; }
@@ -443,17 +445,23 @@
 
             <div style="margin-bottom:1rem;">
                 <label style="margin-bottom:0.4rem;">Databases</label>
-                <div style="display:flex; flex-wrap:wrap; gap:0.6rem 1.2rem; padding:0.5rem 0;">
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbIeee"> IEEE</label>
+                <div style="font-size:0.72rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em; margin-top:0.35rem;">Ready to use — no API key</div>
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem 1.2rem; padding:0.35rem 0 0.15rem;">
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbOpenalex" checked> OpenAlex</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbHal" checked> HAL</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbArxiv" checked> arXiv</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbPubmed"> PubMed</label>
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbAcm" checked> ACM DL</label>
+                </div>
+                <div style="font-size:0.72rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em; margin-top:0.55rem; border-top:1px solid #eee; padding-top:0.5rem;">Requires an API key</div>
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem 1.2rem; padding:0.35rem 0 0;">
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbScopus"> Scopus</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbWos"> Web of Science</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbIeee"> IEEE</label>
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbSciencedirect"> ScienceDirect</label>
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbSpringer"> Springer</label>
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbInspec"> Inspec</label>
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbPubmed"> PubMed</label>
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbArxiv" checked> arXiv</label>
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbHal" checked> HAL</label>
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbOpenalex" checked> OpenAlex</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbEbsco"> EBSCO</label>
                 </div>
                 <div id="ieeeKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> IEEE API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
@@ -475,6 +483,12 @@
                 </div>
                 <div id="acmKeyNotice" style="display:none; font-size:0.75rem; color:#2980b9; margin-top:0.3rem;">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="5.5"/><line x1="8" y1="7.5" x2="8" y2="11"/></svg> ACM DL works without a key. An optional institutional key can be added in <a href="/settings" style="color:#2980b9;">Settings</a>.
+                </div>
+                <div id="ebscoKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> EBSCO credentials required (User ID, Password and Profile ID). <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="wosKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Web of Science API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
                 </div>
 
             </div>
@@ -507,7 +521,7 @@
                 </div>
                 <div style="margin-top:0.5rem;">
                     <label>Language</label>
-                    <p class="help-text">Select which languages to include. Leave empty for all languages. (Applies to HAL, IEEE, Scopus, Inspec, Springer, and PubMed; arXiv and ScienceDirect do not support language filtering.)</p>
+                    <p class="help-text">Select which languages to include. Leave empty for all languages. (Applies to HAL, IEEE, Scopus, Inspec, Springer, PubMed, EBSCO and Web of Science; arXiv and ScienceDirect do not support language filtering.)</p>
                     <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
                         <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="en"> English</label>
                         <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="langFilter" value="fr"> French</label>
@@ -538,7 +552,7 @@
                                 <option value="any">ANY (OR)</option>
                             </select>
                         </div>
-                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Only papers whose title or abstract contain these terms are kept.</p>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Only papers whose title, abstract or keywords contain these terms are kept.</p>
                         <textarea id="includeTerms" placeholder="e.g. machine learning, neural network" rows="3" style="width:100%;font-size:0.83rem;border-color:#86efac;resize:vertical;"></textarea>
                     </div>
 
@@ -552,7 +566,7 @@
                                 <option value="any" selected>ANY (OR)</option>
                             </select>
                         </div>
-                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Papers whose title or abstract contain these terms are removed.</p>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Papers whose title, abstract or keywords contain these terms are removed.</p>
                         <textarea id="excludeTerms" placeholder="e.g. survey, review, grey literature" rows="3" style="width:100%;font-size:0.83rem;border-color:#fca5a5;resize:vertical;"></textarea>
                     </div>
 
@@ -887,7 +901,7 @@
                 hal: 'HAL', arxiv: 'arXiv', ieee: 'IEEE Xplore',
                 scopus: 'Scopus', inspec: 'Inspec', sciencedirect: 'ScienceDirect',
                 springer: 'Springer Nature', pubmed: 'PubMed', acm: 'ACM DL',
-                openalex: 'OpenAlex'
+                openalex: 'OpenAlex', ebsco: 'EBSCO', wos: 'Web of Science'
             };
 
             if (useCache) {
@@ -1336,6 +1350,8 @@
                           ScienceDirect:'source-sciencedirect', 'Springer Nature':'source-springer',
                           PubMed:'source-pubmed', ACM:'source-acm', arXiv:'source-arxiv',
                           OpenAlex:'source-openalex',
+                          EBSCO:'source-ebsco',
+                          'Web of Science':'source-webofscience',
                           'Snowball↑Forward':'source-snowball', 'Snowball↓Backward':'source-snowball' };
             return map[source] || 'source-arxiv';
         }
@@ -1396,7 +1412,7 @@
             const keywords = doc.keywords || [];
             const docType = doc.docType || '';
 
-            const sourceClass = source === 'HAL' ? 'source-hal' : (source === 'IEEE' ? 'source-ieee' : (source === 'Scopus' ? 'source-scopus' : (source === 'Inspec' ? 'source-inspec' : (source === 'ScienceDirect' ? 'source-sciencedirect' : (source === 'Springer Nature' ? 'source-springer' : (source === 'PubMed' ? 'source-pubmed' : (source === 'ACM' ? 'source-acm' : (source === 'OpenAlex' ? 'source-openalex' : 'source-arxiv'))))))));
+            const sourceClass = source === 'HAL' ? 'source-hal' : (source === 'IEEE' ? 'source-ieee' : (source === 'Scopus' ? 'source-scopus' : (source === 'Inspec' ? 'source-inspec' : (source === 'ScienceDirect' ? 'source-sciencedirect' : (source === 'Springer Nature' ? 'source-springer' : (source === 'PubMed' ? 'source-pubmed' : (source === 'ACM' ? 'source-acm' : (source === 'OpenAlex' ? 'source-openalex' : (source === 'EBSCO' ? 'source-ebsco' : (source === 'Web of Science' ? 'source-webofscience' : 'source-arxiv'))))))))));
 
             let html = '<div class="paper">';
             html += `<div class="paper-title">`;
@@ -1624,6 +1640,8 @@
             if (document.getElementById('dbHal').checked) dbs.push('hal');
             if (document.getElementById('dbAcm').checked) dbs.push('acm');
             if (document.getElementById('dbOpenalex').checked) dbs.push('openalex');
+            if (document.getElementById('dbEbsco').checked) dbs.push('ebsco');
+            if (document.getElementById('dbWos').checked) dbs.push('wos');
             return dbs;
         }
 
@@ -2071,6 +2089,8 @@
                 dbPubmed: document.getElementById('dbPubmed').checked,
                 dbAcm: document.getElementById('dbAcm').checked,
                 dbOpenalex: document.getElementById('dbOpenalex').checked,
+                dbEbsco: document.getElementById('dbEbsco').checked,
+                dbWos: document.getElementById('dbWos').checked,
                 yearFrom: document.getElementById('yearFrom').value,
                 yearTo: document.getElementById('yearTo').value,
                 excludeTerms: document.getElementById('excludeTerms').value,
@@ -2108,7 +2128,7 @@
                 scopus:'Scopus', inspec:'Inspec (Engineering Village)',
                 sciencedirect:'ScienceDirect',
                 springer:'Springer Nature', pubmed:'PubMed', acm:'ACM Digital Library',
-                openalex:'OpenAlex'
+                openalex:'OpenAlex', ebsco:'EBSCO Discovery Service', wos:'Web of Science'
             };
 
             const config = {
@@ -2242,7 +2262,7 @@
                 hal:'dbHal', arxiv:'dbArxiv', ieee:'dbIeee', scopus:'dbScopus',
                 inspec:'dbInspec', sciencedirect:'dbSciencedirect',
                 springer:'dbSpringer', pubmed:'dbPubmed', acm:'dbAcm',
-                openalex:'dbOpenalex'
+                openalex:'dbOpenalex', ebsco:'dbEbsco', wos:'dbWos'
             };
             Object.values(dbMap).forEach(function(id) {
                 var el = document.getElementById(id);
@@ -2344,6 +2364,8 @@
             document.getElementById('dbPubmed').checked = isConnOk('pubmed');
             document.getElementById('dbAcm').checked = isConnOk('acm');
             document.getElementById('dbOpenalex').checked = true;
+            document.getElementById('dbEbsco').checked = isConnOk('ebsco');
+            document.getElementById('dbWos').checked = isConnOk('wos');
         }
 
         function clearSearch() {
@@ -2359,6 +2381,8 @@
             document.getElementById('dbPubmed').checked = isConnOk('pubmed');
             document.getElementById('dbAcm').checked = isConnOk('acm');
             document.getElementById('dbOpenalex').checked = true;
+            document.getElementById('dbEbsco').checked = isConnOk('ebsco');
+            document.getElementById('dbWos').checked = isConnOk('wos');
             document.getElementById('yearFrom').value = '';
             document.getElementById('yearTo').value = '';
             document.getElementById('excludeTerms').value = '';
@@ -2411,6 +2435,9 @@
                 document.getElementById('dbPubmed').checked = state.dbPubmed !== false;
                 document.getElementById('dbAcm').checked = state.dbAcm !== false;
                 document.getElementById('dbOpenalex').checked = state.dbOpenalex !== false;
+                // Opt-in: absent state must not silently enable a credentialed source
+                document.getElementById('dbEbsco').checked = state.dbEbsco === true;
+                document.getElementById('dbWos').checked = state.dbWos === true;
                 document.getElementById('yearFrom').value = state.yearFrom || '';
                 document.getElementById('yearTo').value = state.yearTo || '';
                 document.getElementById('excludeTerms').value = state.excludeTerms || '';
@@ -2485,7 +2512,7 @@
                 // Populate form from saved search config
                 document.getElementById('keywords').value = cfg.query || '';
                 document.getElementById('rows').value = cfg.pageSize || 25;
-                const allDbs = ['hal','arxiv','ieee','scopus','inspec','sciencedirect','springer','pubmed','acm','openalex'];
+                const allDbs = ['hal','arxiv','ieee','scopus','inspec','sciencedirect','springer','pubmed','acm','openalex','ebsco','wos'];
                 allDbs.forEach(db => {
                     const el = document.getElementById('db' + db.charAt(0).toUpperCase() + db.slice(1));
                     if (el) el.checked = (cfg.databases || []).includes(db);
@@ -2662,6 +2689,40 @@
         document.getElementById('dbAcm').addEventListener('change', checkAcmKey);
         checkAcmKey();
 
+        // EBSCO (EDS) credentials management
+        async function checkEbscoKey() {
+            try {
+                const resp = await fetch('/api/ebsco-key');
+                const data = await resp.json();
+                const notice = document.getElementById('ebscoKeyNotice');
+                if (!data.configured && document.getElementById('dbEbsco').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbEbsco').addEventListener('change', checkEbscoKey);
+        checkEbscoKey();
+
+        // Web of Science API key management
+        async function checkWosKey() {
+            try {
+                const resp = await fetch('/api/wos-key');
+                const data = await resp.json();
+                const notice = document.getElementById('wosKeyNotice');
+                if (!data.configured && document.getElementById('dbWos').checked) {
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+
+        document.getElementById('dbWos').addEventListener('change', checkWosKey);
+        checkWosKey();
+
         function hideExportModal() {
             document.getElementById('exportModal').style.display = 'none';
         }
@@ -2776,7 +2837,7 @@
             const eligibilityExcluded = Object.entries(eligibility).filter(([k,v]) => typeof v==='number');
             const eligibilityTotal = eligibilityExcluded.reduce((s,[k,v])=>s+v,0);
             const reasonLabels = { 'duplicates':'Duplicates','year_range':'Year range','doc_type':'Document type','language':'Language','exclude_terms':'Exclude terms','must_include_terms':'Must-include terms','include_venues':'Venue inclusion','exclude_venues':'Venue exclusion' };
-            const dbLabels = { 'hal':'HAL','arxiv':'arXiv','ieee':'IEEE Xplore','scopus':'Scopus','inspec':'Inspec','sciencedirect':'ScienceDirect','springer':'Springer Nature','pubmed':'PubMed','acm':'ACM' };
+            const dbLabels = { 'hal':'HAL','arxiv':'arXiv','ieee':'IEEE Xplore','scopus':'Scopus','inspec':'Inspec','sciencedirect':'ScienceDirect','springer':'Springer Nature','pubmed':'PubMed','acm':'ACM','openalex':'OpenAlex','ebsco':'EBSCO','wos':'Web of Science' };
             const dbEntries = Object.entries(databases);
             const mainX=80, bw=300, bh=80, exclX=80+300+80, exclW=220, exclH=60, arrowGap=35, dbChipW=100, dbChipH=50, dbGap=12;
             const w = exclX+exclW+40;

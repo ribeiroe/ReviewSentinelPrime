@@ -156,6 +156,8 @@
         .badge-pubmed { background: #fce4ec; color: #880e4f; }
         .badge-acm { background: #fff8e1; color: #e65100; }
         .badge-openalex { background: #e8f4fd; color: #1a5276; }
+        .badge-ebsco { background: #e0f2f1; color: #00695c; }
+        .badge-webofscience { background: #ede7f6; color: #4527a0; }
         .badge-schedule { background: #d6eaf8; color: #2471a3; }
         .badge-schedule-auto { background: #eaecee; color: #555; }
         .badge-schedule-active { background: #d5f5e3; color: #1e8449; font-weight: 600; }
@@ -252,6 +254,8 @@
         .source-sciencedirect { background:#fff3e0; color:#e65100; }
         .source-springer { background:#e3f2fd; color:#0d47a1; }
         .source-pubmed { background:#fce4ec; color:#880e4f; }
+        .source-ebsco { background:#e0f2f1; color:#00695c; }
+        .source-webofscience { background:#ede7f6; color:#4527a0; }
 </style>
 {% endblock %}
 
@@ -292,17 +296,23 @@
 
             <div style="margin-bottom:1rem;">
                 <label style="margin-bottom:0.4rem;">Databases</label>
-                <div style="display:flex; flex-wrap:wrap; gap:0.6rem 1.2rem; padding:0.5rem 0;">
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbIeee" value="ieee"> IEEE Xplore</label>
+                <div style="font-size:0.72rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em; margin-top:0.35rem;">Ready to use — no API key</div>
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem 1.2rem; padding:0.35rem 0 0.15rem;">
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbOpenalex" value="openalex" checked> OpenAlex</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbHal" value="hal" checked> HAL</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbArxiv" value="arxiv" checked> arXiv</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbPubmed" value="pubmed"> PubMed</label>
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbAcm" value="acm"> ACM DL</label>
+                </div>
+                <div style="font-size:0.72rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em; margin-top:0.55rem; border-top:1px solid #eee; padding-top:0.5rem;">Requires an API key</div>
+                <div style="display:flex; flex-wrap:wrap; gap:0.6rem 1.2rem; padding:0.35rem 0 0;">
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbScopus" value="scopus"> Scopus</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbWos" value="wos"> Web of Science</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbIeee" value="ieee"> IEEE Xplore</label>
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbSciencedirect" value="sciencedirect"> ScienceDirect</label>
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbSpringer" value="springer"> Springer</label>
                     <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbInspec" value="inspec"> Inspec</label>
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbPubmed" value="pubmed"> PubMed</label>
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbArxiv" value="arxiv" checked> arXiv</label>
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbHal" value="hal" checked> HAL</label>
-                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbOpenalex" value="openalex" checked> OpenAlex</label>
+                    <label style="font-weight:normal; cursor:pointer; white-space:nowrap;"><input type="checkbox" id="dbEbsco" value="ebsco"> EBSCO</label>
                 </div>
                 <div id="cfgIeeeKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> IEEE API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
@@ -324,6 +334,12 @@
                 </div>
                 <div id="cfgAcmKeyNotice" style="display:none; font-size:0.75rem; color:#2980b9; margin-top:0.3rem;">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="5.5"/><line x1="8" y1="7.5" x2="8" y2="11"/></svg> ACM DL works without a key. An optional institutional key can be added in <a href="/settings" style="color:#2980b9;">Settings</a>.
+                </div>
+                <div id="cfgEbscoKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> EBSCO credentials required (User ID, Password and Profile ID). <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
+                </div>
+                <div id="cfgWosKeyNotice" style="display:none; font-size:0.75rem; color:#e67e22; margin-top:0.3rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> Web of Science API key required. <a href="/settings" style="color:#2980b9;">Configure in Settings</a>
                 </div>
 
             </div>
@@ -377,7 +393,7 @@
                 </div>
                 <div style="margin-top:0.5rem;">
                     <label>Language</label>
-                    <p class="help-text">Select which languages to include. Leave empty for all languages. (Applies to HAL, IEEE, Scopus, Inspec, Springer, and PubMed; arXiv and ScienceDirect do not support language filtering.)</p>
+                    <p class="help-text">Select which languages to include. Leave empty for all languages. (Applies to HAL, IEEE, Scopus, Inspec, Springer, PubMed, EBSCO and Web of Science; arXiv and ScienceDirect do not support language filtering.)</p>
                     <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
                         <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="en"> English</label>
                         <label style="font-weight:normal; cursor:pointer; font-size:0.85rem;"><input type="checkbox" class="cfgLang" value="fr"> French</label>
@@ -408,7 +424,7 @@
                                 <option value="any">ANY (OR)</option>
                             </select>
                         </div>
-                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Only papers whose title or abstract contain these terms are kept.</p>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Only papers whose title, abstract or keywords contain these terms are kept.</p>
                         <textarea id="cfgIncludeTerms" placeholder="e.g. machine learning, neural network" rows="3" style="width:100%;font-size:0.83rem;border-color:#86efac;resize:vertical;"></textarea>
                     </div>
 
@@ -422,7 +438,7 @@
                                 <option value="any" selected>ANY (OR)</option>
                             </select>
                         </div>
-                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Papers whose title or abstract contain these terms are removed.</p>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Papers whose title, abstract or keywords contain these terms are removed.</p>
                         <textarea id="cfgExcludeTerms" placeholder="e.g. survey, review, grey literature" rows="3" style="width:100%;font-size:0.83rem;border-color:#fca5a5;resize:vertical;"></textarea>
                     </div>
 
@@ -1004,6 +1020,8 @@
             document.getElementById('dbPubmed').checked = s.databases.includes('pubmed');
             document.getElementById('dbAcm').checked = s.databases.includes('acm');
             document.getElementById('dbOpenalex').checked = s.databases.includes('openalex');
+            document.getElementById('dbEbsco').checked = s.databases.includes('ebsco');
+            document.getElementById('dbWos').checked = s.databases.includes('wos');
             document.getElementById('maxResults').value = s.pageSize || 20;
             document.getElementById('scheduleType').value = s.schedule.type;
             document.getElementById('scheduleValue').value = s.schedule.value || 1;
@@ -1117,7 +1135,7 @@
             const map = { HAL:'source-hal', arXiv:'source-arxiv', IEEE:'source-ieee', Scopus:'source-scopus',
                 Inspec:'source-inspec', ScienceDirect:'source-sciencedirect',
                 'Springer Nature':'source-springer', PubMed:'source-pubmed', ACM:'source-acm',
-                OpenAlex:'source-openalex' };
+                OpenAlex:'source-openalex', EBSCO:'source-ebsco', 'Web of Science':'source-webofscience' };
             return map[source] || 'source-arxiv';
         }
 
@@ -1258,6 +1276,8 @@
             document.getElementById('dbSpringer').checked = isConnOk('springer');
             document.getElementById('dbPubmed').checked = isConnOk('pubmed');
             document.getElementById('dbOpenalex').checked = true;
+            document.getElementById('dbEbsco').checked = isConnOk('ebsco');
+            document.getElementById('dbWos').checked = isConnOk('wos');
             document.getElementById('maxResults').value = 20;
             document.getElementById('scheduleType').value = 'manual';
             document.getElementById('scheduleValue').value = 1;
@@ -1291,6 +1311,8 @@
             if (document.getElementById('dbPubmed').checked) dbs.push('pubmed');
             if (document.getElementById('dbAcm').checked) dbs.push('acm');
             if (document.getElementById('dbOpenalex').checked) dbs.push('openalex');
+            if (document.getElementById('dbEbsco').checked) dbs.push('ebsco');
+            if (document.getElementById('dbWos').checked) dbs.push('wos');
             return dbs;
         }
 
@@ -1526,7 +1548,7 @@
             } catch(e) { return false; }
         }
 
-        const _cfgDbIds = ['dbHal','dbArxiv','dbIeee','dbScopus','dbInspec','dbSciencedirect','dbSpringer','dbPubmed'];
+        const _cfgDbIds = ['dbHal','dbArxiv','dbIeee','dbScopus','dbInspec','dbSciencedirect','dbSpringer','dbPubmed','dbEbsco','dbWos'];
         async function cfgCheckKey(apiPath, cbId, noticeId) {
             try {
                 const resp = await fetch(apiPath);
@@ -1545,10 +1567,12 @@
             cfgCheckKey('/api/springer-key',       'dbSpringer',      'cfgSpringerKeyNotice');
             cfgCheckKey('/api/pubmed-key',         'dbPubmed',        'cfgPubmedKeyNotice');
             cfgCheckKey('/api/acm-key',            'dbAcm',           'cfgAcmKeyNotice');
+            cfgCheckKey('/api/ebsco-key',          'dbEbsco',         'cfgEbscoKeyNotice');
+            cfgCheckKey('/api/wos-key',            'dbWos',           'cfgWosKeyNotice');
         }
 
         // Attach change listeners
-        ['dbIeee','dbScopus','dbInspec','dbSciencedirect','dbSpringer','dbPubmed','dbAcm','dbOpenalex'].forEach(id => {
+        ['dbIeee','dbScopus','dbInspec','dbSciencedirect','dbSpringer','dbPubmed','dbAcm','dbOpenalex','dbEbsco','dbWos'].forEach(id => {
             document.getElementById(id).addEventListener('change', cfgCheckAllKeys);
         });
         cfgCheckAllKeys();

@@ -21,6 +21,7 @@ KEY_ENDPOINTS = [
     ("sciencedirect-key", "ScienceDirect"),
     ("springer-key",      "Springer"),
     ("pubmed-key",        "PubMed"),
+    ("wos-key",           "Web of Science"),
 ]
 
 DUMMY_KEY = "TEST_KEY_ABCDEFGH"
@@ -139,3 +140,116 @@ def test_masked_key_format_when_key_longer_than_8(client, endpoint, name):
     assert "..." in data["key"], (
         f"{name}: key longer than 8 chars should be masked with '...'"
     )
+
+
+# ---------------------------------------------------------------------------
+# EBSCO – three-value credentials rather than a single key
+# ---------------------------------------------------------------------------
+
+EBSCO_CREDS = {"userId": "rsp-test-user", "password": "s3cret-pass", "profile": "edsapi"}
+
+
+def _clear_ebsco(client):
+    client.post(
+        "/api/ebsco-key",
+        data=json.dumps({"userId": "", "password": "", "profile": ""}),
+        content_type="application/json",
+    )
+
+
+def test_ebsco_get_unconfigured_shape(client):
+    """
+    GIVEN no EBSCO credentials are stored
+    WHEN  GET /api/ebsco-key is called
+    THEN  HTTP 200 with configured=False and no secret material
+    """
+    _clear_ebsco(client)
+    resp = client.get("/api/ebsco-key")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["configured"] is False
+    assert "password" not in data
+
+
+def test_ebsco_save_and_get_is_configured(client):
+    """
+    GIVEN all three EBSCO values are posted
+    WHEN  GET /api/ebsco-key is called afterwards
+    THEN  configured=True, the user id is masked and the password is absent
+    """
+    resp = client.post(
+        "/api/ebsco-key",
+        data=json.dumps(EBSCO_CREDS),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert resp.get_json().get("ok") is True
+
+    data = client.get("/api/ebsco-key").get_json()
+    assert data["configured"] is True
+    assert data["profile"] == "edsapi"
+    assert data["userId"] != EBSCO_CREDS["userId"]
+    assert "password" not in data
+    assert EBSCO_CREDS["password"] not in json.dumps(data)
+    _clear_ebsco(client)
+
+
+def test_ebsco_password_is_never_returned_by_get(client):
+    """The stored EDS password must never leave the server."""
+    client.post(
+        "/api/ebsco-key",
+        data=json.dumps(EBSCO_CREDS),
+        content_type="application/json",
+    )
+    body = client.get("/api/ebsco-key").get_data(as_text=True)
+    assert EBSCO_CREDS["password"] not in body
+    _clear_ebsco(client)
+
+
+def test_ebsco_partial_credentials_are_rejected(client):
+    """
+    GIVEN a User ID but no Profile ID
+    WHEN  POST /api/ebsco-key is called
+    THEN  HTTP 400 is returned and nothing is stored
+    """
+    _clear_ebsco(client)
+    resp = client.post(
+        "/api/ebsco-key",
+        data=json.dumps({"userId": "someone", "password": "pw", "profile": ""}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert resp.get_json()["ok"] is False
+    assert client.get("/api/ebsco-key").get_json()["configured"] is False
+
+
+def test_ebsco_blank_password_keeps_stored_one(client):
+    """Re-saving with an empty password must not wipe the stored password."""
+    import app as rsp_app
+
+    client.post(
+        "/api/ebsco-key",
+        data=json.dumps(EBSCO_CREDS),
+        content_type="application/json",
+    )
+    resp = client.post(
+        "/api/ebsco-key",
+        data=json.dumps({"userId": "rsp-test-user", "password": "", "profile": "newprofile"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    creds = rsp_app.get_ebsco_credentials()
+    assert creds["password"] == EBSCO_CREDS["password"]
+    assert creds["profile"] == "newprofile"
+    _clear_ebsco(client)
+
+
+def test_ebsco_clear_removes_credentials(client):
+    """Posting all-empty values clears the stored credentials."""
+    client.post(
+        "/api/ebsco-key",
+        data=json.dumps(EBSCO_CREDS),
+        content_type="application/json",
+    )
+    _clear_ebsco(client)
+    assert client.get("/api/ebsco-key").get_json()["configured"] is False

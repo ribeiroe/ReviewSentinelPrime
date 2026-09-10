@@ -544,6 +544,8 @@
         .source-pubmed { background: #fce4ec; color: #880e4f; }
         .source-acm { background: #e8f5e9; color: #2e7d32; }
         .source-openalex { background: #e8f4fd; color: #1a5276; }
+        .source-ebsco { background: #e0f2f1; color: #00695c; }
+        .source-webofscience { background: #ede7f6; color: #4527a0; }
         /* Make flow boxes clickable */
         .flow-box { cursor: pointer; transition: box-shadow .15s, transform .1s; }
         .flow-box:hover { box-shadow: 0 4px 16px rgba(52,152,219,.25); transform: translateY(-2px); }
@@ -959,7 +961,7 @@
             const map = { 'HAL':'source-hal','arXiv':'source-arxiv','IEEE':'source-ieee',
                           'Scopus':'source-scopus','Inspec':'source-inspec',
                           'ScienceDirect':'source-sciencedirect','Springer Nature':'source-springer',
-                          'PubMed':'source-pubmed','ACM':'source-acm','OpenAlex':'source-openalex' };
+                          'PubMed':'source-pubmed','ACM':'source-acm','OpenAlex':'source-openalex','EBSCO':'source-ebsco','Web of Science':'source-webofscience' };
             return map[source] || 'source-arxiv';
         }
 
@@ -1128,7 +1130,7 @@
             const dbMap = { 'hal':'HAL','arxiv':'arXiv','ieee':'IEEE','scopus':'Scopus',
                             'inspec':'Inspec','sciencedirect':'ScienceDirect',
                             'springer':'Springer Nature','pubmed':'PubMed','acm':'ACM',
-                            'openalex':'OpenAlex' };
+                            'openalex':'OpenAlex','ebsco':'EBSCO','wos':'Web of Science' };
             const label = dbMap[dbKey] || dbKey;
             return docs.filter(d => d.source === label);
         }
@@ -1242,7 +1244,7 @@
             };
 
             // Database labels — must match the 'source' field stored by each search function
-            const dbLabels = { 'hal': 'HAL', 'arxiv': 'arXiv', 'ieee': 'IEEE', 'scopus': 'Scopus', 'inspec': 'Inspec', 'sciencedirect': 'ScienceDirect', 'springer': 'Springer Nature', 'pubmed': 'PubMed', 'acm': 'ACM', 'openalex': 'OpenAlex' };
+            const dbLabels = { 'hal': 'HAL', 'arxiv': 'arXiv', 'ieee': 'IEEE', 'scopus': 'Scopus', 'inspec': 'Inspec', 'sciencedirect': 'ScienceDirect', 'springer': 'Springer Nature', 'pubmed': 'PubMed', 'acm': 'ACM', 'openalex': 'OpenAlex', 'ebsco': 'EBSCO', 'wos': 'Web of Science' };
             const docTypeLabels = { ART: 'Articles', COMM: 'Conference', THESE: 'Thesis', COUV: 'Book chapter', REPORT: 'Report', PREPRINT: 'Preprint' };
             const langLabels = { en: 'English', fr: 'French', de: 'German', es: 'Spanish', pt: 'Portuguese', it: 'Italian', zh: 'Chinese', ja: 'Japanese' };
 
@@ -1681,6 +1683,8 @@
             if (state.dbPubmed)         dbPairs.push(['pubmed', 'PubMed']);
             if (state.dbAcm)            dbPairs.push(['acm', 'ACM Digital Library']);
             if (state.dbOpenalex !== false) dbPairs.push(['openalex', 'OpenAlex']);
+            if (state.dbEbsco)          dbPairs.push(['ebsco', 'EBSCO Discovery Service']);
+            if (state.dbWos)            dbPairs.push(['wos', 'Web of Science']);
             const dbs = dbPairs.map(p => p[1]);
             const sc = p.screening || {}, el = p.eligibility || {};
             const ta = p.taScreening || null;  // manual T&A screening results
@@ -2306,7 +2310,7 @@
             };
             const dbLabels = {'hal':'HAL','arxiv':'arXiv','ieee':'IEEE Xplore','scopus':'Scopus',
                 'inspec':'Inspec','sciencedirect':'ScienceDirect',
-                'springer':'Springer Nature','pubmed':'PubMed','acm':'ACM DL','openalex':'OpenAlex'};
+                'springer':'Springer Nature','pubmed':'PubMed','acm':'ACM DL','openalex':'OpenAlex','ebsco':'EBSCO','wos':'Web of Science'};
 
             // ── Layout ──
             const mainX = 40, bw = 380, bh = 120;

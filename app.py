@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 import time
+import unicodedata
 import uuid
 import xml.etree.ElementTree as ET
 import zipfile
@@ -26,7 +27,7 @@ from flask import Flask, render_template, request, jsonify, send_file, Response,
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-RSP_VERSION = "v2.0.1"
+RSP_VERSION = "v2.1.0"
 
 @app.context_processor
 def inject_rsp_version():
@@ -41,6 +42,10 @@ SCIENCEDIRECT_API_URL = "https://api.elsevier.com/content/search/sciencedirect"
 SPRINGER_API_URL = "https://api.springernature.com/meta/v2/json"
 PUBMED_API_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 ACM_API_URL = "https://dl.acm.org/action/doSearch"
+EBSCO_AUTH_URL = "https://eds-api.ebscohost.com/authservice/rest/uidauth"
+EBSCO_API_URL = "https://eds-api.ebscohost.com/edsapi/rest"
+WOS_API_URL = "https://api.clarivate.com/apis/wos-starter/v1/documents"
+WOS_EXPANDED_API_URL = "https://wos-api.clarivate.com/api/wos"
 IEEE_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "ieee_api_key.txt")
 SCOPUS_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "scopus_api_key.txt")
 INSPEC_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "inspec_api_key.txt")
@@ -48,6 +53,13 @@ SCIENCEDIRECT_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file
 SPRINGER_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "springer_api_key.txt")
 PUBMED_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pubmed_api_key.txt")
 ACM_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "acm_api_key.txt")
+WOS_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "wos_api_key.txt")
+# Both WoS editions authenticate with the same X-ApiKey; only the endpoint and
+# response shape differ, so the edition is stored alongside the key.
+WOS_EDITION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "wos_edition.txt")
+# EDS needs three values (user id, password, profile id), so it uses a JSON
+# credential file rather than the single-key .txt files above.
+EBSCO_CREDENTIALS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "ebsco_credentials.json")
 GITHUB_TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "github_token.txt")
 SMTP_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "smtp_config.json")
 GOOGLE_FORM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "google_form_config.json")
@@ -150,6 +162,38 @@ def get_sciencedirect_api_key(): return _load_api_key(SCIENCEDIRECT_API_KEY_FILE
 def get_springer_api_key():     return _load_api_key(SPRINGER_API_KEY_FILE,     "SPRINGER_API_KEY")
 def get_pubmed_api_key():       return _load_api_key(PUBMED_API_KEY_FILE,       "PUBMED_API_KEY")
 def get_acm_api_key():          return _load_api_key(ACM_API_KEY_FILE,          "ACM_API_KEY")
+def get_wos_api_key():          return _load_api_key(WOS_API_KEY_FILE,          "WOS_API_KEY")
+
+
+def get_wos_edition():
+    """Return the active Web of Science edition: 'starter' or 'expanded'."""
+    value = _load_api_key(WOS_EDITION_FILE, "WOS_EDITION").strip().lower()
+    return "expanded" if value == "expanded" else "starter"
+
+
+def get_ebsco_credentials():
+    """Load EBSCO EDS credentials from file, with env vars as override."""
+    cfg = {}
+    if os.path.exists(EBSCO_CREDENTIALS_FILE):
+        try:
+            with open(EBSCO_CREDENTIALS_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f) or {}
+        except (json.JSONDecodeError, OSError):
+            cfg = {}
+    return {
+        "userId":   os.environ.get("EBSCO_USER_ID",  cfg.get("userId", "")).strip(),
+        "password": os.environ.get("EBSCO_PASSWORD", cfg.get("password", "")).strip(),
+        "profile":  os.environ.get("EBSCO_PROFILE",  cfg.get("profile", "")).strip(),
+    }
+
+
+def _save_ebsco_credentials(creds):
+    """Persist EDS credentials owner-readable only — the file holds a password."""
+    _write_json_atomic(EBSCO_CREDENTIALS_FILE, creds)
+    try:
+        os.chmod(EBSCO_CREDENTIALS_FILE, 0o600)
+    except OSError:
+        pass
 
 
 def get_smtp_config():
@@ -1136,6 +1180,10 @@ def _run_saved_search_inner(search_id):
             futures["acm"] = executor.submit(search_acm, keywords, rows, api_filters)
         if "openalex" in databases:
             futures["openalex"] = executor.submit(search_openalex, keywords, rows, api_filters)
+        if "ebsco" in databases:
+            futures["ebsco"] = executor.submit(search_ebsco, keywords, rows, api_filters)
+        if "wos" in databases:
+            futures["wos"] = executor.submit(search_wos, keywords, rows, api_filters)
 
         for key, future in futures.items():
             try:
@@ -1854,6 +1902,75 @@ def set_acm_key():
     return jsonify({"ok": True})
 
 
+# --- API: EBSCO (EDS) Credentials ---
+@app.route("/api/ebsco-key", methods=["GET"])
+def get_ebsco_key():
+    creds = get_ebsco_credentials()
+    configured = bool(creds["userId"] and creds["password"] and creds["profile"])
+    user_id = creds["userId"]
+    return jsonify({
+        "configured": configured,
+        # Profile is not a secret and the UI needs it; the password is never returned.
+        "userId":  user_id[:2] + "..." + user_id[-2:] if len(user_id) > 6 else ("****" if user_id else ""),
+        "profile": creds["profile"],
+        "key":     "****" if configured else "",
+    })
+
+
+@app.route("/api/ebsco-key", methods=["POST"])
+def set_ebsco_key():
+    data = request.get_json() or {}
+    user_id  = (data.get("userId") or "").strip()
+    password = (data.get("password") or "").strip()
+    profile  = (data.get("profile") or "").strip()
+
+    if not user_id and not password and not profile:
+        if os.path.exists(EBSCO_CREDENTIALS_FILE):
+            os.remove(EBSCO_CREDENTIALS_FILE)
+        return jsonify({"ok": True})
+
+    # Blank password on an update means "keep the stored one" — the UI never
+    # receives the real password back, so it cannot resubmit it.
+    if not password:
+        password = get_ebsco_credentials()["password"]
+
+    if not (user_id and password and profile):
+        return jsonify({
+            "ok": False,
+            "error": "EBSCO requires all three values: User ID, Password and Profile ID.",
+        }), 400
+
+    _save_ebsco_credentials({"userId": user_id, "password": password, "profile": profile})
+    return jsonify({"ok": True})
+
+
+# --- API: Web of Science API Key ---
+
+@app.route("/api/wos-key", methods=["GET"])
+def get_wos_key():
+    key = get_wos_api_key()
+    edition = get_wos_edition()
+    if key:
+        # Never return the full key — a masked preview is enough for the UI,
+        # and any page/process that can reach the port must not get secrets.
+        return jsonify({"configured": True, "edition": edition,
+                        "key": key[:4] + "..." + key[-4:] if len(key) > 8 else "****"})
+    return jsonify({"configured": False, "edition": edition, "key": ""})
+
+
+@app.route("/api/wos-key", methods=["POST"])
+def set_wos_key():
+    data = request.get_json()
+    # An absent "key" field means "edition change only" — the stored key is
+    # never sent to the browser, so the UI cannot resubmit it.
+    if "key" in data:
+        _save_api_key(WOS_API_KEY_FILE, data.get("key", "").strip())
+    if "edition" in data:
+        edition = "expanded" if str(data.get("edition", "")).strip().lower() == "expanded" else "starter"
+        _save_api_key(WOS_EDITION_FILE, edition)
+    return jsonify({"ok": True})
+
+
 # --- API: SMTP Configuration ---
 
 @app.route("/api/smtp-config", methods=["GET"])
@@ -2257,6 +2374,7 @@ def test_connection():
             "springer": get_springer_api_key,
             "pubmed": get_pubmed_api_key,
             "acm": get_acm_api_key,
+            "wos": get_wos_api_key,
         }.get(api)
         if stored_getter:
             key = (stored_getter() or "").strip()
@@ -2453,6 +2571,70 @@ def test_connection():
                 return jsonify({"ok": False, "message": f"Rate limit exceeded (429). Too many requests to OpenAlex — {wait_hint}"})
             else:
                 return jsonify({"ok": False, "message": f"OpenAlex API returned status {r.status_code}."})
+
+        elif api == "ebsco":
+            creds = get_ebsco_credentials()
+            missing = [n for n, v in (("User ID", creds["userId"]),
+                                      ("Password", creds["password"]),
+                                      ("Profile ID", creds["profile"])) if not v]
+            if missing:
+                return jsonify({"ok": False, "message": f"Missing EBSCO {', '.join(missing)}."})
+
+            auth_token, err = _ebsco_auth_token(creds, force_refresh=True)
+            if err:
+                return jsonify({"ok": False, "message": err})
+            session_token, err = _ebsco_create_session(auth_token, creds["profile"])
+            if err:
+                return jsonify({"ok": False, "message": err})
+            try:
+                r = requests.get(
+                    f"{EBSCO_API_URL}/Search",
+                    params={"query": "test", "resultsperpage": 1, "pagenumber": 1,
+                            "highlight": "n", "includefacets": "n"},
+                    headers={"x-authenticationToken": auth_token,
+                             "x-sessionToken": session_token,
+                             "Accept": "application/json"},
+                    timeout=20,
+                )
+            finally:
+                _ebsco_end_session(auth_token, session_token)
+            if r.status_code == 200:
+                total = ((r.json().get("SearchResult") or {}).get("Statistics") or {}).get("TotalHits", "?")
+                return jsonify({"ok": True, "message": f"Connection successful! EBSCO Discovery Service returned {total} results for test query."})
+            elif r.status_code in (401, 403):
+                return jsonify({"ok": False, "message": f"EBSCO rejected the search ({r.status_code}). Your profile may not be entitled to EDS API access — contact your library administrator."})
+            elif r.status_code == 429:
+                return jsonify({"ok": False, "message": "Rate limit exceeded (429). Too many requests to EBSCO — wait a moment and try again."})
+            else:
+                return jsonify({"ok": False, "message": f"EBSCO API returned status {r.status_code}."})
+
+        elif api == "wos":
+            if not key:
+                return jsonify({"ok": False, "message": "No API key provided."})
+            edition = (data.get("edition") or get_wos_edition()).strip().lower()
+            edition = "expanded" if edition == "expanded" else "starter"
+            if edition == "expanded":
+                r = requests.get(
+                    WOS_EXPANDED_API_URL,
+                    params={"databaseId": "WOS", "usrQuery": "TS=(test)", "count": 1,
+                            "firstRecord": 1, "optionView": "FR"},
+                    headers={"X-ApiKey": key, "Accept": "application/json"},
+                    timeout=30,
+                )
+                if r.status_code == 200:
+                    total = (r.json().get("QueryResult") or {}).get("RecordsFound", "?")
+                    return jsonify({"ok": True, "message": f"Connection successful! Web of Science Expanded returned {total} results for test query (abstracts included)."})
+            else:
+                r = requests.get(
+                    WOS_API_URL,
+                    params={"q": "TS=(test)", "db": "WOS", "limit": 1, "page": 1},
+                    headers={"X-ApiKey": key, "Accept": "application/json"},
+                    timeout=20,
+                )
+                if r.status_code == 200:
+                    total = (r.json().get("metadata") or {}).get("total", "?")
+                    return jsonify({"ok": True, "message": f"Connection successful! Web of Science Starter returned {total} results for test query. Note: the Starter API does not return abstracts."})
+            return jsonify({"ok": False, "message": _wos_http_error(r, [], expanded=(edition == "expanded"))})
 
         else:
             return jsonify({"ok": False, "message": f"Unknown API: {api}"}), 400
@@ -2820,6 +3002,53 @@ def build_db_queries(keywords, filters=None):
         "query_param": "search",
         "query": keywords,
         "extra_params": {"filter": ",".join(oa_filter_parts)} if oa_filter_parts else {},
+    }
+
+    # ── EBSCO (EDS) ───────────────────────────────────────────────────
+    # EDS query syntax: AND/OR/NOT with field codes (TI, AB, SU); limiters and
+    # facets travel separately in the querystring rather than inside `query`.
+    ebsco_q = keywords
+    for term in exclude_terms:
+        ebsco_q += f" NOT {term}"
+    ebsco_extra = {}
+    if year_from or year_to:
+        ebsco_extra["limiter"] = f"DT1:{year_from or '1900'}-01/{year_to or '3000'}-12"
+    if languages:
+        lang_names = [_lang_map.get(l, l) for l in languages]
+        ebsco_extra["facetfilter"] = "1," + ",".join(f"Language:{n}" for n in lang_names)
+    queries["ebsco"] = {
+        "query_param": "query",
+        "query": ebsco_q,
+        "extra_params": ebsco_extra,
+    }
+
+    # ── Web of Science (Starter API) ──────────────────────────────────
+    # WoS uses field tags: TS=topic, PY=year, DT=doc type, LA=language.
+    wos_q = f"TS=({keywords})"
+    for term in exclude_terms:
+        wos_q += f" NOT TS=({term})"
+    if year_from and year_to:
+        wos_q += f" AND PY=({year_from}-{year_to})"
+    elif year_from:
+        wos_q += f" AND PY=({year_from}-3000)"
+    elif year_to:
+        wos_q += f" AND PY=(1900-{year_to})"
+    _wos_doc_map = {
+        "ART": "Article", "COMM": "Proceedings Paper", "COUV": "Book Chapter",
+        "OUV": "Book", "REPORT": "Article", "THESE": "Article", "PREPRINT": "Preprint",
+    }
+    if doc_types:
+        wos_types = sorted({_wos_doc_map[t] for t in doc_types if t in _wos_doc_map})
+        if wos_types:
+            wos_q += " AND DT=(" + " OR ".join(wos_types) + ")"
+    if languages:
+        lang_names = [_lang_map.get(l, l) for l in languages]
+        wos_q += " AND LA=(" + " OR ".join(lang_names) + ")"
+    queries["wos"] = {
+        "query_param": "usrQuery" if get_wos_edition() == "expanded" else "q",
+        "query": wos_q,
+        "extra_params": ({"databaseId": "WOS", "optionView": "FR"}
+                         if get_wos_edition() == "expanded" else {"db": "WOS"}),
     }
 
     return queries
@@ -4562,6 +4791,683 @@ def search_openalex(keywords, rows, filters=None):
     return result
 
 
+# ── EBSCO Discovery Service (EDS) ────────────────────────────────────────
+# EDS needs a two-step handshake before any search: uidauth returns an
+# AuthToken (valid ~30 min, cached below) and CreateSession returns a
+# per-search SessionToken that must be released again with EndSession.
+
+_ebsco_auth_lock = threading.Lock()
+_ebsco_auth_cache = {"token": "", "expires": 0.0, "fingerprint": ""}
+
+_EBSCO_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _ebsco_text(value):
+    """Flatten an EDS field, which carries display markup such as <i>/<relatesTo>."""
+    if not value:
+        return ""
+    text = _EBSCO_TAG_RE.sub(" ", html.unescape(str(value)))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _ebsco_auth_token(creds, force_refresh=False):
+    """Return a cached EDS AuthToken, re-authenticating when it expires."""
+    fingerprint = f"{creds['userId']}\x00{creds['profile']}"
+    with _ebsco_auth_lock:
+        if (not force_refresh
+                and _ebsco_auth_cache["token"]
+                and _ebsco_auth_cache["fingerprint"] == fingerprint
+                and _ebsco_auth_cache["expires"] > time.time()):
+            return _ebsco_auth_cache["token"], None
+        try:
+            r = requests.post(
+                EBSCO_AUTH_URL,
+                json={"UserId": creds["userId"], "Password": creds["password"]},
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
+                timeout=20,
+            )
+        except requests.exceptions.Timeout:
+            return "", "EBSCO authentication timed out. Please try again in a minute."
+        except requests.RequestException as e:
+            return "", f"EBSCO authentication failed: {e}"
+
+        if r.status_code in (401, 403):
+            return "", (
+                f"EBSCO rejected the stored credentials (HTTP {r.status_code}). "
+                "Check the User ID and Password in Settings — EDS access requires an "
+                "active institutional subscription."
+            )
+        if r.status_code != 200:
+            return "", f"EBSCO authentication returned status {r.status_code}."
+        try:
+            data = r.json()
+        except ValueError:
+            return "", "EBSCO authentication returned a malformed response."
+
+        token = data.get("AuthToken") or ""
+        if not token:
+            return "", "EBSCO authentication did not return an AuthToken."
+        # Refresh a minute early so a long-running search cannot expire mid-flight.
+        timeout = _to_int(data.get("AuthTimeout"), 1800)
+        _ebsco_auth_cache.update({
+            "token": token,
+            "expires": time.time() + max(60, timeout - 60),
+            "fingerprint": fingerprint,
+        })
+        return token, None
+
+
+def _ebsco_create_session(auth_token, profile):
+    """Open an EDS session and return (session_token, error)."""
+    try:
+        r = requests.get(
+            f"{EBSCO_API_URL}/CreateSession",
+            params={"profile": profile, "guest": "n"},
+            headers={"x-authenticationToken": auth_token, "Accept": "application/json"},
+            timeout=20,
+        )
+    except requests.exceptions.Timeout:
+        return "", "EBSCO session request timed out. Please try again in a minute."
+    except requests.RequestException as e:
+        return "", f"EBSCO session request failed: {e}"
+
+    if r.status_code == 400:
+        return "", (
+            f"EBSCO rejected profile '{profile}'. Confirm the Profile ID with your "
+            "library administrator (it is often 'edsapi' or similar)."
+        )
+    if r.status_code in (401, 403):
+        return "", "EBSCO session was refused. The authentication token may have expired."
+    if r.status_code != 200:
+        return "", f"EBSCO CreateSession returned status {r.status_code}."
+    try:
+        token = (r.json() or {}).get("SessionToken") or ""
+    except ValueError:
+        return "", "EBSCO CreateSession returned a malformed response."
+    if not token:
+        return "", "EBSCO CreateSession did not return a SessionToken."
+    return token, None
+
+
+def _ebsco_end_session(auth_token, session_token):
+    """Release an EDS session; failures are non-fatal and intentionally ignored."""
+    try:
+        requests.get(
+            f"{EBSCO_API_URL}/EndSession",
+            params={"sessiontoken": session_token},
+            headers={"x-authenticationToken": auth_token, "Accept": "application/json"},
+            timeout=10,
+        )
+    except requests.RequestException:
+        pass
+
+
+_EBSCO_PUBTYPE_MAP = {
+    "academicjournal": "article",
+    "periodical": "article",
+    "magazine": "article",
+    "newspaperarticle": "article",
+    "newspaper": "article",
+    "conferencematerial": "conference",
+    "conferenceproceeding": "conference",
+    "book": "book chapter",
+    "ebook": "book chapter",
+    "bookseries": "book chapter",
+    "dissertation": "thesis",
+    "report": "report",
+}
+
+
+def _ebsco_items_by_group(record, group):
+    """Collect the display Items EDS tags with a given group code (Ti, Ab, Au...)."""
+    out = []
+    for item in record.get("Items") or []:
+        if (item.get("Group") or "") == group:
+            text = _ebsco_text(item.get("Data"))
+            if text:
+                out.append(text)
+    return out
+
+
+def _normalize_ebsco_record(record, source_label="EBSCO"):
+    """Normalize one EDS Record to RSP doc format."""
+    header = record.get("Header") or {}
+    bib_record = ((record.get("RecordInfo") or {}).get("BibRecord") or {})
+    bib_entity = bib_record.get("BibEntity") or {}
+    relationships = bib_record.get("BibRelationships") or {}
+
+    titles = bib_entity.get("Titles") or []
+    title = _ebsco_text(titles[0].get("TitleFull")) if titles else ""
+    if not title:
+        item_titles = _ebsco_items_by_group(record, "Ti")
+        title = item_titles[0] if item_titles else ""
+
+    authors = []
+    for rel in relationships.get("HasContributorRelationships") or []:
+        name = (((rel.get("PersonEntity") or {}).get("Name") or {}).get("NameFull"))
+        name = _ebsco_text(name)
+        if name:
+            authors.append(name)
+    if not authors:
+        authors = _ebsco_items_by_group(record, "Au")
+
+    journal, year = "", None
+    for rel in relationships.get("IsPartOfRelationships") or []:
+        parent = rel.get("BibEntity") or {}
+        parent_titles = parent.get("Titles") or []
+        if not journal and parent_titles:
+            journal = _ebsco_text(parent_titles[0].get("TitleFull"))
+        for date in parent.get("Dates") or []:
+            if year is None:
+                year = _to_int(date.get("Y"), None)
+        if journal and year is not None:
+            break
+
+    doi = ""
+    for ident in bib_entity.get("Identifiers") or []:
+        if (ident.get("Type") or "").lower() == "doi":
+            doi = _ebsco_text(ident.get("Value"))
+            break
+
+    abstracts = _ebsco_items_by_group(record, "Ab")
+    keywords = []
+    for subject in bib_entity.get("Subjects") or []:
+        text = _ebsco_text(subject.get("SubjectFull"))
+        if text:
+            keywords.append(text)
+
+    language = ""
+    for lang in bib_entity.get("Languages") or []:
+        language = _normalize_language(_ebsco_text(lang.get("Text"))) or ""
+        if language:
+            break
+
+    raw_type = (header.get("PubTypeId") or header.get("PubType") or "").lower().replace(" ", "")
+    doc_type = _EBSCO_PUBTYPE_MAP.get(raw_type, "article" if raw_type else "")
+
+    return {
+        "title":    title,
+        "authors":  authors,
+        "year":     year,
+        "journal":  journal,
+        "doi":      doi,
+        "url":      f"https://doi.org/{doi}" if doi else _ebsco_text(record.get("PLink")),
+        "abstract": abstracts[0] if abstracts else "",
+        "keywords": keywords,
+        "docType":  doc_type,
+        "source":   source_label,
+        "sources":  [source_label],
+        "language": language,
+    }
+
+
+def search_ebsco(keywords, rows, filters=None):
+    """Search EBSCO Discovery Service and return normalised results.
+
+    Requires an institutional EDS subscription: User ID, Password and Profile ID
+    are configured in Settings. Results are capped at 100 records per page.
+    """
+    filters = filters or {}
+    creds = get_ebsco_credentials()
+    if not (creds["userId"] and creds["password"] and creds["profile"]):
+        return {
+            "numFound": 0,
+            "docs": [],
+            "error": ("EBSCO credentials are not configured. Add your EDS User ID, "
+                      "Password and Profile ID in Settings."),
+        }
+
+    auth_token, err = _ebsco_auth_token(creds)
+    if err:
+        return {"numFound": 0, "docs": [], "error": err}
+
+    session_token, err = _ebsco_create_session(auth_token, creds["profile"])
+    if err:
+        # A cached token that the server has already dropped looks like a 401 here.
+        auth_token, auth_err = _ebsco_auth_token(creds, force_refresh=True)
+        if auth_err:
+            return {"numFound": 0, "docs": [], "error": auth_err}
+        session_token, err = _ebsco_create_session(auth_token, creds["profile"])
+        if err:
+            return {"numFound": 0, "docs": [], "error": err}
+
+    params = {
+        "query":          keywords,
+        "searchmode":     "all",
+        "view":           "detailed",
+        "highlight":      "n",
+        "includefacets":  "n",
+        "resultsperpage": min(rows, 100),
+        "pagenumber":     1,
+        "sort":           "date",
+    }
+
+    year_from = filters.get("yearFrom")
+    year_to   = filters.get("yearTo")
+    if year_from or year_to:
+        params["limiter"] = f"DT1:{year_from or '1900'}-01/{year_to or '3000'}-12"
+
+    languages = filters.get("languages", [])
+    if languages:
+        _ebsco_lang_map = {
+            "en": "English", "fr": "French", "de": "German", "es": "Spanish",
+            "pt": "Portuguese", "it": "Italian", "zh": "Chinese", "ja": "Japanese",
+        }
+        names = [_ebsco_lang_map.get(l, l) for l in languages]
+        params["facetfilter"] = "1," + ",".join(f"Language:{n}" for n in names)
+
+    headers = {
+        "x-authenticationToken": auth_token,
+        "x-sessionToken": session_token,
+        "Accept": "application/json",
+    }
+
+    normalized = []
+    total = 0
+    error_msg = None
+    # EDS caps a result set at 100 per page; stop well before the server's own
+    # deep-paging ceiling rather than hammering it.
+    max_pages = 50
+
+    try:
+        for page in range(1, max_pages + 1):
+            params["pagenumber"] = page
+            params["resultsperpage"] = min(rows - len(normalized), 100)
+            if params["resultsperpage"] <= 0:
+                break
+            try:
+                r = requests.get(
+                    f"{EBSCO_API_URL}/Search", params=params, headers=headers, timeout=30
+                )
+            except requests.exceptions.Timeout:
+                error_msg = (
+                    "EBSCO timed out while retrieving results. "
+                    + ("Partial results were kept." if normalized else "Please try again in a minute.")
+                )
+                break
+            except requests.RequestException as e:
+                error_msg = f"Request failed: {e}"
+                break
+
+            if r.status_code in (401, 403):
+                error_msg = "EBSCO session expired or was refused. Please run the search again."
+                break
+            if r.status_code == 429:
+                error_msg = (
+                    "EBSCO rate-limited this search (HTTP 429). Wait a moment and try again. "
+                    "Tip: reduce Max records per database to lower burst traffic."
+                )
+                break
+            if r.status_code != 200:
+                error_msg = f"EBSCO API returned status {r.status_code}."
+                break
+
+            try:
+                payload = r.json() or {}
+            except ValueError:
+                error_msg = "EBSCO returned a malformed response."
+                break
+
+            search_result = payload.get("SearchResult") or {}
+            if page == 1:
+                total = _to_int((search_result.get("Statistics") or {}).get("TotalHits"), 0)
+
+            records = ((search_result.get("Data") or {}).get("Records")) or []
+            if not records:
+                break
+            normalized.extend(_normalize_ebsco_record(rec) for rec in records)
+            if len(normalized) >= min(rows, total or rows):
+                break
+    finally:
+        _ebsco_end_session(auth_token, session_token)
+
+    result = {"numFound": total, "docs": normalized[:rows]}
+    if error_msg:
+        result["error"] = error_msg
+    return result
+
+
+# ── Web of Science (Starter API) ─────────────────────────────────────────
+
+_WOS_TYPE_MAP = {
+    "article": "article",
+    "review": "article",
+    "early access": "article",
+    "editorial material": "article",
+    "letter": "article",
+    "news item": "article",
+    "correction": "article",
+    "meeting abstract": "conference",
+    "proceedings paper": "conference",
+    "book chapter": "book chapter",
+    "book": "book chapter",
+    "book review": "book chapter",
+    "preprint": "preprint",
+}
+
+# The free Starter plan allows 1 request/second; stay under it globally.
+_wos_throttle_lock = threading.Lock()
+_wos_last_call = [0.0]
+
+
+def _wos_throttle():
+    with _wos_throttle_lock:
+        elapsed = time.time() - _wos_last_call[0]
+        if elapsed < 1.05:
+            time.sleep(1.05 - elapsed)
+        _wos_last_call[0] = time.time()
+
+
+def _normalize_wos_doc(hit, source_label="Web of Science"):
+    """Normalize one Web of Science Starter API hit to RSP doc format."""
+    source_info = hit.get("source") or {}
+    identifiers = hit.get("identifiers") or {}
+    names = hit.get("names") or {}
+    links = hit.get("links") or {}
+
+    authors = []
+    for author in names.get("authors") or []:
+        name = (author.get("displayName") or author.get("wosStandard") or "").strip()
+        if name:
+            authors.append(name)
+
+    doi = (identifiers.get("doi") or "").strip()
+    raw_types = [str(t).strip().lower() for t in (hit.get("types") or []) if t]
+    doc_type = ""
+    for raw in raw_types:
+        if raw in _WOS_TYPE_MAP:
+            doc_type = _WOS_TYPE_MAP[raw]
+            break
+
+    keywords = list((hit.get("keywords") or {}).get("authorKeywords") or [])
+
+    return {
+        "title":    (hit.get("title") or "").strip(),
+        "authors":  authors,
+        "year":     _to_int(source_info.get("publishYear"), None),
+        "journal":  (source_info.get("sourceTitle") or "").strip(),
+        "doi":      doi,
+        "url":      f"https://doi.org/{doi}" if doi else (links.get("record") or ""),
+        # The Starter API does not expose abstracts; only Expanded does.
+        "abstract": "",
+        "keywords": keywords,
+        "docType":  doc_type,
+        "source":   source_label,
+        "sources":  [source_label],
+        "language": "",
+    }
+
+
+def _wos_listify(value):
+    """WoS Expanded collapses single-element arrays to bare objects."""
+    if value is None:
+        return []
+    return value if isinstance(value, list) else [value]
+
+
+def _normalize_wos_expanded_doc(rec, source_label="Web of Science"):
+    """Normalize one Web of Science Expanded API record to RSP doc format."""
+    static_data = rec.get("static_data") or {}
+    summary = static_data.get("summary") or {}
+    metadata = static_data.get("fullrecord_metadata") or {}
+
+    title, journal = "", ""
+    for entry in _wos_listify((summary.get("titles") or {}).get("title")):
+        if not isinstance(entry, dict):
+            continue
+        kind = (entry.get("type") or "").lower()
+        content = str(entry.get("content") or "").strip()
+        if kind == "item" and not title:
+            title = content
+        elif kind == "source" and not journal:
+            journal = content
+
+    authors = []
+    for name in _wos_listify((summary.get("names") or {}).get("name")):
+        if not isinstance(name, dict) or (name.get("role") or "").lower() != "author":
+            continue
+        display = str(name.get("display_name") or name.get("full_name") or "").strip()
+        if display:
+            authors.append(display)
+
+    doi = ""
+    identifiers = (((rec.get("dynamic_data") or {}).get("cluster_related") or {}).get("identifiers") or {})
+    for ident in _wos_listify(identifiers.get("identifier")):
+        if isinstance(ident, dict) and (ident.get("type") or "").lower() == "doi":
+            doi = str(ident.get("value") or "").strip()
+            break
+
+    paragraphs = []
+    for abstract in _wos_listify((metadata.get("abstracts") or {}).get("abstract")):
+        if not isinstance(abstract, dict):
+            continue
+        for para in _wos_listify((abstract.get("abstract_text") or {}).get("p")):
+            text = str(para or "").strip()
+            if text:
+                paragraphs.append(text)
+
+    keywords = [str(k).strip() for k in _wos_listify((metadata.get("keywords") or {}).get("keyword")) if k]
+
+    doc_type = ""
+    for raw in _wos_listify((summary.get("doctypes") or {}).get("doctype")):
+        mapped = _WOS_TYPE_MAP.get(str(raw).strip().lower())
+        if mapped:
+            doc_type = mapped
+            break
+
+    language = ""
+    for lang in _wos_listify((metadata.get("languages") or {}).get("language")):
+        raw = lang.get("content") if isinstance(lang, dict) else lang
+        language = _normalize_language(str(raw or "")) or ""
+        if language:
+            break
+
+    uid = str(rec.get("UID") or "").strip()
+    return {
+        "title":    title,
+        "authors":  authors,
+        "year":     _to_int((summary.get("pub_info") or {}).get("pubyear"), None),
+        "journal":  journal,
+        "doi":      doi,
+        "url":      (f"https://doi.org/{doi}" if doi
+                     else (f"https://www.webofscience.com/wos/woscc/full-record/{uid}" if uid else "")),
+        "abstract": " ".join(paragraphs),
+        "keywords": keywords,
+        "docType":  doc_type,
+        "source":   source_label,
+        "sources":  [source_label],
+        "language": language,
+    }
+
+
+def search_wos(keywords, rows, filters=None):
+    """Search Web of Science and return normalised results.
+
+    Two editions share the same X-ApiKey: the free Starter API (no abstracts)
+    and the subscription Expanded API (full records including abstracts).
+    """
+    filters = filters or {}
+    key = get_wos_api_key()
+    if not key:
+        return {
+            "numFound": 0,
+            "docs": [],
+            "error": ("Web of Science API key is not configured. "
+                      "Add a free Starter API key in Settings."),
+        }
+
+    query = _build_wos_query(keywords, filters)
+    if get_wos_edition() == "expanded":
+        return _search_wos_expanded(key, query, rows)
+    return _search_wos_starter(key, query, rows)
+
+
+def _build_wos_query(keywords, filters):
+    """Build a WoS field-tagged query; identical syntax for both editions."""
+    query = f"TS=({keywords})"
+    year_from = filters.get("yearFrom")
+    year_to   = filters.get("yearTo")
+    if year_from and year_to:
+        query += f" AND PY=({year_from}-{year_to})"
+    elif year_from:
+        query += f" AND PY=({year_from}-3000)"
+    elif year_to:
+        query += f" AND PY=(1900-{year_to})"
+
+    languages = filters.get("languages", [])
+    _wos_lang_map = {
+        "en": "English", "fr": "French", "de": "German", "es": "Spanish",
+        "pt": "Portuguese", "it": "Italian", "zh": "Chinese", "ja": "Japanese",
+    }
+    if languages:
+        names = [_wos_lang_map.get(l, l) for l in languages]
+        query += " AND LA=(" + " OR ".join(names) + ")"
+    return query
+
+
+def _search_wos_starter(key, query, rows):
+    """Starter API: free key, basic metadata, no abstracts."""
+    headers = {"X-ApiKey": key, "Accept": "application/json"}
+    per_page = 50  # Starter API hard limit
+
+    normalized = []
+    total = 0
+    error_msg = None
+    # Free plans allow as few as 50 requests per DAY, so never burn more than
+    # this many on a single search regardless of how many records exist.
+    max_pages = 20
+
+    for page in range(1, max_pages + 1):
+        params = {
+            "q": query,
+            "db": "WOS",
+            "limit": min(per_page, max(1, rows - len(normalized))),
+            "page": page,
+        }
+        _wos_throttle()
+        try:
+            r = requests.get(WOS_API_URL, params=params, headers=headers, timeout=30)
+        except requests.exceptions.Timeout:
+            error_msg = (
+                "Web of Science timed out. "
+                + ("Partial results were kept." if normalized else "Please try again in a minute.")
+            )
+            break
+        except requests.RequestException as e:
+            error_msg = f"Request failed: {e}"
+            break
+
+        error_msg = _wos_http_error(r, normalized)
+        if error_msg or r.status_code != 200:
+            break
+
+        try:
+            payload = r.json() or {}
+        except ValueError:
+            error_msg = "Web of Science returned a malformed response."
+            break
+
+        if page == 1:
+            total = _to_int((payload.get("metadata") or {}).get("total"), 0)
+
+        hits = payload.get("hits") or []
+        if not hits:
+            break
+        normalized.extend(_normalize_wos_doc(h) for h in hits)
+        if len(normalized) >= min(rows, total or rows):
+            break
+
+    result = {"numFound": total, "docs": normalized[:rows]}
+    if error_msg:
+        result["error"] = error_msg
+    return result
+
+
+def _search_wos_expanded(key, query, rows):
+    """Expanded API: institutional subscription, full records with abstracts."""
+    headers = {"X-ApiKey": key, "Accept": "application/json"}
+    per_page = 100  # Expanded API hard limit
+
+    normalized = []
+    total = 0
+    error_msg = None
+    max_pages = 50
+
+    for page in range(max_pages):
+        first_record = page * per_page + 1
+        params = {
+            "databaseId": "WOS",
+            "usrQuery": query,
+            "count": min(per_page, max(1, rows - len(normalized))),
+            "firstRecord": first_record,
+            "optionView": "FR",
+            "lang": "en",
+        }
+        _wos_throttle()
+        try:
+            r = requests.get(WOS_EXPANDED_API_URL, params=params, headers=headers, timeout=45)
+        except requests.exceptions.Timeout:
+            error_msg = (
+                "Web of Science timed out. "
+                + ("Partial results were kept." if normalized else "Please try again in a minute.")
+            )
+            break
+        except requests.RequestException as e:
+            error_msg = f"Request failed: {e}"
+            break
+
+        error_msg = _wos_http_error(r, normalized, expanded=True)
+        if error_msg or r.status_code != 200:
+            break
+
+        try:
+            payload = r.json() or {}
+        except ValueError:
+            error_msg = "Web of Science returned a malformed response."
+            break
+
+        if page == 0:
+            total = _to_int((payload.get("QueryResult") or {}).get("RecordsFound"), 0)
+
+        records = _wos_listify(
+            ((((payload.get("Data") or {}).get("Records") or {}).get("records") or {}).get("REC"))
+        )
+        if not records:
+            break
+        normalized.extend(_normalize_wos_expanded_doc(rec) for rec in records)
+        if len(normalized) >= min(rows, total or rows):
+            break
+
+    result = {"numFound": total, "docs": normalized[:rows]}
+    if error_msg:
+        result["error"] = error_msg
+    return result
+
+
+def _wos_http_error(r, collected, expanded=False):
+    """Map a WoS HTTP status to a user-facing message, or None when OK."""
+    if r.status_code == 200:
+        return None
+    partial = " Partial results were kept." if collected else ""
+    if r.status_code in (401, 403):
+        if expanded:
+            return (
+                f"Web of Science rejected the key for the Expanded API ({r.status_code}). "
+                "Expanded requires a paid institutional subscription — if you only have a free "
+                "key, switch the edition back to Starter in Settings."
+            )
+        return (
+            f"Web of Science rejected the API key ({r.status_code}). Verify it at "
+            "developer.clarivate.com — Starter API keys must be tied to a registered application."
+        )
+    if r.status_code == 429:
+        return (
+            "Web of Science rate limit reached (HTTP 429). Free Starter plans allow as few as "
+            f"50 requests per day.{partial}"
+        )
+    return f"Web of Science API returned status {r.status_code}.{partial}"
+
+
 @app.route("/search", methods=["POST"])
 def search():
     data = request.get_json()
@@ -4601,6 +5507,10 @@ def search():
             futures["acm"] = executor.submit(search_acm, keywords, rows, api_filters)
         if "openalex" in databases:
             futures["openalex"] = executor.submit(search_openalex, keywords, rows, api_filters)
+        if "ebsco" in databases:
+            futures["ebsco"] = executor.submit(search_ebsco, keywords, rows, api_filters)
+        if "wos" in databases:
+            futures["wos"] = executor.submit(search_wos, keywords, rows, api_filters)
 
         for key, future in futures.items():
             try:
@@ -5014,6 +5924,23 @@ def _term_matches(term, text_lower):
     return re.search(pattern, text_lower) is not None
 
 
+def _term_haystack(doc):
+    """Lowercased text that include/exclude terms are matched against.
+
+    Keywords are included because some connectors (e.g. Web of Science Starter)
+    return no abstract at all, leaving title-only records unmatchable.
+    """
+    keywords = doc.get("keywords") or []
+    if isinstance(keywords, str):
+        keywords = [keywords]
+    parts = [
+        doc.get("title") or "",
+        doc.get("abstract") or "",
+        " ".join(str(k) for k in keywords),
+    ]
+    return " ".join(parts).lower()
+
+
 def _apply_post_filters(all_docs, filters, prisma):
     """Apply post-search filters and deduplication. Mutates prisma dict. Returns filtered docs."""
     excl = {}  # excluded docs keyed by reason, slimmed
@@ -5141,7 +6068,7 @@ def _apply_post_filters(all_docs, filters, prisma):
         exclude_mode = filters.get("excludeTermsMode", "any")
         kept, removed_et = [], []
         for d in all_docs:
-            text = ((d.get("title") or "") + " " + (d.get("abstract") or "")).lower()
+            text = _term_haystack(d)
             if exclude_mode == "all":
                 hit = all(_term_matches(t, text) for t in exclude_terms)
             else:
@@ -5162,7 +6089,7 @@ def _apply_post_filters(all_docs, filters, prisma):
         filtered = []
         removed_inc = []
         for doc in all_docs:
-            text = ((doc.get("title") or "") + " " + (doc.get("abstract") or "")).lower()
+            text = _term_haystack(doc)
             if include_mode == "any":
                 match = any(_term_matches(term, text) for term in include_terms)
             else:
@@ -5467,6 +6394,10 @@ def search_stream():
                 db_fns["acm"] = (search_acm, keywords, rows, api_filters)
             if "openalex" in databases:
                 db_fns["openalex"] = (search_openalex, keywords, rows, api_filters)
+            if "ebsco" in databases:
+                db_fns["ebsco"] = (search_ebsco, keywords, rows, api_filters)
+            if "wos" in databases:
+                db_fns["wos"] = (search_wos, keywords, rows, api_filters)
 
             with ThreadPoolExecutor(max_workers=10) as executor:
                 future_to_key = {
@@ -5662,6 +6593,8 @@ def export_replication_package():
                     "decision": dec.get("decision", ""),
                     "reason": dec.get("reason", ""),
                     "screened_at": dec.get("timestamp", ""),
+                    "ai_assisted": "yes" if dec.get("aiAssisted") else "no",
+                    "ai_model": dec.get("aiModel", ""),
                 })
 
     # T&A screening summary for the exported flow diagram
@@ -5678,10 +6611,14 @@ def export_replication_package():
             "unsure": _uns,
         }
 
+    # PRISMA 2020 reports citation searching as a separate identification arm.
+    _identified = raw_docs or dedup_docs or docs
+    if _identified:
+        prisma.setdefault("identification", {})["other_methods"] = _count_other_methods(_identified)
+
     # Sanitize folder name
     safe_name = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in search_name).strip()
     folder_name = f"{safe_name}_{execution_date}"
-
     db_counts = (prisma.get("identification") or {}).get("databases", {})
 
     # Build ZIP in memory
@@ -5699,7 +6636,8 @@ def export_replication_package():
             "scopus": "Scopus", "inspec": "Inspec (Engineering Village)",
             "sciencedirect": "ScienceDirect",
             "springer": "Springer Nature", "pubmed": "PubMed",
-            "acm": "ACM Digital Library", "openalex": "OpenAlex"
+            "acm": "ACM Digital Library", "openalex": "OpenAlex",
+            "ebsco": "EBSCO Discovery Service", "wos": "Web of Science"
         }
         # Use _api_filters so the documented queries match what was actually
         # dispatched: by default all inclusion/exclusion filtering happens
@@ -5765,7 +6703,8 @@ def export_replication_package():
         # Screening decisions (title & abstract screening — if performed via Screening page)
         if screening_decisions:
             sd_output = io.StringIO()
-            sd_fields = ["title", "authors", "year", "source", "doi", "decision", "reason", "screened_at"]
+            sd_fields = ["title", "authors", "year", "source", "doi", "decision", "reason", "screened_at",
+                         "ai_assisted", "ai_model"]
             sd_writer = csv.DictWriter(sd_output, fieldnames=sd_fields, extrasaction="ignore")
             sd_writer.writeheader()
             sd_writer.writerows(screening_decisions)
@@ -5810,11 +6749,7 @@ def export_replication_package():
                                execution_date, prisma, db_labels)
         zf.writestr(prefix + "README.md", readme)
 
-        # --- 5. Evidence Checklist ---
-        checklist = _build_evidence_checklist(prisma, has_screening=bool(screening_decisions))
-        zf.writestr(prefix + "05_evidence_checklist/PRISMA_evidence_checklist.txt", checklist)
-
-        # --- 6. PRISMA data (JSON for reproducibility) ---
+        # --- 5. PRISMA data (JSON for reproducibility) ---
         prisma_json = json.dumps(prisma, indent=2, ensure_ascii=False)
         zf.writestr(prefix + "02_data/prisma_data.json", prisma_json)
 
@@ -5824,7 +6759,8 @@ def export_replication_package():
             "scopus": "Scopus", "inspec": "Inspec (Engineering Village)",
             "sciencedirect": "ScienceDirect",
             "springer": "Springer Nature", "pubmed": "PubMed",
-            "acm": "ACM Digital Library", "openalex": "OpenAlex"
+            "acm": "ACM Digital Library", "openalex": "OpenAlex",
+            "ebsco": "EBSCO Discovery Service", "wos": "Web of Science"
         }
         search_config = {
             "schema_version": "1.0",
@@ -5936,6 +6872,21 @@ def export_replication_package():
             json.dumps(importable_config, indent=2, ensure_ascii=False)
         )
 
+        # Written last so it can report which artefacts actually made it into the ZIP.
+        checklist = _build_evidence_checklist(
+            prisma,
+            has_screening=bool(screening_decisions),
+            written_files={n[len(prefix):] for n in zf.namelist() if n.startswith(prefix)},
+            ta_screening=ta_screening,
+            recall=_validation_recall(validation_papers, docs),
+            ai_usage={
+                "count": sum(1 for r in screening_decisions if r.get("ai_assisted") == "yes"),
+                "total": len(screening_decisions),
+                "models": sorted({r.get("ai_model") for r in screening_decisions if r.get("ai_model")}),
+            },
+        )
+        zf.writestr(prefix + "05_evidence_checklist/PRISMA_evidence_checklist.txt", checklist)
+
     zip_buffer.seek(0)
     filename = f"{folder_name}.zip"
     return send_file(zip_buffer, mimetype="application/zip", as_attachment=True, download_name=filename)
@@ -5963,7 +6914,8 @@ def _build_search_strategy(search_name, keywords, databases, filters, execution_
         "scopus": "Scopus", "inspec": "Inspec (Engineering Village)",
         "sciencedirect": "ScienceDirect",
         "springer": "Springer Nature", "pubmed": "PubMed",
-        "acm": "ACM Digital Library", "openalex": "OpenAlex"
+        "acm": "ACM Digital Library", "openalex": "OpenAlex",
+        "ebsco": "EBSCO Discovery Service", "wos": "Web of Science"
     }
     for db in databases:
         info = db_counts.get(db, {})
@@ -6160,6 +7112,8 @@ def _build_prisma_svg(prisma, search_name="", ta_screening=None):
         "scopus": "Scopus", "inspec": "Inspec",
         "sciencedirect": "ScienceDirect", "springer": "Springer",
         "pubmed": "PubMed", "acm": "ACM", "openalex": "OpenAlex",
+        "ebsco": "EBSCO",
+        "wos": "Web of Science",
     }
 
     def esc(s):
@@ -6478,42 +7432,132 @@ This replication package is provided for research reproducibility and transparen
     return readme
 
 
-def _build_evidence_checklist(prisma, has_screening=False):
-    """Generate an evidence checklist mapping artefacts to PRISMA items."""
+def _is_snowball_doc(doc):
+    """True only if every source for this record came from citation searching."""
+    sources = doc.get("sources") or ([doc.get("source")] if doc.get("source") else [])
+    return bool(sources) and all(str(s).startswith("Snowball") for s in sources)
+
+
+def _count_other_methods(docs):
+    """PRISMA 2020 separates database identification from citation searching."""
+    return sum(1 for d in docs if _is_snowball_doc(d))
+
+
+def _normalize_title_for_match(text):
+    """Mirror of the browser's title normalisation used for validation papers."""
+    text = unicodedata.normalize("NFKD", str(text or "").lower())
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _titles_match(a, b):
+    """Fuzzy title equivalence, matching the browser's validation-panel rules."""
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    # Guard against degenerate one-word titles trivially matching longer ones.
+    if min(len(a), len(b)) >= 12 and (a in b or b in a):
+        return True
+    set_a, set_b = set(a.split(" ")), set(b.split(" "))
+    common = len(set_a & set_b)
+    overlap_max = common / (max(len(set_a), len(set_b)) or 1)
+    overlap_min = common / (min(len(set_a), len(set_b)) or 1)
+    return overlap_max > 0.85 or (common >= 4 and overlap_min > 0.9)
+
+
+def _validation_recall(validation_papers, docs):
+    """Report which seed papers the search actually retrieved.
+
+    Validation papers are stored as plain title strings by the UI.
+    """
+    titles = [str(p.get("title") if isinstance(p, dict) else p or "").strip()
+              for p in (validation_papers or [])]
+    titles = [t for t in titles if t]
+    if not titles:
+        return None
+
+    normalized_docs = [(_normalize_title_for_match(d.get("title")), d) for d in docs]
+    found, missing = [], []
+    for title in titles:
+        norm = _normalize_title_for_match(title)
+        sources = sorted({
+            str(d.get("source") or "Unknown")
+            for doc_norm, d in normalized_docs
+            if _titles_match(norm, doc_norm)
+        })
+        (found if sources else missing).append((title, sources))
+    return {"found": found, "missing": missing, "total": len(titles)}
+
+
+_EXCLUSION_REASON_LABELS = {
+    "duplicates": "Duplicate records",
+    "year_range": "Outside year range",
+    "doc_type": "Document type excluded",
+    "language": "Language excluded",
+    "exclude_terms": "Matched an exclude term",
+    "must_include_terms": "Missing a required include term",
+    "include_venues": "Venue not in include list",
+    "exclude_venues": "Venue in exclude list",
+}
+
+
+def _build_evidence_checklist(prisma, has_screening=False, written_files=None, ta_screening=None,
+                              recall=None, ai_usage=None):
+    """Generate an evidence checklist mapping artefacts to PRISMA items.
+
+    `written_files` are the ZIP-relative paths actually written, so each row can
+    be marked present rather than merely asserted.
+    """
     identification = prisma.get("identification", {})
     screening = prisma.get("screening", {})
+    eligibility = prisma.get("eligibility", {})
     included = prisma.get("included", 0)
+    review_protocol = _load_protocol()
+
+    def present(path):
+        if written_files is None:
+            return " "
+        if path.endswith("/"):
+            return "OK" if any(f.startswith(path) for f in written_files) else "--"
+        return "OK" if path in written_files else "--"
+
+    def row(item, artefact):
+        return f"  [{present(artefact):>2}] {item:<30} {artefact}"
 
     lines = [
-        "=" * 70,
+        "=" * 88,
         "PRISMA 2020 EVIDENCE CHECKLIST",
         "Mapping of exported artefacts to PRISMA reporting items",
-        "=" * 70,
+        "=" * 88,
         "",
         "This checklist maps the contents of this replication package to the",
         "relevant PRISMA 2020 items, supporting auditability and transparency.",
         "",
-        "-" * 70,
-        f"{'PRISMA Item':<40} {'Artefact':<30}",
-        "-" * 70,
-        f"{'S1: Search strategy':<40} {'01_search_strategy/':<30}",
-        f"{'S2: Search strings':<40} {'search_strings_per_database.txt':<30}",
-        f"{'S3: Databases & registers':<40} {'search_metadata.json':<30}",
-        f"{'S4: Date of search':<40} {'search_metadata.json':<30}",
-        f"{'S5: Constraints/limits':<40} {'filters_and_constraints.txt':<30}",
-        f"{'6: Study selection process':<40} {'02_data/prisma_data.json':<30}",
-        f"{'7: Data collection process':<40} {'02_data/initial_search_results.csv':<30}",
-        f"{'16a: Identification results':<40} {'02_data/initial_search_results.csv':<30}",
-        f"{'16b: Screening (dedup)':<40} {'02_data/deduplicated_records.csv':<30}",
-        f"{'16b: Screening (filters)':<40} {'02_data/excluded_studies.csv':<30}",
-    ]
-    if has_screening:
-        lines.append(f"{'16b: T&A screening decisions':<40} {'02_data/screening_decisions.csv':<30}")
-    lines += [
-        f"{'16c: Eligibility assessment':<40} {'02_data/excluded_studies.csv':<30}",
-        f"{'17: Included studies':<40} {'02_data/included_studies.csv':<30}",
-        f"{'Flow diagram':<40} {'04_images/':<30}",
-        "-" * 70,
+        "  [OK] = artefact is present in this package",
+        "  [--] = not applicable / not produced for this run",
+        "",
+        "-" * 88,
+        row("S1: Search strategy", "01_search_strategy/"),
+        row("S2: Search strings", "01_search_strategy/search_strings_per_database.txt"),
+        row("S3: Databases & registers", "01_search_strategy/search_metadata.json"),
+        row("S4: Date of search", "01_search_strategy/search_metadata.json"),
+        row("S5: Constraints/limits", "01_search_strategy/filters_and_constraints.txt"),
+        row("5: Eligibility criteria", "01_search_strategy/filters_and_constraints.txt"),
+        row("6: Study selection process", "02_data/prisma_data.json"),
+        row("7: Data collection process", "02_data/initial_search_results.csv"),
+        row("16a: Identification results", "02_data/initial_search_results.csv"),
+        row("16b: Screening (dedup)", "02_data/deduplicated_records.csv"),
+        row("16b: Screening (filters)", "02_data/excluded_studies.csv"),
+        row("16b: T&A screening decisions", "02_data/screening_decisions.csv"),
+        row("16c: Eligibility assessment", "02_data/excluded_studies.csv"),
+        row("17: Included studies", "02_data/included_studies.csv"),
+        row("Flow diagram", "04_images/prisma_flow_diagram.svg"),
+        row("24a: Registration", "03_protocol/review_protocol.json"),
+        row("24b: Protocol access", "03_protocol/protocol.md"),
+        row("27: Data availability", "search_configuration.json"),
+        "-" * 88,
         "",
         "--- SUMMARY STATISTICS ---",
         f"  Total identified:    {identification.get('total_found', 'N/A')}",
@@ -6521,8 +7565,51 @@ def _build_evidence_checklist(prisma, has_screening=False):
         f"  Duplicates removed:  {screening.get('duplicates', 0)}",
         f"  Final included:      {included}",
         "",
-        "--- DATABASE BREAKDOWN ---",
     ]
+
+    other_methods = identification.get("other_methods")
+    if other_methods is not None:
+        retrieved = _to_int(identification.get("retrieved"), 0)
+        lines += [
+            "--- IDENTIFICATION BY SOURCE (PRISMA 16a) ---",
+            f"  Via databases/registers:   {max(0, retrieved - int(other_methods))}",
+            f"  Via citation searching:    {other_methods}",
+            "",
+        ]
+
+    lines += [
+        "--- RECORDS EXCLUDED, WITH REASONS (PRISMA 16b) ---",
+    ]
+
+    reason_counts = [
+        (_EXCLUSION_REASON_LABELS.get(k, k), int(v))
+        for source in (screening, eligibility)
+        for k, v in source.items()
+        if isinstance(v, int) and v > 0
+    ]
+    if reason_counts:
+        for label, count in reason_counts:
+            lines.append(f"  {label:<38} {count}")
+        lines.append(f"  {'-' * 38} {'-' * 5}")
+        lines.append(f"  {'Total excluded before screening':<38} {sum(c for _, c in reason_counts)}")
+    else:
+        lines.append("  No records were excluded by automated filters.")
+
+    if ta_screening and ta_screening.get("screened"):
+        lines += [
+            "",
+            "--- TITLE & ABSTRACT SCREENING (PRISMA 16b/17) ---",
+            f"  Records to screen:   {ta_screening.get('total', 0)}",
+            f"  Screened:            {ta_screening.get('screened', 0)}",
+            f"  Included:            {ta_screening.get('included', 0)}",
+            f"  Excluded:            {ta_screening.get('excluded', 0)}",
+            f"  Unsure:              {ta_screening.get('unsure', 0)}",
+        ]
+        remaining = int(ta_screening.get("total", 0)) - int(ta_screening.get("screened", 0))
+        if remaining > 0:
+            lines.append(f"  NOT YET SCREENED:    {remaining}")
+
+    lines += ["", "--- DATABASE BREAKDOWN ---"]
     db_counts = identification.get("databases", {})
     for db, counts in db_counts.items():
         line = f"  {db:<20} found: {counts.get('found', 0):<8} retrieved: {counts.get('retrieved', 0)}"
@@ -6534,7 +7621,6 @@ def _build_evidence_checklist(prisma, has_screening=False):
         if counts.get("error"):
             lines.append(f"  {'':<20} ERROR: {counts['error']}")
 
-    review_protocol = _load_protocol()
     if any(v for k, v in review_protocol.items() if k != "updatedAt"):
         lines += ["", "--- REVIEW PROTOCOL (see 03_protocol/review_protocol.json) ---"]
         if review_protocol.get("registered"):
@@ -6547,15 +7633,71 @@ def _build_evidence_checklist(prisma, has_screening=False):
         else:
             lines.append("  Registration:        not registered")
         lines.append(f"  Reviewers:           {review_protocol.get('reviewers', 1)}")
-        if review_protocol.get("synthesisMethod"):
-            lines.append(f"  Synthesis method:    {review_protocol['synthesisMethod']}")
-        if review_protocol.get("robTool"):
-            lines.append(f"  Risk-of-bias tool:   {review_protocol['robTool']}")
-        if review_protocol.get("funding"):
-            lines.append(f"  Funding:             {review_protocol['funding']}")
+        for label, field in (
+            ("Synthesis method",   "synthesisMethod"),
+            ("Risk-of-bias tool",  "robTool"),
+            ("Effect measures",    "effectMeasures"),
+            ("Reporting bias",     "reportingBiasMethod"),
+            ("Certainty method",   "certaintyMethod"),
+            ("Funding",            "funding"),
+            ("Competing interests", "competingInterests"),
+        ):
+            if review_protocol.get(field):
+                lines.append(f"  {label + ':':<20} {review_protocol[field]}")
+
+    if recall:
+        lines += [
+            "",
+            "--- VALIDATION (SEED) PAPER RECALL ---",            f"  Retrieved {len(recall['found'])} of {recall['total']} known papers.",
+        ]
+        for title, sources in recall["found"]:
+            lines.append(f"    [OK] {title[:56]:<56} {', '.join(sources)[:20]}")
+        for title, _ in recall["missing"]:
+            lines.append(f"    [--] {title[:56]}")
+        if recall["missing"]:
+            lines.append("  Missing seeds suggest the query may be too narrow - review before reporting.")
+
+    if ai_usage and ai_usage.get("count"):
+        lines += [
+            "",
+            "--- AUTOMATION TOOLS USED IN SELECTION (PRISMA 16b) ---",
+            f"  AI-assisted decisions: {ai_usage['count']} of {ai_usage.get('total', 0)}",
+            f"  Model(s):              {', '.join(ai_usage.get('models') or ['unspecified'])}",
+            "  Every AI suggestion was accepted or overridden by a human reviewer.",
+        ]
+
+    lines += ["", "--- ITEMS STILL NEEDING MANUAL ATTENTION ---"]
+    todo = []
+    if not review_protocol.get("registered"):
+        todo.append("24a: not registered - record the register and number, or state 'not registered'.")
+    if _to_int(review_protocol.get("reviewers"), 1) < 2:
+        todo.append("Selection: 1 reviewer recorded - PRISMA recommends >= 2 independent reviewers.")
+    for label, field in (
+        ("11: risk-of-bias assessment", "robTool"),
+        ("13: synthesis method", "synthesisMethod"),
+        ("12: effect measures", "effectMeasures"),
+        ("14: reporting-bias assessment", "reportingBiasMethod"),
+        ("15: certainty assessment", "certaintyMethod"),
+        ("25: funding/support", "funding"),
+        ("26: competing interests", "competingInterests"),
+    ):
+        if not review_protocol.get(field):
+            todo.append(f"{label}: not recorded in the protocol.")
+    if not has_screening:
+        todo.append("16b: no title/abstract screening decisions were recorded in this package.")
+    for db, counts in db_counts.items():
+        if counts.get("error"):
+            todo.append(f"16a: '{db}' returned an error - its records are missing or incomplete.")
+        elif counts.get("warning"):
+            todo.append(f"16a: '{db}' was truncated by an API limit - report as a search limitation.")
+    if todo:
+        for entry in todo:
+            lines.append(f"  [ ] {entry}")
+    else:
+        lines.append("  Nothing outstanding - all auto-checkable items are recorded.")
 
     lines.append("")
-    lines.append("=" * 70)
+    lines.append("=" * 88)
     return "\n".join(lines)
 
 

@@ -142,6 +142,11 @@
             box-sizing: border-box;
         }
         .db-group-body.open { display: flex; flex-direction: column; gap: 1rem; }
+        .db-tier {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: #6b7280;
+            border-bottom: 1px solid #e5e7eb; padding-bottom: 0.35rem; margin-bottom: -0.25rem;
+        }
         .db-group-body .card {
             border-radius: 8px;
             border: 1px solid #d0d7e2;
@@ -272,47 +277,7 @@
         </div>
         <div class="db-group-body" id="dbGroupBody">
 
-        <!-- IEEE Xplore API Key -->
-        <div class="card">
-            <h2>IEEE Xplore API Key</h2>
-            <p class="desc">Required to search the IEEE Xplore database. Get a free API key from 
-                <a href="https://developer.ieee.org/" target="_blank" rel="noopener" class="help-link">developer.ieee.org</a>
-            </p>
-            <div class="api-key-row">
-                <label>API Key:</label>
-                <input type="text" id="ieeeKey" placeholder="Enter your IEEE Xplore API key" oninput="updateTestBtn('ieeeKey','ieeeTestBtn')">
-                <span id="ieeeStatus" class="status-badge not-configured">Not configured</span>
-            </div>
-            <p class="key-info" id="ieeeInfo"></p>
-            <div class="btn-group">
-                <button class="btn btn-success" onclick="saveIeeeKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
-                <button class="btn btn-teal" id="ieeeTestBtn" onclick="testIeeeKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
-                <button class="btn btn-danger" onclick="confirmClearIeeeKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
-            </div>
-            <div class="alert alert-success" id="ieeeSuccess"></div>
-            <div class="alert alert-error" id="ieeeError"></div>
-            <p class="last-checked" id="ieeeLastChecked"></p>
-        </div>
-
-        <!-- ACM Digital Library -->
-        <div class="card">
-            <h2>ACM Digital Library</h2>
-            <p class="desc">No API key required — ACM DL metadata search is freely accessible. An optional institutional key can be provided for enhanced access.</p>
-            <div class="api-key-row">
-                <label>API Key (optional):</label>
-                <input type="text" id="acmKey" placeholder="Optional — institutional API key">
-                <span id="acmStatus" class="status-badge configured">No key needed</span>
-            </div>
-            <p class="key-info" id="acmInfo"></p>
-            <div class="btn-group">
-                <button class="btn btn-success" onclick="saveAcmKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
-                <button class="btn btn-teal" onclick="testAcmKey(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
-                <button class="btn btn-danger" onclick="confirmClearAcmKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
-            </div>
-            <div class="alert alert-success" id="acmSuccess"></div>
-            <div class="alert alert-error" id="acmError"></div>
-            <p class="last-checked" id="acmLastChecked"></p>
-        </div>
+        <div class="db-tier">Requires an API key</div>
 
         <!-- Scopus API Key -->
         <div class="card">
@@ -358,6 +323,81 @@
             <p class="last-checked" id="sciencedirectLastChecked"></p>
         </div>
 
+        <!-- Inspec (Engineering Village) API Key -->
+        <div class="card">
+            <h2>Inspec (Engineering Village) API Key</h2>
+            <p class="desc">Required to search the Inspec database via Engineering Village. Get an API key from 
+                <a href="https://dev.elsevier.com/" target="_blank" rel="noopener" class="help-link">dev.elsevier.com</a>
+            </p>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="text" id="inspecKey" placeholder="Enter your Inspec / Engineering Village API key" oninput="updateTestBtn('inspecKey','inspecTestBtn')">
+                <span id="inspecStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="inspecInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveInspecKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" id="inspecTestBtn" onclick="testInspecKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearInspecKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="inspecSuccess"></div>
+            <div class="alert alert-error" id="inspecError"></div>
+            <p class="last-checked" id="inspecLastChecked"></p>
+        </div>
+
+        <!-- Web of Science -->
+        <div class="card">
+            <h2>Web of Science</h2>
+            <p class="desc">Two editions share the same key. <strong>Starter</strong> is free from
+                <a href="https://developer.clarivate.com/apis/wos-starter" target="_blank" rel="noopener" class="help-link">developer.clarivate.com</a>
+                but <strong>returns no abstracts</strong>, so title-and-abstract screening is limited for those records; free plans allow as few as 50 requests/day.
+                <strong>Expanded</strong> requires a paid institutional subscription and returns full records including abstracts.
+            </p>
+            <div class="api-key-row">
+                <label>Edition:</label>
+                <select id="wosEdition">
+                    <option value="starter">Starter &mdash; free key, no abstracts</option>
+                    <option value="expanded">Expanded &mdash; subscription, with abstracts</option>
+                </select>
+            </div>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="password" id="wosKey" placeholder="Your Clarivate API key">
+                <span id="wosStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="wosInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveWosKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" onclick="testWosKey(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearWosKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="wosSuccess"></div>
+            <div class="alert alert-error" id="wosError"></div>
+            <p class="last-checked" id="wosLastChecked"></p>
+        </div>
+
+        <!-- IEEE Xplore API Key -->
+        <div class="card">
+            <h2>IEEE Xplore API Key</h2>
+            <p class="desc">Required to search the IEEE Xplore database. Get a free API key from 
+                <a href="https://developer.ieee.org/" target="_blank" rel="noopener" class="help-link">developer.ieee.org</a>
+            </p>
+            <div class="api-key-row">
+                <label>API Key:</label>
+                <input type="text" id="ieeeKey" placeholder="Enter your IEEE Xplore API key" oninput="updateTestBtn('ieeeKey','ieeeTestBtn')">
+                <span id="ieeeStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="ieeeInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveIeeeKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" id="ieeeTestBtn" onclick="testIeeeKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearIeeeKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="ieeeSuccess"></div>
+            <div class="alert alert-error" id="ieeeError"></div>
+            <p class="last-checked" id="ieeeLastChecked"></p>
+        </div>
+
         <!-- Springer Nature API Key -->
         <div class="card">
             <h2>Springer Nature API Key</h2>
@@ -380,27 +420,38 @@
             <p class="last-checked" id="springerLastChecked"></p>
         </div>
 
-        <!-- Inspec (Engineering Village) API Key -->
+        <!-- EBSCO Discovery Service -->
         <div class="card">
-            <h2>Inspec (Engineering Village) API Key</h2>
-            <p class="desc">Required to search the Inspec database via Engineering Village. Get an API key from 
-                <a href="https://dev.elsevier.com/" target="_blank" rel="noopener" class="help-link">dev.elsevier.com</a>
+            <h2>EBSCO Discovery Service</h2>
+            <p class="desc">Requires an active institutional EDS subscription. Unlike the other databases, EDS authenticates with three values issued by your library — register at
+                <a href="https://developer.ebsco.com/" target="_blank" rel="noopener" class="help-link">EBSCO Developer Network</a>.
+                Note that EBSCO's licence restricts caching and redistribution of retrieved metadata.
             </p>
             <div class="api-key-row">
-                <label>API Key:</label>
-                <input type="text" id="inspecKey" placeholder="Enter your Inspec / Engineering Village API key" oninput="updateTestBtn('inspecKey','inspecTestBtn')">
-                <span id="inspecStatus" class="status-badge not-configured">Not configured</span>
+                <label>User ID:</label>
+                <input type="text" id="ebscoUserId" placeholder="EDS User ID">
+                <span id="ebscoStatus" class="status-badge not-configured">Not configured</span>
             </div>
-            <p class="key-info" id="inspecInfo"></p>
+            <div class="api-key-row">
+                <label>Password:</label>
+                <input type="password" id="ebscoPassword" placeholder="EDS Password">
+            </div>
+            <div class="api-key-row">
+                <label>Profile ID:</label>
+                <input type="text" id="ebscoProfile" placeholder="e.g. edsapi">
+            </div>
+            <p class="key-info" id="ebscoInfo"></p>
             <div class="btn-group">
-                <button class="btn btn-success" onclick="saveInspecKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
-                <button class="btn btn-teal" id="inspecTestBtn" onclick="testInspecKey(this)" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
-                <button class="btn btn-danger" onclick="confirmClearInspecKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+                <button class="btn btn-success" onclick="saveEbscoKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Credentials</button>
+                <button class="btn btn-teal" onclick="testEbscoKey(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearEbscoKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Credentials</button>
             </div>
-            <div class="alert alert-success" id="inspecSuccess"></div>
-            <div class="alert alert-error" id="inspecError"></div>
-            <p class="last-checked" id="inspecLastChecked"></p>
+            <div class="alert alert-success" id="ebscoSuccess"></div>
+            <div class="alert alert-error" id="ebscoError"></div>
+            <p class="last-checked" id="ebscoLastChecked"></p>
         </div>
+
+        <div class="db-tier">Optional key &mdash; works without one</div>
 
         <!-- PubMed API Key -->
         <div class="card">
@@ -424,20 +475,42 @@
             <p class="last-checked" id="pubmedLastChecked"></p>
         </div>
 
-        <!-- arXiv -->
+        <!-- ACM Digital Library -->
         <div class="card">
-            <h2>arXiv</h2>
-            <p class="desc">No API key required — arXiv is freely and openly accessible.</p>
+            <h2>ACM Digital Library</h2>
+            <p class="desc">No API key required — ACM DL metadata search is freely accessible. An optional institutional key can be provided for enhanced access.</p>
+            <div class="api-key-row">
+                <label>API Key (optional):</label>
+                <input type="text" id="acmKey" placeholder="Optional — institutional API key">
+                <span id="acmStatus" class="status-badge configured">No key needed</span>
+            </div>
+            <p class="key-info" id="acmInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveAcmKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
+                <button class="btn btn-teal" onclick="testAcmKey(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearAcmKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
+            </div>
+            <div class="alert alert-success" id="acmSuccess"></div>
+            <div class="alert alert-error" id="acmError"></div>
+            <p class="last-checked" id="acmLastChecked"></p>
+        </div>
+
+        <div class="db-tier">No key needed &mdash; connection check only</div>
+
+        <!-- OpenAlex -->
+        <div class="card">
+            <h2>OpenAlex</h2>
+            <p class="desc">No API key required — OpenAlex is completely free and openly accessible. Covers 250M+ scholarly works.</p>
             <div class="api-key-row">
                 <label>Status:</label>
                 <span class="status-badge configured">No key needed</span>
             </div>
             <div class="btn-group">
-                <button class="btn btn-teal" onclick="testArxivConnection(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-teal" onclick="testOpenAlexConnection(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
             </div>
-            <div class="alert alert-success" id="arxivSuccess"></div>
-            <div class="alert alert-error" id="arxivError"></div>
-            <p class="last-checked" id="arxivLastChecked"></p>
+            <div class="alert alert-success" id="openalexSuccess"></div>
+            <div class="alert alert-error" id="openalexError"></div>
+            <p class="last-checked" id="openalexLastChecked"></p>
         </div>
 
         <!-- HAL Open Science -->
@@ -456,20 +529,20 @@
             <p class="last-checked" id="halLastChecked"></p>
         </div>
 
-        <!-- OpenAlex -->
+        <!-- arXiv -->
         <div class="card">
-            <h2>OpenAlex</h2>
-            <p class="desc">No API key required — OpenAlex is completely free and openly accessible. Covers 250M+ scholarly works.</p>
+            <h2>arXiv</h2>
+            <p class="desc">No API key required — arXiv is freely and openly accessible.</p>
             <div class="api-key-row">
                 <label>Status:</label>
                 <span class="status-badge configured">No key needed</span>
             </div>
             <div class="btn-group">
-                <button class="btn btn-teal" onclick="testOpenAlexConnection(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-teal" onclick="testArxivConnection(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
             </div>
-            <div class="alert alert-success" id="openalexSuccess"></div>
-            <div class="alert alert-error" id="openalexError"></div>
-            <p class="last-checked" id="openalexLastChecked"></p>
+            <div class="alert alert-success" id="arxivSuccess"></div>
+            <div class="alert alert-error" id="arxivError"></div>
+            <p class="last-checked" id="arxivLastChecked"></p>
         </div>
 
         </div><!-- /.db-group-body -->
@@ -911,6 +984,8 @@
                 { api: 'hal',           ok: 'halSuccess',           err: 'halError',           statusId: null, noKey: true },
                 { api: 'arxiv',         ok: 'arxivSuccess',         err: 'arxivError',         statusId: null, noKey: true },
                 { api: 'openalex',      ok: 'openalexSuccess',      err: 'openalexError',      statusId: null, noKey: true },
+                { api: 'ebsco',         ok: 'ebscoSuccess',         err: 'ebscoError',         statusId: 'ebscoStatus' },
+                { api: 'wos',           ok: 'wosSuccess',           err: 'wosError',           statusId: 'wosStatus' },
             ];
             apis.forEach(({ api, statusId, noKey, keepStateIfUnconfigured }) => {
                 // Skip restoring state for keys that are not configured, except for PubMed.
@@ -1426,6 +1501,169 @@
             await testConnection('acm', key, 'acmSuccess', 'acmError', btn, trigger);
         }
 
+        // --- EBSCO Discovery Service credentials ---
+        async function loadEbscoKey() {
+            try {
+                const resp = await fetch('/api/ebsco-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('ebscoStatus');
+                const infoEl = document.getElementById('ebscoInfo');
+                const userEl = document.getElementById('ebscoUserId');
+                const passEl = document.getElementById('ebscoPassword');
+                const profileEl = document.getElementById('ebscoProfile');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Credentials saved';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(userEl, data.userId);
+                    markKeyConfigured(passEl, '****');
+                    profileEl.value = data.profile || '';
+                    infoEl.textContent = 'EDS credentials are saved. Leave the password blank to keep the stored one.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(userEl);
+                    markKeyNotConfigured(passEl);
+                    profileEl.value = data.profile || '';
+                    infoEl.textContent = 'All three values are required. Ask your library administrator for the EDS profile ID.';
+                }
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveEbscoKey() {
+            const userId = document.getElementById('ebscoUserId').value.trim();
+            const password = document.getElementById('ebscoPassword').value.trim();
+            const profile = document.getElementById('ebscoProfile').value.trim();
+            const alreadySaved = document.getElementById('ebscoUserId').dataset.configured === '1';
+
+            if (!profile || (!userId && !alreadySaved) || (!password && !alreadySaved)) {
+                showAlert('ebscoError', 'Please enter the User ID, Password and Profile ID.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/ebsco-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({userId: userId, password: password, profile: profile})
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (resp.ok && data.ok) {
+                    await loadEbscoKey();
+                    testEbscoKey(null, 'manual');
+                } else {
+                    showAlert('ebscoError', data.error || 'Failed to save credentials.');
+                }
+            } catch(e) {
+                showAlert('ebscoError', 'Error saving credentials: ' + e.message);
+            }
+        }
+
+        async function clearEbscoKey() {
+            try {
+                await fetch('/api/ebsco-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({userId: '', password: '', profile: ''})
+                });
+                document.getElementById('ebscoUserId').value = '';
+                document.getElementById('ebscoPassword').value = '';
+                document.getElementById('ebscoProfile').value = '';
+                showAlert('ebscoSuccess', 'EBSCO credentials cleared.');
+                loadEbscoKey();
+            } catch(e) {
+                showAlert('ebscoError', 'Error clearing credentials: ' + e.message);
+            }
+        }
+
+        async function testEbscoKey(btn, trigger = 'manual') {
+            // Credentials always come from the server — the password is never held in the DOM.
+            await testConnection('ebsco', '', 'ebscoSuccess', 'ebscoError', btn, trigger);
+        }
+
+        // --- Web of Science API Key ---
+        async function loadWosKey() {
+            try {
+                const resp = await fetch('/api/wos-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('wosStatus');
+                const infoEl = document.getElementById('wosInfo');
+                const inputEl = document.getElementById('wosKey');
+                document.getElementById('wosEdition').value = data.edition || 'starter';
+                const expanded = (data.edition || 'starter') === 'expanded';
+
+                if (data.configured) {
+                    statusEl.textContent = 'Key saved';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = expanded
+                        ? 'Expanded API key is saved — records include abstracts.'
+                        : 'Starter API key is saved. Remember: no abstracts are returned by this edition.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = 'A free Starter API key is available from developer.clarivate.com.';
+                }
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveWosKey() {
+            const key = document.getElementById('wosKey').value.trim();
+            const edition = document.getElementById('wosEdition').value;
+            const alreadySaved = document.getElementById('wosKey').dataset.configured === '1';
+            if (!key && !alreadySaved) {
+                showAlert('wosError', 'Please enter an API key.');
+                return;
+            }
+            try {
+                // A blank box with a stored key means "only change the edition",
+                // so omit the key field entirely rather than clearing it.
+                const body = (alreadySaved && !key)
+                    ? {edition: edition}
+                    : {key: key, edition: edition};
+                const resp = await fetch('/api/wos-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                if (resp.ok) {
+                    await loadWosKey();
+                    testWosKey(null, 'manual');
+                } else {
+                    showAlert('wosError', 'Failed to save key.');
+                }
+            } catch(e) {
+                showAlert('wosError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearWosKey() {
+            try {
+                await fetch('/api/wos-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('wosKey').value = '';
+                showAlert('wosSuccess', 'Web of Science API key cleared.');
+                loadWosKey();
+            } catch(e) {
+                showAlert('wosError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        async function testWosKey(btn, trigger = 'manual') {
+            const key = document.getElementById('wosKey').value.trim();
+            await testConnection('wos', key, 'wosSuccess', 'wosError', btn, trigger);
+        }
         (async function() {
             const [
                 ieeeConfigured,
@@ -1434,7 +1672,9 @@
                 sciencedirectConfigured,
                 springerConfigured,
                 pubmedConfigured,
-                acmConfigured
+                acmConfigured,
+                ebscoConfigured,
+                wosConfigured
             ] = await Promise.all([
                 loadIeeeKey(),
                 loadScopusKey(),
@@ -1442,7 +1682,9 @@
                 loadSciencedirectKey(),
                 loadSpringerKey(),
                 loadPubmedKey(),
-                loadAcmKey()
+                loadAcmKey(),
+                loadEbscoKey(),
+                loadWosKey()
             ]);
             restoreConnectionStates();
             // Auto-test no-key APIs and key-based APIs that are configured.
@@ -1456,6 +1698,8 @@
             if (springerConfigured) testSpringerKey(null, 'auto-refresh');
             testPubmedKey(null, 'auto-refresh');
             testAcmKey(null, 'auto-refresh');
+            if (ebscoConfigured) testEbscoKey(null, 'auto-refresh');
+            if (wosConfigured) testWosKey(null, 'auto-refresh');
         })();
 
         // --- SMTP Configuration ---
@@ -1590,6 +1834,16 @@
             showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear ACM Digital Library API Key?',
                 message: 'The ACM Digital Library API key will be removed. ACM DL searches will be unavailable until a new key is saved.',
                 confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearAcmKey });
+        }
+        function confirmClearEbscoKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear EBSCO Credentials?',
+                message: 'The EDS User ID, Password and Profile ID will be removed. EBSCO searches will be unavailable until new credentials are saved.',
+                confirmLabel: 'Yes, clear them', cancelLabel: 'Keep credentials', onConfirm: clearEbscoKey });
+        }
+        function confirmClearWosKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear Web of Science API Key?',
+                message: 'The Web of Science API key will be removed. Web of Science searches will be unavailable until a new key is saved.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearWosKey });
         }
         function confirmClearSmtpConfig() {
             showConfirmModal({ icon: RSP_ICONS.mail, title: 'Clear SMTP Configuration?',

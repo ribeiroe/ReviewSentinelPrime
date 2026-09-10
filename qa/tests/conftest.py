@@ -47,6 +47,9 @@ def client(tmp_data_dir):
     original_sd          = rsp_app.SCIENCEDIRECT_API_KEY_FILE
     original_springer    = rsp_app.SPRINGER_API_KEY_FILE
     original_pubmed      = rsp_app.PUBMED_API_KEY_FILE
+    original_ebsco       = rsp_app.EBSCO_CREDENTIALS_FILE
+    original_wos         = rsp_app.WOS_API_KEY_FILE
+    original_wos_edition = rsp_app.WOS_EDITION_FILE
     original_github      = rsp_app.GITHUB_TOKEN_FILE
 
     rsp_app.DATA_DIR         = str(tmp_data_dir)
@@ -66,6 +69,9 @@ def client(tmp_data_dir):
     rsp_app.SCIENCEDIRECT_API_KEY_FILE = str(tmp_data_dir / "sciencedirect_api_key.txt")
     rsp_app.SPRINGER_API_KEY_FILE    = str(tmp_data_dir / "springer_api_key.txt")
     rsp_app.PUBMED_API_KEY_FILE      = str(tmp_data_dir / "pubmed_api_key.txt")
+    rsp_app.EBSCO_CREDENTIALS_FILE   = str(tmp_data_dir / "ebsco_credentials.json")
+    rsp_app.WOS_API_KEY_FILE         = str(tmp_data_dir / "wos_api_key.txt")
+    rsp_app.WOS_EDITION_FILE         = str(tmp_data_dir / "wos_edition.txt")
     rsp_app.GITHUB_TOKEN_FILE        = str(tmp_data_dir / "github_token.txt")
 
     rsp_app.app.config["TESTING"] = True
@@ -82,6 +88,9 @@ def client(tmp_data_dir):
     rsp_app.SCIENCEDIRECT_API_KEY_FILE = original_sd
     rsp_app.SPRINGER_API_KEY_FILE    = original_springer
     rsp_app.PUBMED_API_KEY_FILE      = original_pubmed
+    rsp_app.EBSCO_CREDENTIALS_FILE   = original_ebsco
+    rsp_app.WOS_API_KEY_FILE         = original_wos
+    rsp_app.WOS_EDITION_FILE         = original_wos_edition
     rsp_app.GITHUB_TOKEN_FILE        = original_github
 
 

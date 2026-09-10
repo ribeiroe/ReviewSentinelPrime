@@ -4,13 +4,13 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.0.1 · Python 3.12 · Flask 3.1 · Docker ready
+v2.1.0 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
 ## What is RSP?
 
-**Review Sentinel Prime** is a web application that runs entirely on your own computer. It lets researchers search up to **10 scientific databases simultaneously** using Boolean query syntax (`OR`, `AND`, parentheses), filter and validate results, generate PRISMA 2020 flow diagrams, and export complete SLR replication packages — all from a browser interface with no coding required.
+**Review Sentinel Prime** is a web application that runs entirely on your own computer. It lets researchers search up to **12 scientific databases simultaneously** using Boolean query syntax (`OR`, `AND`, parentheses), filter and validate results, generate PRISMA 2020 flow diagrams, and export complete SLR replication packages — all from a browser interface with no coding required.
 
 ---
 
@@ -18,7 +18,7 @@ v2.0.1 · Python 3.12 · Flask 3.1 · Docker ready
 
 | Feature | Description |
 | --- | --- |
-| ▸ **Multi-database search** | Search IEEE Xplore, ACM DL, Scopus, ScienceDirect, Springer, Inspec, PubMed, arXiv, HAL, OpenAlex simultaneously (10 databases) |
+| ▸ **Multi-database search** | Search IEEE Xplore, ACM DL, Scopus, ScienceDirect, Springer, Inspec, PubMed, arXiv, HAL, OpenAlex, EBSCO, Web of Science simultaneously (12 databases) |
 | ▸ **Boolean query syntax** | Full support for `OR`, `AND`, parentheses, and exact phrases — with an in-page Query tips guide |
 | ▸ **Live progress** | Real-time per-database progress panel with elapsed timer |
 | ▸ **Filters & criteria** | Year range, document type, language, and four color-coded filter cards (Include Terms, Exclude Terms, Include Venues, Exclude Venues) |
@@ -45,11 +45,49 @@ v2.0.1 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
+## What's New in v2.1.0
+
+### ⚠️ Behaviour change
+
+Include/exclude **term filters now also match author keywords**, in addition to title and abstract. Re-running an existing saved search may return a different set of papers than it did on v2.0.1 — re-run your searches before comparing PRISMA counts against earlier exports.
+
+### New databases (10 → 12)
+
+- **Web of Science** — Clarivate API key. Two editions share one key, selectable in Settings: *Starter* (free, self-service, **returns no abstracts**, as few as 50 requests/day) and *Expanded* (institutional subscription, full records with abstracts). Requests are throttled to stay inside the free-tier rate limit.
+- **EBSCO Discovery Service** — institutional EDS subscription, authenticated with User ID + Password + Profile ID. EBSCO's licence restricts caching and redistribution of retrieved metadata.
+
+### PRISMA 2020 evidence checklist — now largely automated
+
+- Artefact rows are marked `[OK]` / `[--]` from the ZIP's actual contents, so the checklist no longer claims files that were not produced.
+- Records excluded **with reasons** — all eight filter reasons, with a total.
+- Title & abstract screening totals, including records not yet screened.
+- **Identification by source** — databases/registers vs citation searching. Snowballed records were previously counted as database hits.
+- **Validation (seed) paper recall** — reports which known papers the search actually retrieved, and flags a query that may be too narrow.
+- **Automation disclosure** — AI-assisted decision count and model(s), as required when automation tools are used in study selection.
+- **Items still needing manual attention** — registration, reviewer count, protocol items 11–15/25/26, and any database that errored or was truncated.
+- Mapping extended to PRISMA items 5, 24a, 24b and 27.
+
+### Data format (additive)
+
+- `screening_decisions.csv` gains `ai_assisted` and `ai_model` columns.
+- `prisma_data.json` gains `identification.other_methods`.
+
+### Interface
+
+- Search and Saved Searches: database checkboxes grouped into *Ready to use — no API key* and *Requires an API key*.
+- Settings: database cards regrouped into *Requires an API key* / *Optional key* / *No key needed*, with the three Elsevier services (Scopus, ScienceDirect, Inspec) placed together since they share one key.
+
+### Documentation
+
+Manual, About page and release guides updated to 12 databases; manual Figure 2 redrawn to match the grouped database selector.
+
+---
+
 ## What's New in v2.0.1 — Initial Release
 
 This is the first public release of Review Sentinel Prime. Highlights include:
 
-- **Multi-database search** across 10 scientific databases with Boolean query syntax, live progress tracking, and configurable filters/criteria
+- **Multi-database search** across 12 scientific databases with Boolean query syntax, live progress tracking, and configurable filters/criteria
 - **T&A Screening** with an optional local-LLM AI Screening Assistant (Ollama or any OpenAI-compatible endpoint) that suggests Include/Exclude/Unsure decisions for the reviewer to accept or override
 - **PRISMA 2020 support** — auto-generated flow diagram, Review Protocol form, and an Evidence Checklist that auto-assesses up to 27 of 39 entries from run data
 - **Saved searches** with scheduled re-runs and diff-based email notifications
@@ -75,6 +113,8 @@ This is the first public release of Review Sentinel Prime. Highlights include:
 | arXiv | No |
 | HAL Open Science | No |
 | OpenAlex | No |
+| EBSCO Discovery Service | Yes — institutional EDS subscription (User ID, Password *and* Profile ID); EBSCO's licence restricts caching and redistribution of retrieved metadata |
+| Web of Science | Yes — two editions share one key. **Starter**: free at `developer.clarivate.com`, but returns **no abstracts** and free plans allow as few as 50 requests/day. **Expanded**: paid institutional subscription, full records with abstracts |
 
 ---
 
@@ -193,7 +233,8 @@ If RSP helped produce a paper, thesis, or report, please cite it as:
 @software{ribeiro2026rsp,
   author  = {Ferreira Ribeiro, J. Eduardo and Pessoa Soares, Nuno},
   title   = {Review Sentinel Prime (RSP)},
-  year    = {2026}
+  year    = {2026},
+  url.    = {https://github.com/ribeiroe/ReviewSentinelPrime}
 }
 ```
 

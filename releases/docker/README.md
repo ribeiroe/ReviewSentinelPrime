@@ -1,4 +1,4 @@
-# Review Sentinel Prime v2.0.1 — User Guide
+# Review Sentinel Prime v2.1.0 — User Guide
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
@@ -27,7 +27,7 @@
 
 **Review Sentinel Prime (RSP)** is a tool for researchers who need to search scientific databases as part of a **Systematic Literature Review (SLR)**.
 
-Instead of visiting Google Scholar, IEEE, PubMed, arXiv, and others one by one, this app lets you search up to **ten databases at the same time** from a single screen — and automatically removes duplicate results.
+Instead of visiting Google Scholar, IEEE, PubMed, arXiv, and others one by one, this app lets you search up to **twelve databases at the same time** from a single screen — and automatically removes duplicate results.
 
 **Everything runs on your own computer.** Your search history, API keys, and results never leave your machine.
 
@@ -265,4 +265,4 @@ Please contact the support team and include:
 
 ---
 
-Review Sentinel Prime v2.0.1 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.1.0 — Systematic Literature Review Automation Platform

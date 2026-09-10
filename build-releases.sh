@@ -17,7 +17,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 DIST="$ROOT/dist"
 
 # ── Current version (single source of truth in this file) ────────────────────
-VERSION="v2.0.1"
+VERSION="v2.1.0"
 
 APP_ITEMS=("app.py" "requirements.txt" "templates" "static" "LICENSE")
 
