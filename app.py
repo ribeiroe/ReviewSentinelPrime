@@ -27,7 +27,7 @@ from flask import Flask, render_template, request, jsonify, send_file, Response,
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-RSP_VERSION = "v2.1.1"
+RSP_VERSION = "v2.1.2"
 
 @app.context_processor
 def inject_rsp_version():
@@ -2833,6 +2833,16 @@ def build_query(keywords):
     return normalize_boolean_operators(keywords)
 
 
+def strip_wildcards_in_quotes(text):
+    """Remove * and ? wildcards from inside double-quoted phrases.
+
+    arXiv and OpenAlex's default (stemmed) search both reject wildcards used
+    inside a multi-word quoted phrase, so this is applied before dispatch to
+    either connector.
+    """
+    return re.sub(r'"[^"]*"', lambda m: m.group(0).replace('*', '').replace('?', ''), text)
+
+
 def build_arxiv_query(keywords):
     """Build an arXiv-compatible query from user input."""
     keywords = normalize_boolean_operators(keywords)
@@ -2842,7 +2852,7 @@ def build_arxiv_query(keywords):
     normalized = " ".join(keywords.split())
 
     # arXiv does not support wildcards (* or ?) inside quoted phrases — strip them.
-    normalized = re.sub(r'"[^"]*"', lambda m: m.group(0).replace('*', '').replace('?', ''), normalized)
+    normalized = strip_wildcards_in_quotes(normalized)
 
     # Preserve explicit Boolean expressions and fielded/quoted queries.
     if re.search(r"\b(AND|OR|NOT|ANDNOT)\b", normalized) or '"' in normalized or "'" in normalized:
@@ -3046,7 +3056,8 @@ def build_db_queries(keywords, filters=None):
         oa_filter_parts.append(f"language:{languages[0]}")
     queries["openalex"] = {
         "query_param": "search",
-        "query": keywords,
+        # OpenAlex's default search is stemmed and returns 400 for wildcards inside quotes.
+        "query": strip_wildcards_in_quotes(keywords),
         "extra_params": {"filter": ",".join(oa_filter_parts)} if oa_filter_parts else {},
     }
 
@@ -3337,7 +3348,7 @@ def search_arxiv(keywords, rows, filters=None):
     normalized = []
     total_records = 0
     error_msg = None
-    max_retries = 3
+    max_retries = 5
     while True:
         params = {
             "search_query": search_query,
@@ -3370,6 +3381,14 @@ def search_arxiv(keywords, rows, filters=None):
                 break
             except requests.exceptions.HTTPError as e:
                 if e.response is not None and e.response.status_code == 500:
+                    # arXiv's backend intermittently 500s on complex Boolean queries
+                    # when max_results is large; a smaller batch often succeeds.
+                    if attempt < max_retries - 1 and page_size > 25:
+                        page_size = max(25, page_size // 2)
+                        params["max_results"] = page_size
+                        time.sleep(5 * (attempt + 1))
+                        response = None
+                        continue
                     error_msg = (
                         "arXiv returned a 500 error — the query is likely too complex or contains "
                         "unsupported syntax (e.g. wildcards inside quoted phrases). "
@@ -4002,8 +4021,12 @@ def search_sciencedirect(keywords, rows, filters=None):
 
         search_results = data.get("search-results", {})
         if total_records == 0:
-            total_records = int(search_results.get("opensearch:totalResults", 0))
+            # .get(..., 0) only covers a missing key — Elsevier sometimes sends
+            # the key with an explicit null, which still needs the `or 0` fallback.
+            total_records = int(search_results.get("opensearch:totalResults") or 0)
         entries = search_results.get("entry", [])
+        if not isinstance(entries, list):
+            entries = [entries] if entries else []
         if not entries:
             break
 
@@ -4686,7 +4709,8 @@ def search_openalex(keywords, rows, filters=None):
         filter_parts.append(f"type:{oa_types[0]}")
 
     params = {
-        "search":   keywords,
+        # OpenAlex's default search is stemmed and returns 400 for wildcards inside quotes.
+        "search":   strip_wildcards_in_quotes(keywords),
         "per-page": per_page,
         "select":   ("id,doi,title,publication_year,primary_location,"
                      "authorships,abstract_inverted_index,keywords,type,language"),

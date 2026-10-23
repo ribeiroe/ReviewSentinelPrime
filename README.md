@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.1.1 · Python 3.12 · Flask 3.1 · Docker ready
+v2.1.2 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
