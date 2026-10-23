@@ -433,7 +433,7 @@
         <!-- 4. Supported Databases -->
         <div class="manual-section" id="databases">
             <h2>4. Supported Databases</h2>
-            <p>RSP searches across 10 major scientific databases. Some require API keys (free to obtain).</p>
+            <p>RSP searches across 12 major scientific databases. Some require API keys (free to obtain).</p>
 
             <table class="db-table">
                 <thead>
@@ -442,10 +442,10 @@
                 <tbody>
                     <tr><td><strong>IEEE Xplore</strong></td><td>Engineering, CS, Electronics</td><td><strong>Required</strong></td><td>Free developer key from IEEE</td></tr>
                     <tr><td><strong>ACM Digital Library</strong></td><td>Computing, software engineering, HCI</td><td>Not required</td><td>ACM has no public API and its website blocks automated server-side access (Cloudflare). RSP reports this explicitly in the search progress panel — collect ACM results manually if the block applies</td></tr>
-                    <tr><td><strong>Scopus</strong></td><td>Multi-disciplinary (Elsevier)</td><td><strong>Required</strong></td><td>Largest abstract/citation database</td></tr>
-                    <tr><td><strong>ScienceDirect</strong></td><td>Full-text journals (Elsevier)</td><td><strong>Required</strong></td><td>Same Elsevier key as Scopus</td></tr>
+                    <tr><td><strong>Scopus</strong></td><td>Multi-disciplinary (Elsevier)</td><td><strong>Required</strong></td><td>Largest abstract/citation database. If requests run outside your institution's network, also add the optional institutional token (section 14)</td></tr>
+                    <tr><td><strong>ScienceDirect</strong></td><td>Full-text journals (Elsevier)</td><td><strong>Required</strong></td><td>Same Elsevier key as Scopus; same optional institutional token applies</td></tr>
                     <tr><td><strong>Springer Nature</strong></td><td>STM journals &amp; books</td><td><strong>Required</strong></td><td>Free key from Springer developer portal</td></tr>
-                    <tr><td><strong>Inspec</strong></td><td>Physics, EE, CS, IT</td><td><strong>Required</strong></td><td>Engineering Village (Elsevier)</td></tr>
+                    <tr><td><strong>Inspec</strong></td><td>Physics, EE, CS, IT</td><td><strong>Required</strong></td><td>Engineering Village (Elsevier) — separate auth scheme, does not use the institutional token</td></tr>
                     <tr><td><strong>PubMed</strong></td><td>Biomedical, life sciences</td><td>Optional</td><td>Works without key; key improves rate limits</td></tr>
                     <tr><td><strong>arXiv</strong></td><td>Physics, Math, CS, Biology, Finance</td><td>Not required</td><td>Preprints; has rate limiting</td></tr>
                     <tr><td><strong>HAL Open Science</strong></td><td>Multi-disciplinary (French national archive)</td><td>Not required</td><td>Supports language/type filters server-side</td></tr>
@@ -456,7 +456,7 @@
             </table>
 
             <div class="info">
-                <strong>Setting up API keys:</strong> Go to <strong>Settings</strong> → enter your key for each database → click <strong>Save Key</strong>. Keys are stored locally in the <code>data/</code> folder. See section 11 for details.
+                <strong>Setting up API keys:</strong> Go to <strong>Settings</strong> → enter your key for each database → click <strong>Save Key</strong>. Keys are stored locally in the <code>data/</code> folder. See section 14 for details.
             </div>
         </div>
 
@@ -1198,6 +1198,10 @@
 
             <div class="tip">
                 <strong>Tip:</strong> Keys are stored locally in the <code>data/</code> folder on your computer. They are never sent anywhere except to the respective API endpoints when running a search or test. For safety, a saved key is never displayed back in full — the input shows a masked preview (e.g. <code>Saved: vcah...yhnv</code>); to replace a key, simply type the new one and save.
+            </div>
+
+            <div class="info">
+                <strong>Elsevier Institutional Token (optional):</strong> A card above the Scopus key lets you save an institutional token, shared by Scopus and ScienceDirect. It is only needed if RSP's requests run from outside your institution's network (e.g. a home machine or a cloud server) and get rejected despite a valid API key — Elsevier requires the token in that case to recognise your institutional entitlement. Get it from your library or Elsevier representative. Leave it blank if you only ever search from on-campus; the API key alone continues to work as before. Inspec (Engineering Village) uses a different authentication scheme and does not use this token.
             </div>
         </div>
 

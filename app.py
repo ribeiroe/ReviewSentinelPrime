@@ -27,7 +27,7 @@ from flask import Flask, render_template, request, jsonify, send_file, Response,
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-RSP_VERSION = "v2.1.0"
+RSP_VERSION = "v2.1.1"
 
 @app.context_processor
 def inject_rsp_version():
@@ -50,6 +50,9 @@ IEEE_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "da
 SCOPUS_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "scopus_api_key.txt")
 INSPEC_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "inspec_api_key.txt")
 SCIENCEDIRECT_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sciencedirect_api_key.txt")
+# Shared by Scopus and ScienceDirect: Elsevier requires this in addition to
+# the API key when a request originates outside the institution's IP range.
+ELSEVIER_INSTTOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "elsevier_insttoken.txt")
 SPRINGER_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "springer_api_key.txt")
 PUBMED_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pubmed_api_key.txt")
 ACM_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "acm_api_key.txt")
@@ -132,13 +135,27 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 
 
+def _clean_api_key(key):
+    """Strip whitespace/BOM and unwrap stray quotes from a pasted API key.
+
+    Catches keys copied from JSON/.env sources (e.g. "abc123") or saved with
+    a UTF-8 BOM, which .strip() alone would leave intact.
+    """
+    key = (key or "").strip()
+    if len(key) >= 2 and key[0] in ("'", '"') and key[-1] == key[0]:
+        key = key[1:-1].strip()
+    return key
+
+
 def _load_api_key(file_path, env_var):
     if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            key = f.read().strip()
+        with open(file_path, "r", encoding="utf-8-sig") as f:
+            key = _clean_api_key(f.read())
             if key:
                 return key
-    return os.environ.get(env_var, "")
+    # Env var fallback was previously returned raw; trailing newlines/quotes
+    # from shell exports or .env files would then reach the API unmasked.
+    return _clean_api_key(os.environ.get(env_var, ""))
 
 
 def _save_api_key(file_path, key):
@@ -159,6 +176,7 @@ def get_ieee_api_key():         return _load_api_key(IEEE_API_KEY_FILE,         
 def get_scopus_api_key():       return _load_api_key(SCOPUS_API_KEY_FILE,       "SCOPUS_API_KEY")
 def get_inspec_api_key():       return _load_api_key(INSPEC_API_KEY_FILE,       "INSPEC_API_KEY")
 def get_sciencedirect_api_key(): return _load_api_key(SCIENCEDIRECT_API_KEY_FILE, "SCIENCEDIRECT_API_KEY")
+def get_elsevier_insttoken():    return _load_api_key(ELSEVIER_INSTTOKEN_FILE,    "ELSEVIER_INSTTOKEN")
 def get_springer_api_key():     return _load_api_key(SPRINGER_API_KEY_FILE,     "SPRINGER_API_KEY")
 def get_pubmed_api_key():       return _load_api_key(PUBMED_API_KEY_FILE,       "PUBMED_API_KEY")
 def get_acm_api_key():          return _load_api_key(ACM_API_KEY_FILE,          "ACM_API_KEY")
@@ -1840,6 +1858,26 @@ def set_sciencedirect_key():
     return jsonify({"ok": True})
 
 
+# --- API: Elsevier Institutional Token (shared by Scopus & ScienceDirect) ---
+# Optional: only required when requests originate outside the institution's
+# IP range. Added to requests alongside the API key, never in place of it.
+
+@app.route("/api/elsevier-insttoken", methods=["GET"])
+def get_elsevier_insttoken_route():
+    token = get_elsevier_insttoken()
+    if token:
+        return jsonify({"configured": True, "key": token[:4] + "..." + token[-4:] if len(token) > 8 else "****"})
+    return jsonify({"configured": False, "key": ""})
+
+
+@app.route("/api/elsevier-insttoken", methods=["POST"])
+def set_elsevier_insttoken():
+    data = request.get_json()
+    token = data.get("key", "").strip()
+    _save_api_key(ELSEVIER_INSTTOKEN_FILE, token)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/springer-key", methods=["GET"])
 def get_springer_key():
     key = get_springer_api_key()
@@ -2401,6 +2439,10 @@ def test_connection():
         elif api == "scopus":
             if not key:
                 return jsonify({"ok": False, "message": "No API key provided."})
+            headers = {"Accept": "application/json", "X-ELS-APIKey": key}
+            insttoken = get_elsevier_insttoken()
+            if insttoken:
+                headers["X-ELS-Insttoken"] = insttoken
             # Use a proper TITLE-ABS-KEY query structure that Scopus accepts
             # The test query uses parentheses which Scopus requires for proper syntax
             r = requests.get(
@@ -2411,7 +2453,7 @@ def test_connection():
                     "sort": "-coverDate",
                     "view": "STANDARD",
                 },
-                headers={"Accept": "application/json", "X-ELS-APIKey": key},
+                headers=headers,
                 timeout=10,
             )
             if r.status_code == 200:
@@ -2454,10 +2496,14 @@ def test_connection():
         elif api == "sciencedirect":
             if not key:
                 return jsonify({"ok": False, "message": "No API key provided."})
+            headers = {"Accept": "application/json", "X-ELS-APIKey": key}
+            insttoken = get_elsevier_insttoken()
+            if insttoken:
+                headers["X-ELS-Insttoken"] = insttoken
             r = requests.get(
                 "https://api.elsevier.com/content/search/sciencedirect",
                 params={"query": "test", "count": 1},
-                headers={"Accept": "application/json", "X-ELS-APIKey": key},
+                headers=headers,
                 timeout=10,
             )
             if r.status_code == 200:
@@ -3609,6 +3655,9 @@ def search_scopus(keywords, rows, filters=None):
         "X-ELS-APIKey": api_key,
         "Accept": "application/json",
     }
+    insttoken = get_elsevier_insttoken()
+    if insttoken:
+        headers["X-ELS-Insttoken"] = insttoken
 
     normalized = []
     total_records = 0
@@ -3929,6 +3978,9 @@ def search_sciencedirect(keywords, rows, filters=None):
         "X-ELS-APIKey": api_key,
         "Accept": "application/json",
     }
+    insttoken = get_elsevier_insttoken()
+    if insttoken:
+        headers["X-ELS-Insttoken"] = insttoken
 
     normalized = []
     total_records = 0

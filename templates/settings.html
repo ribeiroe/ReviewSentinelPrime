@@ -279,6 +279,24 @@
 
         <div class="db-tier">Requires an API key</div>
 
+        <!-- Elsevier Institutional Token (shared by Scopus & ScienceDirect) -->
+        <div class="card">
+            <h2>Elsevier Institutional Token <span style="font-weight:normal; font-size:0.8rem; color:#64748b;">(optional)</span></h2>
+            <p class="desc">Only needed if your Scopus/ScienceDirect requests run outside your institution's network (e.g. from home or a server) and get rejected despite a valid API key. Get the token from your library or Elsevier rep. Used alongside the API key below, never instead of it.</p>
+            <div class="api-key-row">
+                <label>Insttoken:</label>
+                <input type="text" id="elsevierInsttoken" placeholder="Enter your Elsevier institutional token" oninput="updateTestBtn('elsevierInsttoken', null)">
+                <span id="elsevierInsttokenStatus" class="status-badge not-configured">Not configured</span>
+            </div>
+            <p class="key-info" id="elsevierInsttokenInfo"></p>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveElsevierInsttoken()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Token</button>
+                <button class="btn btn-danger" onclick="confirmClearElsevierInsttoken()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Token</button>
+            </div>
+            <div class="alert alert-success" id="elsevierInsttokenSuccess"></div>
+            <div class="alert alert-error" id="elsevierInsttokenError"></div>
+        </div>
+
         <!-- Scopus API Key -->
         <div class="card">
             <h2>Scopus API Key (Elsevier)</h2>
@@ -1073,6 +1091,77 @@
             if (apiName) localStorage.removeItem('connTest_' + apiName);
         }
 
+        // --- Elsevier Institutional Token (shared by Scopus & ScienceDirect) ---
+        async function loadElsevierInsttoken() {
+            try {
+                const resp = await fetch('/api/elsevier-insttoken');
+                const data = await resp.json();
+                const statusEl = document.getElementById('elsevierInsttokenStatus');
+                const infoEl = document.getElementById('elsevierInsttokenInfo');
+                const inputEl = document.getElementById('elsevierInsttoken');
+
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Token is saved and sent alongside the Scopus/ScienceDirect API key.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = '';
+                }
+                return !!data.configured;
+            } catch(e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveElsevierInsttoken() {
+            const token = document.getElementById('elsevierInsttoken').value.trim();
+            if (!token) {
+                showAlert('elsevierInsttokenError', 'Please enter a token.');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/elsevier-insttoken', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: token})
+                });
+                if (resp.ok) {
+                    await loadElsevierInsttoken();
+                    showAlert('elsevierInsttokenSuccess', 'Institutional token saved.');
+                    // Re-test any already-configured Scopus/ScienceDirect keys so the
+                    // new header is reflected immediately instead of on next reload.
+                    if (document.getElementById('scopusKey').dataset.configured) testScopusKey(null, 'manual');
+                    if (document.getElementById('sciencedirectKey').dataset.configured) testSciencedirectKey(null, 'manual');
+                } else {
+                    showAlert('elsevierInsttokenError', 'Failed to save token.');
+                }
+            } catch(e) {
+                showAlert('elsevierInsttokenError', 'Error saving token: ' + e.message);
+            }
+        }
+
+        async function clearElsevierInsttoken() {
+            try {
+                await fetch('/api/elsevier-insttoken', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('elsevierInsttoken').value = '';
+                showAlert('elsevierInsttokenSuccess', 'Institutional token cleared.');
+                loadElsevierInsttoken();
+                if (document.getElementById('scopusKey').dataset.configured) testScopusKey(null, 'manual');
+                if (document.getElementById('sciencedirectKey').dataset.configured) testSciencedirectKey(null, 'manual');
+            } catch(e) {
+                showAlert('elsevierInsttokenError', 'Error clearing token: ' + e.message);
+            }
+        }
+
         // --- Scopus API Key ---
         async function loadScopusKey() {
             try {
@@ -1684,7 +1773,8 @@
                 loadPubmedKey(),
                 loadAcmKey(),
                 loadEbscoKey(),
-                loadWosKey()
+                loadWosKey(),
+                loadElsevierInsttoken()
             ]);
             restoreConnectionStates();
             // Auto-test no-key APIs and key-based APIs that are configured.
@@ -1809,6 +1899,11 @@
             showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear Scopus API Key?',
                 message: 'The Scopus API key will be removed. You will no longer be able to search the Scopus database until a new key is saved.',
                 confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearScopusKey });
+        }
+        function confirmClearElsevierInsttoken() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear Elsevier Institutional Token?',
+                message: 'The institutional token will be removed. Scopus/ScienceDirect requests made from outside your institution\'s network may start failing again.',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep token', onConfirm: clearElsevierInsttoken });
         }
         function confirmClearInspecKey() {
             showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear Inspec API Key?',

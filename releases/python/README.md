@@ -1,4 +1,4 @@
-# Review Sentinel Prime v2.1.0 — Python Edition
+# Review Sentinel Prime v2.1.1 — Python Edition
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
@@ -78,11 +78,11 @@ sudo apt update && sudo apt install -y python3 python3-venv python3-pip
 
 ## 4. Step 2 — Extract the ZIP file
 
-1. Find the ZIP file you downloaded (e.g. `ReviewSentinelPrime_v2.1.0_python.zip`).
+1. Find the ZIP file you downloaded (e.g. `ReviewSentinelPrime_v2.1.1_python.zip`).
 2. **Right-click** the ZIP file and choose:
    - Windows: **Extract All…** → choose a location (e.g. your Desktop or Documents folder) → click **Extract**
    - macOS: **double-click** the ZIP file — it extracts automatically
-   - Linux: right-click → **Extract Here**, or run `unzip ReviewSentinelPrime_v2.1.0_python.zip`
+   - Linux: right-click → **Extract Here**, or run `unzip ReviewSentinelPrime_v2.1.1_python.zip`
 3. You should now have a folder called `ReviewSentinelPrime` (or similar). Open it.
 
 > **Do not run the app from inside the ZIP file.** Always extract it first.
@@ -235,4 +235,4 @@ Please contact the research team and include:
 
 ---
 
-Review Sentinel Prime v2.1.0 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.1.1 — Systematic Literature Review Automation Platform

@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.1.0 · Python 3.12 · Flask 3.1 · Docker ready
+v2.1.1 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
@@ -39,9 +39,16 @@ v2.1.0 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **Import / Export config** | Save and reload the complete search configuration — including filter modes — as a JSON file |
 | ▸ **Cards & List view** | Toggle between rich card and compact list result layouts |
 | ▸ **Persistent UI state** | Filter and validation panel visibility is remembered across refreshes and saved-search restores |
-| ▸ **API key management** | Secure local storage with per-database test connection and last-checked timestamp |
+| ▸ **API key management** | Secure local storage with per-database test connection and last-checked timestamp; optional Elsevier institutional token (Scopus/ScienceDirect) for off-network access |
 | ▸ **Built-in manual** | Full 17-section user manual available at `/manual` |
 | ▸ **Docker ready** | One-click Docker Compose deployment with start/stop scripts for Windows and macOS |
+
+---
+
+## What's New in v2.1.1
+
+- **Elsevier institutional token (optional)** — Settings now has an optional institutional token field, shared by Scopus and ScienceDirect. It's only needed if requests run from outside your institution's network and get rejected despite a valid API key; leave it blank and both services keep working exactly as before. Inspec (Engineering Village) uses a different auth scheme and does not use this token.
+- **Documentation fixes** — Manual corrected from "10" to "12" supported databases and a dead cross-reference pointing to the wrong section.
 
 ---
 
@@ -105,10 +112,10 @@ This is the first public release of Review Sentinel Prime. Highlights include:
 | --- | --- |
 | IEEE Xplore | Yes — free at `developer.ieee.org` |
 | ACM Digital Library | No key — but ACM has no public API and blocks automated server-side access; RSP reports this explicitly during a search |
-| Scopus | Yes — free at `dev.elsevier.com` |
-| ScienceDirect | Yes — same Elsevier key as Scopus |
+| Scopus | Yes — free at `dev.elsevier.com`. Optional institutional token also needed if searching from outside your institution's network |
+| ScienceDirect | Yes — same Elsevier key as Scopus, and the same optional institutional token |
 | Springer Nature | Yes — free at `dev.springernature.com` |
-| Inspec (Engineering Village) | Yes — same Elsevier key as Scopus |
+| Inspec (Engineering Village) | Yes — same Elsevier key as Scopus (does not use the institutional token; separate auth scheme) |
 | PubMed | Optional (improves rate limits) |
 | arXiv | No |
 | HAL Open Science | No |
