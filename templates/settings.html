@@ -279,10 +279,10 @@
 
         <div class="db-tier">Requires an API key</div>
 
-        <!-- Elsevier Institutional Token (shared by Scopus & ScienceDirect) -->
+        <!-- Elsevier Institutional Token (shared by Scopus, ScienceDirect & Inspec) -->
         <div class="card">
             <h2>Elsevier Institutional Token <span style="font-weight:normal; font-size:0.8rem; color:#64748b;">(optional)</span></h2>
-            <p class="desc">Only needed if your Scopus/ScienceDirect requests run outside your institution's network (e.g. from home or a server) and get rejected despite a valid API key. Get the token from your library or Elsevier rep. Used alongside the API key below, never instead of it.</p>
+            <p class="desc">Only needed if your Scopus/ScienceDirect/Inspec requests run outside your institution's network (e.g. from home or a server) and get rejected despite a valid API key. Get the token from your library or Elsevier rep. Used alongside the API key below, never instead of it.</p>
             <div class="api-key-row">
                 <label>Insttoken:</label>
                 <input type="text" id="elsevierInsttoken" placeholder="Enter your Elsevier institutional token" oninput="updateTestBtn('elsevierInsttoken', null)">
@@ -1902,7 +1902,7 @@
         }
         function confirmClearElsevierInsttoken() {
             showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear Elsevier Institutional Token?',
-                message: 'The institutional token will be removed. Scopus/ScienceDirect requests made from outside your institution\'s network may start failing again.',
+                message: 'The institutional token will be removed. Scopus/ScienceDirect/Inspec requests made from outside your institution\'s network may start failing again.',
                 confirmLabel: 'Yes, clear it', cancelLabel: 'Keep token', onConfirm: clearElsevierInsttoken });
         }
         function confirmClearInspecKey() {

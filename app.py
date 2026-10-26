@@ -2476,10 +2476,14 @@ def test_connection():
         elif api == "inspec":
             if not key:
                 return jsonify({"ok": False, "message": "No API key provided."})
+            headers = {"Accept": "application/json", "X-ELS-APIKey": key}
+            insttoken = get_elsevier_insttoken()
+            if insttoken:
+                headers["X-ELS-Insttoken"] = insttoken
             r = requests.get(
                 "https://api.elsevier.com/content/ev/results",
-                params={"apiKey": key, "query": "test", "database": "i", "pageSize": 1},
-                headers={"Accept": "application/json"},
+                params={"query": "test", "database": "i", "pageSize": 1},
+                headers=headers,
                 timeout=10,
             )
             if r.status_code == 200:
@@ -3833,7 +3837,6 @@ def search_inspec(keywords, rows, filters=None):
         date_range = f"1900-{year_to}"
 
     params = {
-        "apiKey": api_key,
         "query": query_text,
         "database": "i",  # 'i' = Inspec
         "pageSize": 25,
@@ -3856,7 +3859,11 @@ def search_inspec(keywords, rows, filters=None):
 
     headers = {
         "Accept": "application/json",
+        "X-ELS-APIKey": api_key,
     }
+    insttoken = get_elsevier_insttoken()
+    if insttoken:
+        headers["X-ELS-Insttoken"] = insttoken
 
     normalized = []
     total_records = 0

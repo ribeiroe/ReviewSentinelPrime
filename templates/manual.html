@@ -445,7 +445,7 @@
                     <tr><td><strong>Scopus</strong></td><td>Multi-disciplinary (Elsevier)</td><td><strong>Required</strong></td><td>Largest abstract/citation database. If requests run outside your institution's network, also add the optional institutional token (section 14)</td></tr>
                     <tr><td><strong>ScienceDirect</strong></td><td>Full-text journals (Elsevier)</td><td><strong>Required</strong></td><td>Same Elsevier key as Scopus; same optional institutional token applies</td></tr>
                     <tr><td><strong>Springer Nature</strong></td><td>STM journals &amp; books</td><td><strong>Required</strong></td><td>Free key from Springer developer portal</td></tr>
-                    <tr><td><strong>Inspec</strong></td><td>Physics, EE, CS, IT</td><td><strong>Required</strong></td><td>Engineering Village (Elsevier) — separate auth scheme, does not use the institutional token</td></tr>
+                    <tr><td><strong>Inspec</strong></td><td>Physics, EE, CS, IT</td><td><strong>Required</strong></td><td>Engineering Village (Elsevier) — same Elsevier key as Scopus; same optional institutional token applies</td></tr>
                     <tr><td><strong>PubMed</strong></td><td>Biomedical, life sciences</td><td>Optional</td><td>Works without key; key improves rate limits</td></tr>
                     <tr><td><strong>arXiv</strong></td><td>Physics, Math, CS, Biology, Finance</td><td>Not required</td><td>Preprints; has rate limiting</td></tr>
                     <tr><td><strong>HAL Open Science</strong></td><td>Multi-disciplinary (French national archive)</td><td>Not required</td><td>Supports language/type filters server-side</td></tr>
@@ -1201,7 +1201,7 @@
             </div>
 
             <div class="info">
-                <strong>Elsevier Institutional Token (optional):</strong> A card above the Scopus key lets you save an institutional token, shared by Scopus and ScienceDirect. It is only needed if RSP's requests run from outside your institution's network (e.g. a home machine or a cloud server) and get rejected despite a valid API key — Elsevier requires the token in that case to recognise your institutional entitlement. Get it from your library or Elsevier representative. Leave it blank if you only ever search from on-campus; the API key alone continues to work as before. Inspec (Engineering Village) uses a different authentication scheme and does not use this token.
+                <strong>Elsevier Institutional Token (optional):</strong> A card above the Scopus key lets you save an institutional token, shared by Scopus, ScienceDirect and Inspec. It is only needed if RSP's requests run from outside your institution's network (e.g. a home machine or a cloud server) and get rejected despite a valid API key — Elsevier requires the token in that case to recognise your institutional entitlement. Get it from your library or Elsevier representative. Leave it blank if you only ever search from on-campus; the API key alone continues to work as before.
             </div>
         </div>
 
