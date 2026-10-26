@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.1.2 · Python 3.12 · Flask 3.1 · Docker ready
+v2.1.3 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
@@ -287,10 +287,10 @@ This is a published research dataset created *using* the Replication Package Bui
 
 ## Community Support (Optional)
 
-RSP is free and will remain free under the GNU General Public License v3.0. If it helps your work, you can optionally support RibeiroLabs to help cover development, maintenance, and hosting costs. Donating unlocks no features, no early access, no priority, and comes with no support commitment — it is a voluntary donation only.
+RSP is free and will remain free under the GNU General Public License v3.0. If it helps your work, you can optionally support RibeiroLabs to help cover development, maintenance, and hosting costs. Tipping unlocks no features, no early access, no priority, and comes with no support commitment — tips are voluntary.
 
 - Ko-fi: [https://ko-fi.com/ribeirolabs](https://ko-fi.com/ribeirolabs)
-- In-app locations: global footer and the About page
+- In-app locations: global footer, About page, and the Charts, PRISMA, Results, and Screening pages
 
 ---
 

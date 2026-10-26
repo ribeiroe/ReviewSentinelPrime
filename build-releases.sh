@@ -17,7 +17,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 DIST="$ROOT/dist"
 
 # ── Current version (single source of truth in this file) ────────────────────
-VERSION="v2.1.2"
+VERSION="v2.1.3"
 
 APP_ITEMS=("app.py" "requirements.txt" "templates" "static" "LICENSE")
 
@@ -139,15 +139,14 @@ add_data_skeleton() {
     mkdir -p "$stage/data/results"
     printf '[]'  > "$stage/data/searches.json"
     printf '{}'  > "$stage/data/smtp_config.json"
-    # Relay configs are copied from the maintainer's git-ignored data/ folder so
-    # feedback and survey submissions reach the project forms from a fresh install.
+    # Relay configs live in the tracked releases/relay/ folder so every release ships them.
     # They hold public form URLs and field IDs only - never credentials.
     for cfg in google_form_config.json google_form_feedback_config.json google_form_feature_config.json; do
-        if [ -f "$ROOT/data/$cfg" ]; then
-            cp "$ROOT/data/$cfg" "$stage/data/$cfg"
-        else
-            echo "    [!] Relay config missing - relay disabled in release: data/$cfg"
+        if [ ! -f "$ROOT/releases/relay/$cfg" ]; then
+            echo "    [ERROR] Relay config missing: releases/relay/$cfg"
+            exit 1
         fi
+        cp "$ROOT/releases/relay/$cfg" "$stage/data/$cfg"
     done
 }
 

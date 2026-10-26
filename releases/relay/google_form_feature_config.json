@@ -1,0 +1,16 @@
+{
+  "form_url": "https://docs.google.com/forms/d/e/1FAIpQLSeOwdXG1LqamboR5F2iR5vvOqUte2Bpkl_AfKVcchRDnEUhnA/viewform",
+  "entries": {
+    "title": "entry.66364643",
+    "description": "entry.355372992",
+    "priority": "entry.304366233",
+    "contactEmail": "entry.1432221673"
+  },
+  "value_map": {
+    "priority": {
+      "low": "Low - cosmetic or minor inconvenience",
+      "medium": "Medium - affects workflow but has workaround",
+      "high": "High - blocks important functionality"
+    }
+  }
+}

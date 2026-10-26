@@ -1,0 +1,19 @@
+{
+  "form_url": "https://docs.google.com/forms/d/e/1FAIpQLScmXG5qW5uIOjrGDZPJhfQ4w7XzgnnozjmGupmZC3SPPd1C-Q/viewform",
+  "entries": {
+    "title": "entry.280743475",
+    "description": "entry.177574858",
+    "steps": "entry.1860840940",
+    "expected": "entry.19101687",
+    "actual": "entry.131941891",
+    "priority": "entry.343118574",
+    "contactEmail": "entry.1680940522"
+  },
+  "value_map": {
+    "priority": {
+      "low": "Low - cosmetic or minor inconvenience",
+      "medium": "Medium - affects workflow but has workaround",
+      "high": "High - blocks important functionality"
+    }
+  }
+}

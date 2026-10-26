@@ -1,0 +1,72 @@
+{
+  "form_url": "https://docs.google.com/forms/d/e/1FAIpQLSepzMkjOTjvuYbpN1rB9AKBqAWOmhrrBDC-DCJTHr7g9aW7QQ/viewform",
+  "entries": {
+    "role": "entry.1194119480",
+    "experience": "entry.1179825036",
+    "slrCount": "entry.1591896546",
+    "field": "entry.1718631082",
+
+    "sus1": "entry.1126703813",
+    "sus2": "entry.1615492884",
+    "sus3": "entry.1731394552",
+    "sus4": "entry.1949394898",
+    "sus5": "entry.1202676089",
+    "sus6": "entry.1463334445",
+    "sus7": "entry.69582768",
+    "sus8": "entry.1944401577",
+    "sus9": "entry.443864284",
+    "sus10": "entry.1439867150",
+
+    "tam1": "entry.143918121",
+    "tam2": "entry.432337385",
+    "tam3": "entry.419617047",
+    "tam4": "entry.1852742651",
+    "tam5": "entry.1560820606",
+    "tam6": "entry.1059737524",
+    "tam7": "entry.967083808",
+    "tam8": "entry.1863188862",
+
+    "imp1": "entry.1848733619",
+    "imp2": "entry.867808972",
+    "imp3": "entry.308547560",
+    "imp4": "entry.1727223531",
+    "imp5": "entry.702538253",
+    "imp6": "entry.19402667",
+    "imp7": "entry.1192951332",
+
+    "feat1": "entry.193998337",
+    "feat2": "entry.1273245134",
+    "feat3": "entry.287791854",
+    "feat4": "entry.1602055531",
+    "feat5": "entry.1364406750",
+
+    "open1": "entry.1070078447",
+    "open2": "entry.563754049",
+    "open3": "entry.1930497053",
+    "open4": "entry.1126939867",
+    "open5": "entry.828172914"
+  },
+  "value_map": {
+    "role": {
+      "phd": "PhD Student",
+      "postdoc": "Postdoctoral Researcher",
+      "lecturer": "Lecturer / Assistant Professor",
+      "professor": "Associate / Full Professor",
+      "industry": "Industry Researcher",
+      "other": "Other"
+    },
+    "experience": {
+      "0-2": "0 - 2 years",
+      "3-5": "3 - 5 years",
+      "6-10": "6 - 10 years",
+      "11-20": "11 - 20 years",
+      "20+": "More than 20 years"
+    },
+    "slrCount": {
+      "0": "None (first time)",
+      "1-2": "1 -2",
+      "3-5": "3 -5",
+      "6+": "6 or more"
+    }
+  }
+}

@@ -23,7 +23,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $Root        = $PSScriptRoot
 $Dist        = Join-Path $Root "dist"
-$CurrentVersion = "v2.1.2" # single source of truth
+$CurrentVersion = "v2.1.3" # single source of truth
 
 # -- Validate version format --------------------------------------------------
 if ($Version -ne "" -and $Version -notmatch '^v\d+\.\d+\.\d+$') {
@@ -200,16 +200,15 @@ function Add-DataSkeleton ($StageDir) {
         $path = Join-Path $StageDir $entry.Key
         [System.IO.File]::WriteAllText($path, $entry.Value, [System.Text.UTF8Encoding]::new($false))
     }
-    # Relay configs are copied from the maintainer's git-ignored data/ folder so
-    # feedback and survey submissions reach the project forms from a fresh install.
+    # Relay configs live in the tracked releases/relay/ folder so every release ships them.
     # They hold public form URLs and field IDs only - never credentials.
     foreach ($cfg in @("google_form_config.json", "google_form_feedback_config.json", "google_form_feature_config.json")) {
-        $src = Join-Path $Root "data\$cfg"
-        if (Test-Path $src) {
-            Copy-Item $src (Join-Path $StageDir "data\$cfg") -Force
-        } else {
-            Write-Host "    [!] Relay config missing - relay disabled in release: data\$cfg"
+        $src = Join-Path $Root "releases\relay\$cfg"
+        if (-not (Test-Path $src)) {
+            Write-Host "    [ERROR] Relay config missing: releases\relay\$cfg"
+            exit 1
         }
+        Copy-Item $src (Join-Path $StageDir "data\$cfg") -Force
     }
 }
 
