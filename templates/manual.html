@@ -223,7 +223,7 @@
                 <li>Search across 12 scientific databases simultaneously</li>
                 <li>Apply multi-level inclusion/exclusion criteria (year, type, language, terms, venues)</li>
                 <li>Validate completeness using known reference papers</li>
-                <li>Screen titles &amp; abstracts manually — with optional local-LLM suggestions (human-in-the-loop)</li>
+                <li>Screen titles &amp; abstracts manually — with optional AI suggestions from a local or online model (human-in-the-loop)</li>
                 <li>Capture a Review Protocol (research questions, registration, methods) that auto-completes PRISMA items</li>
                 <li>Auto-generate PRISMA 2020 flow diagrams and evidence checklists</li>
                 <li>Export PRISMA-aligned replication packages (ZIP)</li>
@@ -871,10 +871,10 @@
             <h3>AI Screening Assistant (optional):</h3>
             <p>When enabled in <a href="/settings#aiAssistant">Settings → AI Screening Assistant</a>, two extra controls appear:</p>
             <ul>
-                <li><strong>Ask AI</strong> (decision panel) — asks the configured local LLM to suggest Include / Exclude / Unsure for the current paper, with a one-sentence reason and a confidence score. The suggestion appears in a purple box; nothing is saved until you click <strong>Accept suggestion</strong> or decide manually.</li>
+                <li><strong>Ask AI</strong> (decision panel) — asks the configured AI model to suggest Include / Exclude / Unsure for the current paper, with a one-sentence reason and a confidence score. The suggestion appears in a purple box; nothing is saved until you click <strong>Accept suggestion</strong> or decide manually.</li>
                 <li><strong>AI-suggest unscreened</strong> (toolbar) — fetches suggestions for every unscreened paper in batches, so they are already waiting as you step through the queue.</li>
             </ul>
-            <p>Decisions accepted from a suggestion are recorded with <em>AI-assisted</em> provenance and the model name. The PRISMA checklist (item 8, Selection process) automatically discloses how many decisions were AI-assisted and by which model — the disclosure most journals now require. The prompt sent to the LLM includes your Review Protocol research questions and eligibility criteria, so filling in the protocol first improves suggestion quality.</p>
+            <p>Decisions accepted from a suggestion are recorded with <em>AI-assisted</em> provenance and the model name; whenever the AI made a suggestion, what it suggested and its confidence are kept even if you decided differently. Under the progress bar, the page shows how often your decisions matched the AI (percentage and Cohen's &kappa;). The PRISMA checklist (item 8, Selection process) automatically discloses how many decisions were AI-assisted, by which model, and the reviewer–AI agreement — the disclosure most journals now require. See <a href="#ai-safeguards">Privacy notice, estimates and record-keeping</a> for details. The prompt sent to the LLM includes your Review Protocol research questions and eligibility criteria, so filling in the protocol first improves suggestion quality.</p>
 
             <div class="info">
                 <strong>Workflow note:</strong> T&amp;A Screening is typically done after running a search and reviewing the PRISMA numbers. Use it to document manual screening decisions that are not automatically applied by RSP's filter criteria.
@@ -1009,7 +1009,7 @@
                 <li><strong>Manual Review Steps</strong> — add post-inclusion steps (full-text review, snowballing, etc.) that appear as new boxes in the flow and can also remove papers</li>
                 <li><strong>Export Diagram as PNG</strong> — captures the full rendered diagram exactly as it appears on screen</li>
                 <li><strong>Review Protocol form</strong> — capture review-level facts no search can infer (research questions, rationale, outcomes, registration record, reviewer team, synthesis and risk-of-bias methods, funding, competing interests). Saved server-side, exported as <code>03_protocol/review_protocol.json</code> in the replication package, and used to auto-complete the corresponding checklist items</li>
-                <li><strong>PRISMA 2020 Evidence Checklist</strong> — interactive 27-item checklist (39 entries including sub-items) with AUTO (up to 27 entries auto-assessed from your search data and Review Protocol, including a drafted structured abstract and process-limitations statement) and MANUAL (12 entries requiring study-content analysis) modes, with progress bar and localStorage persistence</li>
+                <li><strong>PRISMA 2020 Evidence Checklist</strong> — interactive 27-item checklist (39 entries including sub-items) with AUTO (up to 29 entries auto-assessed from your search data and Review Protocol, including a drafted structured abstract and process-limitations statement) and MANUAL (10 entries requiring study-content analysis) modes, with progress bar and localStorage persistence</li>
             </ul>
 
             <h3>Clickable cards — paper list panel:</h3>
@@ -1036,7 +1036,7 @@
             <h3>PRISMA 2020 Evidence Checklist:</h3>
             <p>All 27 official PRISMA 2020 items (39 entries including sub-items) are listed with two modes:</p>
             <ul>
-                <li><span style="background:#eaf5fc;color:#1a5276;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #aed6f1;">AUTO</span> — up to 27 entries assessed from your search data and Review Protocol: eligibility criteria, per-database sources with search dates and retrieval warnings, search strategy, selection process (including AI-assistance disclosure), excluded studies with sample citations per reason, plus auto-drafted structured-abstract and process-limitations statements. Items marked <em>partial</em> show your draft with a notes box — review, edit, and check off.</li>
+                <li><span style="background:#eaf5fc;color:#1a5276;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #aed6f1;">AUTO</span> — up to 29 entries assessed from your search data and Review Protocol: eligibility criteria, per-database sources with search dates and retrieval warnings, search strategy, selection process (including AI-assistance disclosure and reviewer–AI agreement with Cohen's κ), heterogeneity and sensitivity methods, included-study characteristics (years, document types, venues, sources), excluded studies with sample citations per reason, plus auto-drafted structured-abstract and process-limitations statements. Items marked <em>partial</em> show your draft with a notes box — review, edit, and check off.</li>
                 <li><span style="background:#fef9e7;color:#7d6608;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #f9e79f;">MANUAL</span> — the remaining entries require reading study content (risk-of-bias results, per-study outcomes, synthesis results, interpretation) — check the box and type your response in the text area</li>
             </ul>
             <p>A progress bar shows how many items have been addressed. Notes are saved automatically to your browser (localStorage) and persist across page refreshes. Use <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg> Reset inputs</strong> to clear all manual entries, or <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export PNG</strong> to download the checklist as an image.</p>
@@ -1075,8 +1075,8 @@
             <p>After running a search, an <strong class="lbl lbl-purple">Export Replication Package (ZIP)</strong> button appears. The ZIP is named <code>&lt;search_name&gt;_&lt;date&gt;.zip</code> and contains the following structure:</p>
 
             <div class="illustration">
-                <svg width="500" height="410" viewBox="0 0 500 410">
-                    <rect x="10" y="5" width="480" height="398" rx="6" fill="#f8f9fa" stroke="#eee" stroke-width="1"/>
+                <svg width="500" height="436" viewBox="0 0 500 436">
+                    <rect x="10" y="5" width="480" height="424" rx="6" fill="#f8f9fa" stroke="#eee" stroke-width="1"/>
                     <text x="30" y="28" font-size="11" font-weight="600" fill="#2c3e50">&lt;search_name&gt;_&lt;date&gt;/</text>
                     <!-- 01_search_strategy -->
                     <text x="30" y="50" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">01_search_strategy/</text>
@@ -1092,20 +1092,22 @@
                     <text x="50" y="175" font-size="9" fill="#555" font-family="monospace">├── included_studies.csv</text>
                     <text x="50" y="188" font-size="9" fill="#555" font-family="monospace">├── excluded_studies.csv</text>
                     <text x="50" y="201" font-size="9" fill="#555" font-family="monospace">├── screening_decisions.csv (if T&amp;A screening performed)</text>
-                    <text x="50" y="214" font-size="9" fill="#555" font-family="monospace">└── prisma_data.json</text>
+                    <text x="50" y="214" font-size="9" fill="#555" font-family="monospace">├── risk_of_bias_template.csv (fill in)</text>
+                    <text x="50" y="227" font-size="9" fill="#555" font-family="monospace">├── grade_certainty_template.csv (fill in)</text>
+                    <text x="50" y="240" font-size="9" fill="#555" font-family="monospace">└── prisma_data.json</text>
                     <!-- 03_protocol -->
-                    <text x="30" y="233" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">03_protocol/</text>
-                    <text x="50" y="247" font-size="9" fill="#555" font-family="monospace">├── protocol.md</text>
-                    <text x="50" y="260" font-size="9" fill="#555" font-family="monospace">└── review_protocol.json (if Review Protocol filled in)</text>
+                    <text x="30" y="259" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">03_protocol/</text>
+                    <text x="50" y="273" font-size="9" fill="#555" font-family="monospace">├── protocol.md</text>
+                    <text x="50" y="286" font-size="9" fill="#555" font-family="monospace">└── review_protocol.json (if Review Protocol filled in)</text>
                     <!-- 04_images -->
-                    <text x="30" y="279" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">04_images/</text>
-                    <text x="50" y="293" font-size="9" fill="#555" font-family="monospace">└── prisma_flow_diagram.svg (+ chart/PRISMA PNGs if captured)</text>
+                    <text x="30" y="305" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">04_images/</text>
+                    <text x="50" y="319" font-size="9" fill="#555" font-family="monospace">└── prisma_flow_diagram.svg (+ chart/PRISMA PNGs if captured)</text>
                     <!-- 05_evidence_checklist -->
-                    <text x="30" y="312" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">05_evidence_checklist/</text>
-                    <text x="50" y="326" font-size="9" fill="#555" font-family="monospace">└── PRISMA_evidence_checklist.txt</text>
+                    <text x="30" y="338" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">05_evidence_checklist/</text>
+                    <text x="50" y="352" font-size="9" fill="#555" font-family="monospace">└── PRISMA_evidence_checklist.txt</text>
                     <!-- root files -->
-                    <text x="30" y="346" font-size="9" fill="#555" font-family="monospace">README.md</text>
-                    <text x="30" y="361" font-size="9" fill="#27ae60" font-family="monospace" font-weight="600">search_configuration.json  ← import directly into RSP</text>
+                    <text x="30" y="372" font-size="9" fill="#555" font-family="monospace">README.md</text>
+                    <text x="30" y="387" font-size="9" fill="#27ae60" font-family="monospace" font-weight="600">search_configuration.json  ← import directly into RSP</text>
                 </svg>
                 <div class="caption">Figure 11: Replication package folder structure</div>
             </div>
@@ -1118,7 +1120,9 @@
                 <li><strong>02_data/deduplicated_records.csv</strong> — Papers after duplicate removal.</li>
                 <li><strong>02_data/included_studies.csv</strong> — Final included papers after all filters.</li>
                 <li><strong>02_data/excluded_studies.csv</strong> — Papers removed by filters, with exclusion reasons.</li>
-                <li><strong>02_data/screening_decisions.csv</strong> — Per-paper Title &amp; Abstract screening decisions with reasons, plus <code>ai_assisted</code> and <code>ai_model</code> columns recording where the AI assistant was involved (included when screening was performed; pulled from the server run record even if your browser copy is missing).</li>
+                <li><strong>02_data/screening_decisions.csv</strong> — Per-paper Title &amp; Abstract screening decisions with reasons, plus <code>ai_assisted</code>, <code>ai_model</code>, <code>ai_vendor</code>, <code>ai_suggested</code> and <code>ai_confidence</code> columns recording where the AI assistant was involved and what it suggested (even when you overrode it) (included when screening was performed; pulled from the server run record even if your browser copy is missing).</li>
+                <li><strong>02_data/risk_of_bias_template.csv</strong> — Blank risk-of-bias table, one row per included study, with domain columns for the protocol's tool (RoB 2, ROBINS-I, CASP, otherwise generic). Fill in for PRISMA items 18 and 21.</li>
+                <li><strong>02_data/grade_certainty_template.csv</strong> — Blank GRADE certainty table, one row per outcome listed in the protocol. Fill in for PRISMA items 21 and 22.</li>
                 <li><strong>02_data/prisma_data.json</strong> — PRISMA stage counts in JSON for programmatic use.</li>
                 <li><strong>03_protocol/protocol.md</strong> — Prose description of the search protocol (IC/EC criteria).</li>
                 <li><strong>03_protocol/review_protocol.json</strong> — Machine-readable Review Protocol (research questions, registration, reviewer team, synthesis/RoB methods) when filled in on the PRISMA page.</li>
@@ -1151,11 +1155,74 @@
                 <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/></svg> Database API Keys</strong> — Configure keys for each database that requires one</li>
                 <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Email Notifications (SMTP)</strong> — Configure outgoing mail for scheduled-run alerts and survey/feedback submissions</li>
                 <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Run Retention (Local Storage)</strong> — Set how many saved and ad-hoc run snapshots are kept locally; run cleanup immediately</li>
-                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI Screening Assistant (Local LLM)</strong> — Point RSP at a local LLM (e.g. Ollama) or any OpenAI-compatible endpoint to get Include/Exclude/Unsure suggestions during Title &amp; Abstract screening. Suggestions are never applied automatically: you review and accept each one, and accepted decisions record the model name so PRISMA item 8 can disclose the automation tool. With a local Ollama instance, titles and abstracts never leave your computer. Cloud providers also work through their OpenAI-compatible endpoints — OpenAI (<code>https://api.openai.com</code>), Anthropic Claude (<code>https://api.anthropic.com</code>), and Google Gemini (<code>https://generativelanguage.googleapis.com/v1beta/openai</code>) — but note that titles and abstracts are then sent to that provider</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI Screening Assistant</strong> — Get Include/Exclude/Unsure suggestions during Title &amp; Abstract screening from a model running on your own computer or an online service. Suggestions are never applied automatically: you review and accept each one, and accepted decisions record the model name so PRISMA item 8 can disclose the automation tool. See <a href="#ai-setup">Setting up the AI Screening Assistant</a> below.</li>
             </ul>
 
             <div class="info">
                 <strong>Quick access:</strong> When a Feedback submission (or a Survey submission that could not be delivered) cannot be sent, the modal includes a <em>"Configure SMTP in Settings"</em> button. Clicking it takes you directly to Settings and automatically expands the SMTP section so you can set it up without hunting for it.
+            </div>
+
+            <h3 id="ai-setup">Setting up the AI Screening Assistant</h3>
+            <ol>
+                <li>Open <a href="/settings#aiAssistant">Settings → AI Screening Assistant</a> and set <em>Assistant</em> to <strong>Enabled</strong>.</li>
+                <li>Under <strong>Where should the AI run?</strong> pick an option. The page shows step-by-step instructions for it:
+                    <ul>
+                        <li><strong>Ollama</strong> or <strong>LM Studio</strong> — runs on a computer you control, so titles and abstracts never leave it. Install the app, download a model, and (LM Studio) start its server in the <em>Developer</em> tab. No API key needed.</li>
+                        <li><strong>OpenAI, Anthropic, Google Gemini, Groq, OpenRouter</strong> — online services. Paste your API key (the page links to where to create one). Titles and abstracts are sent to that provider, and usage is billed to your account.</li>
+                        <li><strong>Other / custom server</strong> — any OpenAI-compatible or Ollama-compatible server; enter its address and, if needed, an API key.</li>
+                    </ul>
+                </li>
+                <li>Choose a <strong>Model</strong>. The list fills in automatically with the models installed (local) or available (online); use <strong>Refresh list</strong> after installing a new one, or <em>Other — type a name…</em> for anything not listed.</li>
+                <li>Click <strong>Test &amp; Save</strong>. RSP sends a short test message to the model; settings are saved only if it answers correctly. If not, a plain-language message explains what to fix (server not running, wrong IP, rejected API key, model not found, out of credit, too slow).</li>
+            </ol>
+            <div class="tip">
+                <strong>Switching is quick:</strong> each option remembers its own address, model, and API key. To switch between, say, Ollama and OpenAI, just pick it again and click <strong>Test &amp; Save</strong> — the Screening page always uses the last saved option.
+            </div>
+            <h4 id="ai-safeguards">Privacy notice, estimates and record-keeping</h4>
+            <ul>
+                <li><strong>Privacy notice:</strong> the first time you use an online AI service, RSP asks you to confirm that titles, abstracts, your search query and your screening criteria will be sent to that provider. It asks once per service. Local servers (Ollama, LM Studio, your own network) never trigger it.</li>
+                <li><strong>Estimate before a batch:</strong> <em>AI-suggest unscreened</em> first shows how many papers will be sent, the expected time and, for online services, a rough cost range. These are rules of thumb, not measurements. During the run, the button shows progress and the time left.</li>
+                <li><strong>Record-keeping:</strong> whenever the AI made a suggestion, the decision records the vendor, the model, what the AI suggested and its confidence. This is kept even if you decided differently. It appears in <code>screening_decisions.csv</code> (columns <code>ai_vendor</code>, <code>ai_suggested</code>, <code>ai_confidence</code>), so you can report AI use and check how often it agreed with you.</li>
+                <li><strong>Agreement on screen:</strong> under the progress bar, the Screening page shows how often your decisions matched the AI (percentage and Cohen's &kappa;).</li>
+                <li><strong>Automatic retry:</strong> if the AI's reply can't be read, RSP asks once more with a stricter instruction before reporting an error for that paper.</li>
+                <li><strong>Model download:</strong> with Ollama selected, Settings offers a <em>Download</em> button for the recommended models (Qwen 2.5 7B, Gemma 3 12B, Gemma 3 27B).</li>
+                <li><strong>API keys:</strong> keys are stored as plain text in <code>data/ai_config.json</code> (the other database keys are also in <code>data/</code>). Don't share, sync or commit the <code>data</code> folder.</li>
+            </ul>
+            <p>The export package also includes <code>02_data/risk_of_bias_template.csv</code> (one row per included study, with domain columns for the tool chosen in the protocol: RoB 2, ROBINS-I, CASP or generic) and <code>02_data/grade_certainty_template.csv</code> (one row per protocol outcome) to fill in for PRISMA items 18, 21 and 22.</p>
+
+            <h4 id="ai-models">Choosing between local and online, and which model</h4>
+            <ul>
+                <li><strong>Local (Ollama / LM Studio):</strong> private (papers never leave your computers) and free, but speed depends on your hardware.</li>
+                <li><strong>Online (OpenAI, Gemini, Anthropic, Groq, OpenRouter):</strong> fast and needs no special hardware, but titles and abstracts are sent to the provider and you pay per paper.</li>
+                <li><strong>Local models by graphics memory:</strong> none or 8&nbsp;GB: Qwen&nbsp;2.5&nbsp;7B / Llama&nbsp;3.1&nbsp;8B; 12–16&nbsp;GB: Gemma&nbsp;3&nbsp;12B / Qwen&nbsp;2.5&nbsp;14B / Phi-4; 24&nbsp;GB+: Gemma&nbsp;3&nbsp;27B / Qwen&nbsp;2.5&nbsp;32B / Mistral&nbsp;Small&nbsp;24B.</li>
+                <li><strong>Online models:</strong> the small, fast tiers — OpenAI “mini”, Gemini “Flash”, Claude “Haiku”, Groq Llama&nbsp;70B.</li>
+                <li><strong>Avoid:</strong> reasoning/“thinking” models (DeepSeek-R1, QwQ, o-series) and models of 3B or less.</li>
+                <li>In Settings, the model list marks recommended models with ★ and ones to avoid with ⚠. Model names change over time, so always use <em>Refresh list</em>.</li>
+                <li>Before relying on a model, screen about 50 papers yourself and compare its agreement with your decisions.</li>
+            </ul>
+
+            <h4 id="ai-remote">Using Ollama on another computer</h4>
+            <p>RSP can run on one computer while Ollama runs on another (for example a laptop with a large model) on the same home or office network.</p>
+            <p><strong>On the computer running Ollama (Windows):</strong></p>
+            <ol>
+                <li>Allow network access: open PowerShell, run <code>setx OLLAMA_HOST 0.0.0.0</code>, then quit Ollama (tray icon → Quit) and start it again. (macOS/Linux: set the same <code>OLLAMA_HOST</code> environment variable for the Ollama service.)</li>
+                <li>Allow port 11434 through the firewall: in PowerShell <em>as Administrator</em> run<br><code>New-NetFirewallRule -DisplayName "Ollama" -Direction Inbound -Protocol TCP -LocalPort 11434 -Action Allow -Profile Private</code><br>and make sure the network is set to <em>Private</em> (Settings → Network &amp; internet).</li>
+                <li>Find its IP address: run <code>ipconfig</code> and note the <em>IPv4 Address</em>, e.g. <code>192.168.1.50</code>.</li>
+            </ol>
+            <p><strong>On the computer running RSP:</strong></p>
+            <ol>
+                <li>Check the connection: open <code>http://192.168.1.50:11434</code> in a browser — it should say <em>"Ollama is running"</em>.</li>
+                <li>In Settings → AI Screening Assistant choose <strong>Ollama</strong>, set <em>Server address</em> to <code>http://192.168.1.50:11434</code>, click <strong>Refresh list</strong>, pick the model, and click <strong>Test &amp; Save</strong>.</li>
+            </ol>
+            <div class="info">
+                <strong>Keep in mind:</strong> both computers must be on the same network, and the Ollama computer must be awake with Ollama running while you screen. If its IP address changes, update the server address (or reserve a fixed IP for it in your router). LM Studio works the same way: enable <em>Serve on Local Network</em> in its server settings and use port <code>1234</code> (<code>http://192.168.1.50:1234/v1</code>).<br>
+                <strong>Docker:</strong> inside the container <code>localhost</code> is the container itself — to reach Ollama / LM Studio on the <em>same</em> computer use <code>http://host.docker.internal:11434</code> or <code>http://host.docker.internal:1234/v1</code>.
+            </div>
+            <div class="tip">
+                <strong>Security:</strong> Ollama has no password and traffic is not encrypted, so anyone on the same network can use it. Only do this on a trusted home or office network — never on public Wi-Fi.
+            </div>
+            <div class="tip">
+                <strong>Privacy:</strong> AI settings, including API keys, are stored locally in <code>data/ai_config.json</code>. Keys are never shown again in the browser; don't share your <code>data/</code> folder. Large local models (e.g. 30B+) can be slow without a strong GPU — choose a smaller model if suggestions time out.
             </div>
 
             <div class="info">

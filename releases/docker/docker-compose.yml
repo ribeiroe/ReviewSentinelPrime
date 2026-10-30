@@ -21,6 +21,9 @@ services:
     #   SURVEY_RECIPIENT_EMAIL: rsp.researchfeedback@gmail.com
     #   APP_BASE_URL: http://localhost:8090
     restart: unless-stopped
+    # lets the app reach Ollama / LM Studio on the host via host.docker.internal (needed on Linux)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "http://localhost:5000"]
       interval: 30s

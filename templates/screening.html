@@ -285,6 +285,7 @@
                 <span style="font-size:var(--text-sm); font-weight:600; color:var(--c-text-2);">Screening progress</span>
                 <span id="progressLabel" style="font-size:var(--text-sm); font-weight:700; color:var(--c-text);"></span>
             </div>
+            <div id="aiAgreementLabel" style="display:none; font-size:var(--text-xs); color:var(--c-text-2); margin-top:2px;" title="How often your final decision matched the AI suggestion (Cohen's kappa corrects for chance agreement)"></div>
             <div class="progress-bar-track">
                 <div class="progress-bar-fill" id="progressBar" style="width:0%;"></div>
             </div>
@@ -558,7 +559,7 @@
     function _serverSaveDecision(pId, decision, reason, ai) {
         if (!_runId) return;
         const body = {paperId: pId, decision: decision, reason: reason};
-        if (ai) { body.aiAssisted = true; body.aiModel = ai.model || ''; }
+        Object.assign(body, _aiProvenance(pId, ai));
         fetch('/api/results/run/adhoc/' + encodeURIComponent(_runId) + '/screening/decision', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -711,6 +712,50 @@
             `</div>`;
     }
 
+    // Recorded whenever a suggestion existed, even if the reviewer overrode it.
+    function _aiProvenance(id, accepted) {
+        const sug = _aiSuggestions[id];
+        if (!sug) return {};
+        const p = {
+            aiModel: sug.model || '',
+            aiVendor: sug.vendor || '',
+            aiSuggested: sug.decision || '',
+            aiConfidence: sug.confidence,
+        };
+        if (accepted) p.aiAssisted = true;
+        return p;
+    }
+
+    function _aiIsLocal() {
+        const c = _aiConfig || {};
+        if (c.provider === 'ollama' || c.vendor === 'ollama' || c.vendor === 'lmstudio') return true;
+        return /localhost|127\.0\.0\.1|host\.docker\.internal|\/\/192\.168\.|\/\/10\.|\/\/172\.(1[6-9]|2\d|3[01])\./.test(c.endpoint || '');
+    }
+
+    // Online services receive titles/abstracts: ask once per service.
+    function _aiPrivacyOk() {
+        if (_aiIsLocal()) return true;
+        const c = _aiConfig || {};
+        let host = c.endpoint || '';
+        try { host = new URL(c.endpoint).host; } catch (e) { /* keep raw */ }
+        const key = 'rspAiPrivacyAck:' + host;
+        if (localStorage.getItem(key)) return true;
+        const ok = confirm(
+            'Privacy notice\n\nThe AI Screening Assistant is set to an ONLINE service (' + host + ').\n' +
+            'Paper titles, abstracts, your search query and your screening criteria will be sent to this provider ' +
+            'and handled under its data policy.\n\nDo not continue if your review involves confidential or unpublished material ' +
+            '— use a local model (Ollama / LM Studio) instead.\n\nContinue and don\'t ask again for this service?');
+        if (ok) localStorage.setItem(key, new Date().toISOString());
+        return ok;
+    }
+
+    function _fmtDuration(sec) {
+        sec = Math.max(1, Math.round(sec));
+        if (sec < 90) return sec + ' s';
+        const min = Math.round(sec / 60);
+        return min < 90 ? min + ' min' : (min / 60).toFixed(1) + ' h';
+    }
+
     async function _fetchAiSuggestions(docs) {
         const ctx = _aiContext();
         const papers = docs.map(d => ({
@@ -734,6 +779,7 @@
     async function askAiCurrent() {
         const doc = _papers[_current];
         if (!doc) return;
+        if (!_aiPrivacyOk()) return;
         const btn = document.getElementById('btnAskAi');
         btn.disabled = true;
         const orig = btn.innerHTML;
@@ -756,14 +802,29 @@
         if (_aiBatchRunning) return;
         const unscreened = _papers.filter(p => !_decisions[paperId(p)] && !_aiSuggestions[paperId(p)]);
         if (!unscreened.length) { showToast('Nothing left to suggest — all papers are screened or already have suggestions.', 'info'); return; }
+        if (!_aiPrivacyOk()) return;
+        const n = unscreened.length;
+        const local = _aiIsLocal();
+        let estimate = `About to request AI suggestions for ${n} paper${n === 1 ? '' : 's'} (model: ${(_aiConfig && _aiConfig.model) || '?'}).\n\n`;
+        if (local) {
+            estimate += `Estimated time on a local model: ${_fmtDuration(n * 3)} (fast GPU) to ${_fmtDuration(n * 20)} (no GPU).\nCost: free.`;
+        } else {
+            const tokens = n * 700;
+            estimate += `Estimated time: about ${_fmtDuration(n * 2)}.\n` +
+                `Estimated usage: ~${tokens.toLocaleString()} tokens → roughly $${(tokens * 0.15e-6).toFixed(2)}–$${(tokens * 1e-6).toFixed(2)} on small tiers (mini / Flash / Haiku). Large models can cost 10–50× more.`;
+        }
+        estimate += '\n\nYou can keep screening while it runs. Continue?';
+        if (!confirm(estimate)) return;
         _aiBatchRunning = true;
         const btn = document.getElementById('btnAiBatch');
         btn.disabled = true;
         let done = 0, failed = 0;
+        const started = Date.now();
         try {
             for (let i = 0; i < unscreened.length; i += 10) {
                 const chunk = unscreened.slice(i, i + 10);
-                btn.innerHTML = `AI: ${done}/${unscreened.length}…`;
+                const eta = done ? ` · ~${_fmtDuration((Date.now() - started) / 1000 / done * (n - done))} left` : '';
+                btn.innerHTML = `AI: ${done}/${n}${eta}…`;
                 try {
                     const data = await _fetchAiSuggestions(chunk);
                     failed += (data.errors || []).length;
@@ -840,7 +901,7 @@
         const doc = _papers[_current];
         const id  = paperId(doc);
         const entry = { decision, reason, ts: new Date().toISOString() };
-        if (ai) { entry.aiAssisted = true; entry.aiModel = ai.model || ''; }
+        Object.assign(entry, _aiProvenance(id, ai));
         _decisions[id] = entry;
         saveDecisions();
         _serverSaveDecision(id, decision, reason, ai);
@@ -886,6 +947,12 @@
 
     // ── Progress ──────────────────────────────────────────────
     function renderProgress() {
+        const agEl = document.getElementById('aiAgreementLabel');
+        if (agEl) {
+            const ag = _aiAgreementStats(Object.values(_decisions));
+            agEl.textContent = ag ? `AI agreement: ${ag.pct}% (\u03ba = ${ag.kappa.toFixed(2)}) on ${ag.n} paper${ag.n === 1 ? '' : 's'}` : '';
+            agEl.style.display = ag ? '' : 'none';
+        }
         let inc = 0, exc = 0, uns = 0;
         _papers.forEach(p => {
             const d = _decisions[paperId(p)];
@@ -941,11 +1008,44 @@
                     reasonCounts: reasonCounts,
                     aiAssisted: aiAssisted,
                     aiModels: Object.keys(aiModels),
+                    aiAgreement: _aiAgreementStats(Object.values(_decisions)),
+                    includedChars: _studyCharacteristics(_papers.filter(p => (_decisions[paperId(p)] || {}).decision === 'include')),
                     timestamp: new Date().toISOString()
                 };
                 localStorage.setItem('lastPrismaData', JSON.stringify(pd));
             }
         } catch(e) {}
+    }
+
+    // Reviewer-vs-AI agreement with Cohen's kappa over the 3 decision classes.
+    function _aiAgreementStats(decisions) {
+        const cls = ['include', 'exclude', 'unsure'];
+        const pairs = decisions.filter(d => d && d.aiSuggested && cls.includes(d.decision));
+        const n = pairs.length;
+        if (!n) return null;
+        const agree = pairs.filter(d => d.aiSuggested === d.decision).length;
+        const po = agree / n;
+        const pe = cls.reduce((s, c) => s + (pairs.filter(d => d.decision === c).length / n) * (pairs.filter(d => d.aiSuggested === c).length / n), 0);
+        const kappa = pe < 1 ? (po - pe) / (1 - pe) : 1;
+        return { n, agree, pct: Math.round(po * 100), kappa: Math.round(kappa * 100) / 100 };
+    }
+
+    function _studyCharacteristics(list) {
+        if (!list.length) return null;
+        const count = (key) => {
+            const m = {};
+            list.forEach(p => { const v = String(p[key] || '').trim(); if (v) m[v] = (m[v] || 0) + 1; });
+            return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        };
+        const years = list.map(p => parseInt(p.year, 10)).filter(y => y > 0);
+        return {
+            n: list.length,
+            yearMin: years.length ? Math.min(...years) : null,
+            yearMax: years.length ? Math.max(...years) : null,
+            venues: count('journal'),
+            types: count('docType'),
+            sources: count('source'),
+        };
     }
 
     // ── Tabs ──────────────────────────────────────────────────

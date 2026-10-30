@@ -30,10 +30,10 @@ v2.1.3 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **Email notifications** | Diff-based alerts showing new/removed papers after each scheduled run |
 | ▸ **Bug reports & feature requests** | Built-in Feedback page that records submissions in the project's issue-collection forms — works even when no SMTP server is configured |
 | ▸ **T&A Screening** | Manual Title & Abstract screening page — review papers one-by-one with Include / Exclude / Unsure decisions, navigate prev/next, and export decisions as CSV |
-| ▸ **AI Screening Assistant** | Optional local-LLM suggestions (Ollama or any OpenAI-compatible endpoint) during T&A screening — the reviewer accepts or overrides each one, and accepted decisions carry model provenance that feeds the PRISMA item 8 automation-tool disclosure |
+| ▸ **AI Screening Assistant** | Optional AI suggestions during T&A screening — run privately on your own computer (Ollama, LM Studio) or use an online service (OpenAI, Anthropic, Google Gemini, Groq, OpenRouter). Guided setup with automatic model list and one-click **Test & Save**; each service's settings are remembered. The reviewer accepts or overrides each suggestion, and accepted decisions carry model provenance that feeds the PRISMA item 8 automation-tool disclosure |
 | ▸ **Results Hub** | Browse and download all local run snapshots (saved and ad-hoc) from a single page |
 | ▸ **Charts** | Publications per year (with trend line), abstract keyword frequency (top terms bar chart), venue, and document-type charts — all with PNG export |
-| ▸ **PRISMA 2020** | Auto-generated flow diagram; clickable stage cards **and** excluded/removed cards showing the actual papers removed at each stage; Snowballing / Other Sources panel; Review Protocol form (research questions, registration, reviewer team, synthesis/RoB methods); PRISMA 2020 Evidence Checklist (27 of 39 entries auto-assessed from run data + protocol, incl. auto-drafted abstract and process-limitations statements) |
+| ▸ **PRISMA 2020** | Auto-generated flow diagram; clickable stage cards **and** excluded/removed cards showing the actual papers removed at each stage; Snowballing / Other Sources panel; Review Protocol form (research questions, registration, reviewer team, synthesis/RoB methods); PRISMA 2020 Evidence Checklist (29 of 39 entries auto-assessed from run data + protocol, incl. auto-drafted abstract and process-limitations statements, study characteristics and reviewer–AI agreement) |
 | ▸ **PNG export** | DOM-capture export of the PRISMA diagram and evidence checklist at 2× resolution via html2canvas |
 | ▸ **Replication package** | One-click ZIP export with CSVs, JSON config, protocol, PRISMA data, README |
 | ▸ **Import / Export config** | Save and reload the complete search configuration — including filter modes — as a JSON file |
@@ -76,8 +76,11 @@ Include/exclude **term filters now also match author keywords**, in addition to 
 
 ### Data format (additive)
 
-- `screening_decisions.csv` gains `ai_assisted` and `ai_model` columns.
+- `screening_decisions.csv` gains `ai_assisted`, `ai_model`, `ai_vendor`, `ai_suggested` and `ai_confidence` columns.
 - `prisma_data.json` gains `identification.other_methods`.
+- New fill-in templates: `02_data/risk_of_bias_template.csv` (per included study, domains match the protocol's tool) and `02_data/grade_certainty_template.csv` (per protocol outcome).
+
+> **Security:** API keys (AI and database) are stored as plain text in `data/` (e.g. `data/ai_config.json`). Do not share, sync or commit the `data/` folder.
 
 ### Interface
 
@@ -95,8 +98,8 @@ Manual, About page and release guides updated to 12 databases; manual Figure 2 r
 This is the first public release of Review Sentinel Prime. Highlights include:
 
 - **Multi-database search** across 12 scientific databases with Boolean query syntax, live progress tracking, and configurable filters/criteria
-- **T&A Screening** with an optional local-LLM AI Screening Assistant (Ollama or any OpenAI-compatible endpoint) that suggests Include/Exclude/Unsure decisions for the reviewer to accept or override
-- **PRISMA 2020 support** — auto-generated flow diagram, Review Protocol form, and an Evidence Checklist that auto-assesses up to 27 of 39 entries from run data
+- **T&A Screening** with an optional AI Screening Assistant (local via Ollama / LM Studio, or online via OpenAI, Anthropic, Gemini, Groq, OpenRouter) that suggests Include/Exclude/Unsure decisions for the reviewer to accept or override
+- **PRISMA 2020 support** — auto-generated flow diagram, Review Protocol form, and an Evidence Checklist that auto-assesses up to 29 of 39 entries from run data
 - **Saved searches** with scheduled re-runs and diff-based email notifications
 - **Feedback, feature request, and survey collection** relayed server-side to Google Forms, working even without SMTP configured
 - **Replication package export** — one-click ZIP with CSVs, JSON config, protocol, and PRISMA data
@@ -296,7 +299,27 @@ RSP is free and will remain free under the GNU General Public License v3.0. If i
 
 ## Note on AI Use
 
-RSP's only stage that uses a language model is the optional **AI Screening Assistant** (Settings → AI Screening Assistant), which suggests Include / Exclude / Unsure decisions during Title & Abstract screening. It is disabled by default and, when enabled, targets a local Ollama instance or any OpenAI-compatible endpoint you configure. No other stage (search, filtering, PRISMA generation, export) uses a language model.
+RSP's only stage that uses a language model is the optional **AI Screening Assistant** (Settings → AI Screening Assistant), which suggests Include / Exclude / Unsure decisions during Title & Abstract screening. It is disabled by default. No other stage (search, filtering, PRISMA generation, export) uses a language model.
+
+### Setting up the AI Screening Assistant
+
+1. Open **Settings → AI Screening Assistant** and set *Assistant* to **Enabled**.
+2. Under **Where should the AI run?** choose one option — the page shows step-by-step instructions for it:
+   - **Ollama** or **LM Studio** — runs on a computer you control; titles and abstracts never leave it. Install the app, download a model, and (LM Studio) start its server. To use one running on another computer on your network, replace `localhost` with that computer's IP address (Ollama: set `OLLAMA_HOST=0.0.0.0` on that computer; LM Studio: enable *Serve on Local Network*).
+   - **OpenAI, Anthropic, Google Gemini, Groq, OpenRouter** — online services; paste your API key (the page links to where to get one). Titles and abstracts are sent to that provider and usage is billed to your account.
+   - **Other / custom server** — any OpenAI-compatible or Ollama-compatible server.
+3. Choose a model from the list (it fills in automatically once connected; *Other* lets you type a name).
+4. Click **Test & Save** — settings are saved only if the model answers correctly; otherwise a plain-language message explains what to fix.
+
+With Ollama selected, a **Download** button installs a recommended model (Qwen 2.5 7B, Gemma 3 12B or Gemma 3 27B) without using a terminal. In the model list, ★ marks recommended models and ⚠ marks ones to avoid (reasoning or very small models).
+
+During screening, online services require a one-time privacy confirmation, batch runs show an estimated time and cost first, and unreadable AI replies are retried once automatically. Every suggestion is recorded with vendor, model, suggested decision and confidence (even when overridden), and the Screening page and PRISMA items 8/23c report reviewer–AI agreement (% and Cohen's κ).
+
+Each option remembers its own address, model, and API key, so switching back and forth needs only a selection and **Test & Save**. Settings are stored in `data/ai_config.json` (API keys in plain text, like the other keys in `data/`; the folder is git-ignored — don't share it).
+
+> **Ollama on another computer:** see the in-app Manual → *Settings & API Keys → Using Ollama on another computer* for step-by-step setup (network access, firewall, IP address). Only do this on a trusted network — Ollama has no password and traffic is not encrypted.
+
+> **Docker users:** inside the container, `localhost` is the container itself. To reach Ollama / LM Studio on the same computer, use `http://host.docker.internal:11434` (Ollama) or `http://host.docker.internal:1234/v1` (LM Studio) as the server address.
 
 Language model output is probabilistic and can be wrong. Every suggestion is a starting point only: the reviewer must accept, override, or reject each one, and all AI-assisted decisions must be verified by the reviewer before being used in any publication or report. RSP is a research support tool — it is not intended for clinical, legal, employment, or other regulated decision-making. RSP is provided as-is under the GNU General Public License v3.0, without warranty of any kind (see [LICENSE](LICENSE), Sections 15 and 16).
 

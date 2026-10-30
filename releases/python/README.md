@@ -226,6 +226,14 @@ Settings tests all API connections through the app's backend. If a key is reject
 
 ---
 
+### AI Assistant: "Can't reach the AI server" with Ollama or LM Studio
+
+→ Make sure Ollama / LM Studio is open (LM Studio: start the server in its *Developer* tab).  
+→ Check that at least one model is downloaded, then click **Refresh list** in **Settings → AI Screening Assistant**.  
+→ If it runs on another computer, use that computer's IP address and allow network access there (Ollama: `OLLAMA_HOST=0.0.0.0`; LM Studio: *Serve on Local Network*).
+
+---
+
 ### I need help
 
 Please contact the research team and include:

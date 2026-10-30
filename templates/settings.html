@@ -650,18 +650,17 @@
 
         <!-- AI Screening Assistant (collapsible group) -->
         <div id="aiAssistant" class="db-group-header" onclick="toggleGroup('aiGroup')">
-            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI Screening Assistant (Local LLM)</h2>
+            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI Screening Assistant</h2>
             <span class="db-group-chevron" id="aiGroupChevron">&#9660;</span>
         </div>
         <div class="db-group-body" id="aiGroup">
         <div class="card">
             <p class="desc" style="margin-top:0.25rem;">
-                Let a <strong>local LLM</strong> propose Include / Exclude / Unsure decisions during Title &amp; Abstract screening.
+                Let an AI model propose Include / Exclude / Unsure decisions during Title &amp; Abstract screening.
                 Suggestions are never applied automatically — you review and accept each one, and accepted decisions record
-                the model name for the PRISMA item&nbsp;8 automation-tool disclosure. Titles and abstracts are sent only to the
-                endpoint you configure below. With a local <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> instance
-                nothing leaves your computer; cloud providers (OpenAI, Anthropic, Google Gemini via their OpenAI-compatible
-                endpoints) also work — but then titles and abstracts are sent to that provider.
+                the model name for the PRISMA item&nbsp;8 automation-tool disclosure.
+                <strong>Setup:</strong> enable the assistant, choose where the AI runs, pick a model, then click
+                <em>Test &amp; Save</em>.
             </p>
             <div class="retention-form">
                 <div class="smtp-field">
@@ -673,32 +672,101 @@
                     <span class="smtp-hint">Shows the AI buttons on the Screening page</span>
                 </div>
                 <div class="smtp-field">
-                    <label class="smtp-label" for="aiProvider">Provider</label>
-                    <select id="aiProvider">
-                        <option value="ollama">Ollama (local)</option>
-                        <option value="openai">OpenAI-compatible endpoint</option>
+                    <label class="smtp-label" for="aiVendor">Where should the AI run?</label>
+                    <select id="aiVendor" onchange="applyAiVendor()">
+                        <optgroup label="On a computer you control (private)">
+                            <option value="ollama">Ollama</option>
+                            <option value="lmstudio">LM Studio</option>
+                        </optgroup>
+                        <optgroup label="Online service (needs an API key)">
+                            <option value="openai">OpenAI (ChatGPT)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="gemini">Google Gemini</option>
+                            <option value="groq">Groq</option>
+                            <option value="openrouter">OpenRouter</option>
+                        </optgroup>
+                        <option value="">Other / custom server</option>
                     </select>
-                    <span class="smtp-hint">Ollama uses /api/chat; the other uses /v1/chat/completions</span>
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="aiEndpoint">Endpoint</label>
-                    <input type="text" id="aiEndpoint" placeholder="http://localhost:11434">
-                    <span class="smtp-hint">Ollama: http://localhost:11434 &middot; OpenAI: https://api.openai.com &middot; Anthropic: https://api.anthropic.com &middot; Gemini: https://generativelanguage.googleapis.com/v1beta/openai</span>
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="aiModel">Model</label>
-                    <input type="text" id="aiModel" placeholder="llama3.1">
-                    <span class="smtp-hint">Model name as known by the server</span>
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="aiApiKey">API key</label>
-                    <input type="password" id="aiApiKey" placeholder="only for remote OpenAI-compatible endpoints" autocomplete="new-password">
-                    <span class="smtp-hint">Leave empty for local Ollama; stored locally, never shown again</span>
                 </div>
             </div>
+            <div class="desc" id="aiVendorHelp" style="background:rgba(127,127,127,0.08);border-radius:6px;padding:0.75rem 1rem;margin:0.5rem 0;"></div>
+            <details style="margin:0.5rem 0;">
+                <summary style="cursor:pointer;font-weight:600;">Not sure what to choose? Compare local vs. online and see recommended models</summary>
+                <div class="desc" style="margin-top:0.5rem;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
+                        <thead><tr><th style="text-align:left;padding:4px;"></th><th style="text-align:left;padding:4px;">Local (Ollama / LM Studio)</th><th style="text-align:left;padding:4px;">Online (OpenAI, Gemini, …)</th></tr></thead>
+                        <tbody>
+                            <tr><td style="padding:4px;"><strong>Privacy</strong></td><td style="padding:4px;">Papers never leave your computers</td><td style="padding:4px;">Titles &amp; abstracts sent to the provider</td></tr>
+                            <tr><td style="padding:4px;"><strong>Cost</strong></td><td style="padding:4px;">Free after setup</td><td style="padding:4px;">Pay per paper (small tiers are cheap)</td></tr>
+                            <tr><td style="padding:4px;"><strong>Speed</strong></td><td style="padding:4px;">Depends on your hardware</td><td style="padding:4px;">Fast (about 1–3 s per paper)</td></tr>
+                            <tr><td style="padding:4px;"><strong>Setup</strong></td><td style="padding:4px;">Install app + download model</td><td style="padding:4px;">Create account + API key</td></tr>
+                            <tr><td style="padding:4px;"><strong>Best for</strong></td><td style="padding:4px;">Unpublished / sensitive reviews</td><td style="padding:4px;">Large public-literature reviews, weak hardware</td></tr>
+                        </tbody>
+                    </table>
+                    <p style="margin:0.75rem 0 0.25rem;"><strong>Recommended local models</strong> (pick by your computer's memory):</p>
+                    <ul style="margin:0;">
+                        <li><strong>No graphics card / 8 GB graphics memory:</strong> Qwen 2.5 7B or Llama 3.1 8B</li>
+                        <li><strong>12–16 GB graphics memory (or 32 GB Mac):</strong> Gemma 3 12B, Qwen 2.5 14B, Phi-4 14B</li>
+                        <li><strong>24 GB+ graphics memory (or 48 GB+ Mac):</strong> Gemma 3 27B, Qwen 2.5 32B, Mistral Small 24B</li>
+                    </ul>
+                    <p style="margin:0.75rem 0 0.25rem;"><strong>Recommended online models</strong> — the small, fast tiers are accurate enough and much cheaper:</p>
+                    <ul style="margin:0;">
+                        <li>OpenAI “mini” models · Google Gemini “Flash” · Anthropic Claude “Haiku” · Groq Llama 70B</li>
+                    </ul>
+                    <p style="margin:0.75rem 0 0;"><strong>Avoid:</strong> “thinking”/reasoning models (e.g. DeepSeek-R1, QwQ, o-series) — slow, costly, and they often break the answer format — and tiny models (3B or less). In the model list, ★ marks recommended models and ⚠ marks ones to avoid.</p>
+                    <p style="margin:0.5rem 0 0;"><strong>Tip:</strong> before relying on a model, screen ~50 papers yourself and compare how often the AI agrees with you. You always make the final decision.</p>
+                </div>
+            </details>
+            <div id="aiPullRow" class="desc" style="display:none;margin:0.5rem 0;">
+                <strong>Download a recommended model into Ollama:</strong>
+                <select id="aiPullModel" style="margin:0 0.5rem;">
+                    <option value="qwen2.5:7b">Qwen 2.5 7B (~5 GB, any computer)</option>
+                    <option value="gemma3:12b">Gemma 3 12B (~8 GB, 12–16 GB GPU)</option>
+                    <option value="gemma3:27b">Gemma 3 27B (~17 GB, 24 GB+ GPU)</option>
+                </select>
+                <button type="button" class="btn btn-secondary" id="aiPullBtn" onclick="pullAiModel()">Download</button>
+                <span class="smtp-hint" id="aiPullHint"></span>
+            </div>
+            <div class="retention-form">
+                <div class="smtp-field" id="aiEndpointField">
+                    <label class="smtp-label" for="aiEndpoint">Server address</label>
+                    <input type="text" id="aiEndpoint" placeholder="http://localhost:11434" onchange="loadAiModels()">
+                    <span class="smtp-hint" id="aiEndpointHint"></span>
+                </div>
+                <div class="smtp-field" id="aiApiKeyField">
+                    <label class="smtp-label" for="aiApiKey">API key</label>
+                    <input type="password" id="aiApiKey" placeholder="Paste your API key here" autocomplete="new-password" onchange="loadAiModels()">
+                    <span class="smtp-hint"><a id="aiKeyLink" href="#" target="_blank" rel="noopener">Get an API key</a> &middot; stored only on this computer (as plain text in <code>data/ai_config.json</code> — don't share the <code>data</code> folder), never shown again</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="aiModelSelect">Model</label>
+                    <select id="aiModelSelect" onchange="onAiModelSelect()">
+                        <option value="">— click "Refresh list" —</option>
+                    </select>
+                    <button type="button" class="btn btn-primary" id="aiRefreshBtn" onclick="loadAiModels()">Refresh list</button>
+                    <span class="smtp-hint" id="aiModelHint">The list fills in automatically once the connection works</span>
+                </div>
+                <div class="smtp-field" id="aiModelCustomField" style="display:none;">
+                    <label class="smtp-label" for="aiModel">Model name</label>
+                    <input type="text" id="aiModel" placeholder="e.g. llama3.1">
+                    <span class="smtp-hint">Type the exact model name</span>
+                </div>
+            </div>
+            <details style="margin:0.5rem 0;">
+                <summary style="cursor:pointer;">Advanced</summary>
+                <div class="retention-form">
+                    <div class="smtp-field">
+                        <label class="smtp-label" for="aiProvider">API type</label>
+                        <select id="aiProvider">
+                            <option value="ollama">Ollama native (/api/chat)</option>
+                            <option value="openai">OpenAI-compatible (/v1/chat/completions)</option>
+                        </select>
+                        <span class="smtp-hint">Set automatically by the choice above</span>
+                    </div>
+                </div>
+            </details>
             <div class="btn-group">
-                <button class="btn btn-success" onclick="saveAiConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save</button>
-                <button class="btn btn-primary" onclick="testAiConfig(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-success" onclick="testAndSaveAiConfig(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Test &amp; Save</button>
             </div>
             <div class="alert alert-success" id="aiSuccess"></div>
             <div class="alert alert-error" id="aiError"></div>
@@ -1952,6 +2020,197 @@
         }
 
         // ── AI Screening Assistant config ─────────────────────────
+        const AI_VENDORS = {
+            ollama: { provider: 'ollama', endpoint: 'http://localhost:11434', local: true,
+                help: `<strong>Private: papers never leave your computers.</strong><ol style="margin:0.4rem 0 0 1.2rem;padding:0;">
+                    <li>Install Ollama from <a href="https://ollama.com/download" target="_blank" rel="noopener">ollama.com/download</a> and open it.</li>
+                    <li>Download a model: open a terminal and run <code>ollama pull llama3.1</code> (or any model from <a href="https://ollama.com/library" target="_blank" rel="noopener">ollama.com/library</a>).</li>
+                    <li>Click <em>Refresh list</em> below and choose your model.</li></ol>
+                    <p style="margin:0.4rem 0 0;"><strong>Ollama on another computer?</strong> On that computer set the environment variable <code>OLLAMA_HOST=0.0.0.0</code>, restart Ollama, allow port 11434 in its firewall, then replace <code>localhost</code> below with its IP address (e.g. <code>http://192.168.1.50:11434</code>).</p>` },
+            lmstudio: { provider: 'openai', endpoint: 'http://localhost:1234/v1', local: true,
+                help: `<strong>Private: papers never leave your computers.</strong><ol style="margin:0.4rem 0 0 1.2rem;padding:0;">
+                    <li>Install LM Studio from <a href="https://lmstudio.ai" target="_blank" rel="noopener">lmstudio.ai</a> and download a model in its <em>Discover</em> tab.</li>
+                    <li>Open the <em>Developer</em> tab and switch <em>Start server</em> on.</li>
+                    <li>Click <em>Refresh list</em> below and choose your model.</li></ol>
+                    <p style="margin:0.4rem 0 0;"><strong>LM Studio on another computer?</strong> Enable <em>Serve on Local Network</em> in its server settings, then replace <code>localhost</code> below with its IP address.</p>` },
+            openai: { provider: 'openai', endpoint: 'https://api.openai.com/v1', keyUrl: 'https://platform.openai.com/api-keys', name: 'OpenAI' },
+            anthropic: { provider: 'openai', endpoint: 'https://api.anthropic.com/v1', keyUrl: 'https://console.anthropic.com/settings/keys', name: 'Anthropic' },
+            gemini: { provider: 'openai', endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai', keyUrl: 'https://aistudio.google.com/apikey', name: 'Google' },
+            groq: { provider: 'openai', endpoint: 'https://api.groq.com/openai/v1', keyUrl: 'https://console.groq.com/keys', name: 'Groq' },
+            openrouter: { provider: 'openai', endpoint: 'https://openrouter.ai/api/v1', keyUrl: 'https://openrouter.ai/keys', name: 'OpenRouter' },
+        };
+        let aiApiKeySaved = false;
+        let aiProfiles = {};
+        const aiVendorId = () => document.getElementById('aiVendor').value || 'custom';
+
+        function detectAiVendor(provider, endpoint) {
+            const strip = s => (s || '').replace(/\/v1$/, '').replace(/\/+$/, '');
+            const host = s => { try { return new URL(s).port; } catch (e) { return ''; } };
+            for (const [name, v] of Object.entries(AI_VENDORS)) {
+                if (v.provider !== provider) continue;
+                if (strip(v.endpoint) === strip(endpoint)) return name;
+                // local server on another machine: match by default port
+                if (v.local && host(v.endpoint) === host(endpoint)) return name;
+            }
+            return '';
+        }
+
+        function renderAiVendor() {
+            const key = document.getElementById('aiVendor').value;
+            const v = AI_VENDORS[key];
+            const help = document.getElementById('aiVendorHelp');
+            const isCloud = v && !v.local;
+            document.getElementById('aiPullRow').style.display =
+                (v ? v.provider : document.getElementById('aiProvider').value) === 'ollama' ? '' : 'none';
+            document.getElementById('aiApiKeyField').style.display = (isCloud || !v) ? '' : 'none';
+            document.getElementById('aiEndpointField').style.display = isCloud ? 'none' : '';
+            document.getElementById('aiEndpointHint').textContent = v && v.local
+                ? `Leave as is when it runs on this computer (default ${v.endpoint})`
+                : 'Address of your server';
+            if (isCloud) {
+                document.getElementById('aiKeyLink').href = v.keyUrl;
+                document.getElementById('aiKeyLink').textContent = `Get a ${v.name} API key`;
+                help.innerHTML = `<strong>Online service:</strong> titles and abstracts are sent to ${v.name}, and usage is billed to your account.<ol style="margin:0.4rem 0 0 1.2rem;padding:0;">
+                    <li><a href="${v.keyUrl}" target="_blank" rel="noopener">Create an API key</a> in your ${v.name} account.</li>
+                    <li>Paste it in the <em>API key</em> field below; the model list loads automatically.</li>
+                    <li>Choose a model and click <em>Test &amp; Save</em>.</li></ol>`;
+            } else if (v) {
+                help.innerHTML = v.help;
+            } else {
+                document.getElementById('aiKeyLink').removeAttribute('href');
+                document.getElementById('aiKeyLink').textContent = 'Only if your server requires one';
+                help.innerHTML = 'Any server with an OpenAI-compatible or Ollama API. Enter its address (and API key if needed), and pick the API type under <em>Advanced</em>.';
+            }
+        }
+
+        function applyAiVendor() {
+            hideAlerts();
+            const v = AI_VENDORS[document.getElementById('aiVendor').value];
+            const saved = aiProfiles[aiVendorId()] || {};
+            if (v) document.getElementById('aiProvider').value = v.provider;
+            document.getElementById('aiEndpoint').value = saved.endpoint || (v ? v.endpoint : '');
+            const keyInput = document.getElementById('aiApiKey');
+            keyInput.value = '';
+            aiApiKeySaved = !!saved.apiKeyConfigured;
+            keyInput.placeholder = aiApiKeySaved ? 'Saved — paste a new key to replace' : 'Paste your API key here';
+            document.getElementById('aiModel').value = saved.model || '';
+            setAiModelOptions([], saved.model || '');
+            renderAiVendor();
+            loadAiModels();
+        }
+
+        function aiModelLabel(name) {
+            const n = name.toLowerCase();
+            if (/(^|[^a-z0-9])(r1|qwq|o1|o3|o4)([^a-z0-9]|$)|thinking|reason|embed|whisper|tts|dall-e|image|audio|moderation/.test(n) || /[:\-_](0\.5|1|1\.5|2|3)b/.test(n))
+                return '⚠ ' + name + ' (not recommended)';
+            if (/gemma|qwen2\.5|mistral-small|llama-?3\.[13]|phi-?4|mini|flash|haiku|70b/.test(n))
+                return '★ ' + name;
+            return name;
+        }
+
+        function setAiModelOptions(models, selected) {
+            const sel = document.getElementById('aiModelSelect');
+            sel.innerHTML = '';
+            const add = (value, label) => {
+                const o = document.createElement('option');
+                o.value = value; o.textContent = label;
+                sel.appendChild(o);
+            };
+            add('', models.length ? '— choose a model —' : '— click "Refresh list" —');
+            models.forEach(m => add(m, aiModelLabel(m)));
+            if (selected && !models.includes(selected)) add(selected, selected + ' (saved)');
+            add('__custom', 'Other — type a name…');
+            sel.value = selected || '';
+            onAiModelSelect(true);
+        }
+
+        function onAiModelSelect(keepInput) {
+            const val = document.getElementById('aiModelSelect').value;
+            const custom = val === '__custom';
+            document.getElementById('aiModelCustomField').style.display = custom ? '' : 'none';
+            if (!custom) document.getElementById('aiModel').value = val;
+            else if (!keepInput) document.getElementById('aiModel').focus();
+        }
+
+        async function pullAiModel() {
+            hideAlerts();
+            const model = document.getElementById('aiPullModel').value;
+            const btn = document.getElementById('aiPullBtn');
+            const hint = document.getElementById('aiPullHint');
+            btn.disabled = true; btn.textContent = 'Downloading…';
+            hint.textContent = 'This can take several minutes — keep this page open.';
+            try {
+                const resp = await fetch('/api/ai-config/pull', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        model: model,
+                        vendor: aiVendorId(),
+                        provider: document.getElementById('aiProvider').value,
+                        endpoint: document.getElementById('aiEndpoint').value.trim(),
+                    })
+                });
+                const data = await resp.json();
+                hint.textContent = data.message || '';
+                if (data.ok) {
+                    await loadAiModels();
+                    document.getElementById('aiModel').value = model;
+                } else {
+                    showAlert('aiError', data.message || 'Download failed.');
+                }
+            } catch (e) {
+                hint.textContent = '';
+                showAlert('aiError', 'Download failed: ' + e.message);
+            } finally {
+                btn.disabled = false; btn.textContent = 'Download';
+            }
+        }
+
+        async function loadAiModels() {
+            hideAlerts();
+            const v = AI_VENDORS[document.getElementById('aiVendor').value];
+            const typedKey = document.getElementById('aiApiKey').value.trim();
+            const hint = document.getElementById('aiModelHint');
+            if (v && !v.local && !typedKey && !aiApiKeySaved) {
+                hint.textContent = 'Paste your API key above to load the model list';
+                return;
+            }
+            const btn = document.getElementById('aiRefreshBtn');
+            btn.disabled = true; btn.textContent = 'Loading…';
+            hint.textContent = 'Connecting…';
+            const current = document.getElementById('aiModel').value.trim();
+            try {
+                const resp = await fetch('/api/ai-config/models', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        vendor: aiVendorId(),
+                        provider: document.getElementById('aiProvider').value,
+                        endpoint: document.getElementById('aiEndpoint').value.trim(),
+                        apiKey: typedKey,
+                    })
+                });
+                const data = await resp.json();
+                const models = data.models || [];
+                setAiModelOptions(models, current);
+                if (!data.ok) {
+                    hint.textContent = 'Could not load the list — see the message below';
+                    showAlert('aiError', data.message || 'Could not list models.');
+                } else if (!models.length) {
+                    hint.textContent = v && v.local
+                        ? 'Connected, but no models are installed yet — download one first (see steps above)'
+                        : 'Connected, but no models were returned — choose "Other" and type a name';
+                } else {
+                    hint.textContent = `Connected — ${models.length} model(s) available`;
+                }
+            } catch (e) {
+                hint.textContent = 'Could not load the list';
+                showAlert('aiError', 'Error listing models: ' + e.message);
+            } finally {
+                btn.disabled = false; btn.textContent = 'Refresh list';
+            }
+        }
+
         async function loadAiConfig() {
             try {
                 const resp = await fetch('/api/ai-config');
@@ -1961,22 +2220,45 @@
                 document.getElementById('aiProvider').value = cfg.provider || 'ollama';
                 document.getElementById('aiEndpoint').value = cfg.endpoint || '';
                 document.getElementById('aiModel').value = cfg.model || '';
+                document.getElementById('aiVendor').value = cfg.vendor
+                    ? (cfg.vendor === 'custom' ? '' : cfg.vendor)
+                    : detectAiVendor(cfg.provider, cfg.endpoint);
+                aiProfiles = cfg.profiles || {};
+                aiApiKeySaved = !!cfg.apiKeyConfigured;
                 const keyInput = document.getElementById('aiApiKey');
                 keyInput.value = '';
                 keyInput.placeholder = cfg.apiKeyConfigured
-                    ? 'Saved — enter a new key to replace'
-                    : 'only for remote OpenAI-compatible endpoints';
+                    ? 'Saved — paste a new key to replace'
+                    : 'Paste your API key here';
+                renderAiVendor();
+                setAiModelOptions([], cfg.model || '');
+                if (cfg.enabled) loadAiModels();
             } catch (e) { /* section shows defaults */ }
         }
 
-        async function saveAiConfig() {
+        async function saveAiConfig(successMsg) {
             hideAlerts();
+            const v = AI_VENDORS[document.getElementById('aiVendor').value];
+            const enabled = document.getElementById('aiEnabled').value === 'on';
+            const model = document.getElementById('aiModel').value.trim();
+            const apiKey = document.getElementById('aiApiKey').value.trim();
+            if (enabled && !model) {
+                showAlert('aiError', 'Please choose a model before saving.');
+                return;
+            }
+            if (enabled && v && !v.local && !apiKey && !aiApiKeySaved) {
+                showAlert('aiError', 'Please paste your API key before saving.');
+                return;
+            }
             const payload = {
-                enabled: document.getElementById('aiEnabled').value === 'on',
+                enabled,
+                vendor: aiVendorId(),
                 provider: document.getElementById('aiProvider').value,
                 endpoint: document.getElementById('aiEndpoint').value.trim(),
-                model: document.getElementById('aiModel').value.trim(),
-                apiKey: document.getElementById('aiApiKey').value.trim(),
+                model,
+                apiKey,
+                // local servers need no key; drop any stale one from a previous vendor
+                clear: !!(v && v.local),
             };
             try {
                 const resp = await fetch('/api/ai-config', {
@@ -1985,7 +2267,7 @@
                     body: JSON.stringify(payload)
                 });
                 if (resp.ok) {
-                    showAlert('aiSuccess', 'AI assistant settings saved.');
+                    showAlert('aiSuccess', successMsg || 'AI assistant settings saved.');
                     loadAiConfig();
                 } else {
                     showAlert('aiError', 'Failed to save AI settings.');
@@ -1995,15 +2277,24 @@
             }
         }
 
-        async function testAiConfig(btn) {
+        async function testAndSaveAiConfig(btn) {
             hideAlerts();
-            const orig = btn ? btn.innerHTML : null;
-            if (btn) { btn.disabled = true; btn.innerHTML = 'Testing…'; }
+            // turning the assistant off needs no working connection
+            if (document.getElementById('aiEnabled').value !== 'on') {
+                return saveAiConfig('AI assistant disabled and settings saved.');
+            }
+            if (!document.getElementById('aiModel').value.trim()) {
+                showAlert('aiError', 'Please choose a model first.');
+                return;
+            }
+            const orig = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = 'Testing…';
             try {
                 const resp = await fetch('/api/ai-config/test', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
+                        vendor: aiVendorId(),
                         provider: document.getElementById('aiProvider').value,
                         endpoint: document.getElementById('aiEndpoint').value.trim(),
                         model: document.getElementById('aiModel').value.trim(),
@@ -2011,12 +2302,15 @@
                     })
                 });
                 const data = await resp.json();
-                if (data.ok) showAlert('aiSuccess', data.message || 'Connection OK.');
-                else showAlert('aiError', data.message || 'Connection failed.');
+                if (!data.ok) {
+                    showAlert('aiError', (data.message || 'Connection failed.') + ' Settings were not saved.');
+                    return;
+                }
+                await saveAiConfig(`Connection works and settings are saved — ${data.message || ''}`);
             } catch (e) {
-                showAlert('aiError', 'Test failed: ' + e.message);
+                showAlert('aiError', 'Test failed: ' + e.message + ' Settings were not saved.');
             } finally {
-                if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+                btn.disabled = false; btn.innerHTML = orig;
             }
         }
 

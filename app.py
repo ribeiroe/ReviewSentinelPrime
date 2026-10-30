@@ -2130,6 +2130,65 @@ def cleanup_run_retention_route():
 # funding, and competing interests. Feeds the PRISMA checklist and the
 # replication-package export.
 
+def _ai_agreement_stats(rows):
+    """Reviewer-vs-AI agreement and 3-class Cohen's kappa from export rows."""
+    classes = ("include", "exclude", "unsure")
+    pairs = [(r.get("ai_suggested"), r.get("decision")) for r in rows
+             if r.get("ai_suggested") in classes and r.get("decision") in classes]
+    n = len(pairs)
+    if not n:
+        return None
+    agree = sum(1 for a, d in pairs if a == d)
+    po = agree / n
+    pe = sum((sum(1 for _, d in pairs if d == c) / n) * (sum(1 for a, _ in pairs if a == c) / n)
+             for c in classes)
+    kappa = (po - pe) / (1 - pe) if pe < 1 else 1.0
+    return {"n": n, "agree": agree, "pct": round(po * 100), "kappa": round(kappa, 2)}
+
+
+_ROB_DOMAINS = {
+    "RoB 2": ["D1 randomisation", "D2 deviations from intended interventions", "D3 missing outcome data",
+              "D4 measurement of the outcome", "D5 selection of the reported result"],
+    "ROBINS-I": ["D1 confounding", "D2 selection of participants", "D3 classification of interventions",
+                 "D4 deviations from intended interventions", "D5 missing data",
+                 "D6 measurement of outcomes", "D7 selection of the reported result"],
+    "CASP": ["Q1 clear aims", "Q2 appropriate methodology", "Q3 appropriate design", "Q4 recruitment",
+             "Q5 data collection", "Q6 researcher relationship", "Q7 ethics", "Q8 rigorous analysis",
+             "Q9 clear findings", "Q10 value of research"],
+}
+
+
+def _assessment_templates(studies, protocol):
+    """Blank risk-of-bias (one row per study) and GRADE (one row per outcome) CSVs."""
+    tool = (protocol or {}).get("robTool") or ""
+    domains = _ROB_DOMAINS.get(tool, ["Domain 1", "Domain 2", "Domain 3", "Domain 4", "Domain 5"])
+    rob_fields = ["study_id", "title", "authors", "year", "doi", "tool"] + domains + [
+        "overall_judgement", "support_for_judgement", "assessor"]
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=rob_fields, extrasaction="ignore")
+    writer.writeheader()
+    for i, s in enumerate(studies or [], 1):
+        authors = s.get("authors", "")
+        if isinstance(authors, list):
+            authors = "; ".join(authors)
+        writer.writerow(_csv_safe_row({
+            "study_id": f"S{i:03d}", "title": s.get("title", ""), "authors": authors,
+            "year": s.get("year", ""), "doi": s.get("doi", ""), "tool": tool or "(specify tool)",
+        }))
+    rob_csv = out.getvalue()
+
+    outcomes = [o.strip(" -•\t") for o in re.split(r"[\n;]+", (protocol or {}).get("outcomes") or "")]
+    outcomes = [o for o in outcomes if o] or ["(outcome 1)"]
+    grade_fields = ["outcome", "n_studies", "study_design", "risk_of_bias", "inconsistency",
+                    "indirectness", "imprecision", "publication_bias", "certainty", "comments"]
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=grade_fields)
+    writer.writeheader()
+    for o in outcomes:
+        writer.writerow(_csv_safe_row({f: "" for f in grade_fields} | {"outcome": o}))
+    return rob_csv, out.getvalue()
+
+
 _PROTOCOL_FIELDS = [
     "researchQuestions", "rationale", "outcomes",
     "reviewers", "screeningProcess",
@@ -2138,6 +2197,7 @@ _PROTOCOL_FIELDS = [
     "robTool", "robNotes",
     "effectMeasures", "reportingBiasMethod", "certaintyMethod",
     "funding", "competingInterests",
+    "heterogeneityMethod", "sensitivityMethod",
 ]
 
 
@@ -2182,6 +2242,8 @@ _AI_DEFAULTS = {
     "endpoint": "http://localhost:11434",
     "model": "llama3.1",
     "apiKey": "",                       # only for openai-compatible endpoints
+    "vendor": "",                       # UI preset id, "" = custom
+    "profiles": {},                     # per-vendor {provider, endpoint, model, apiKey}
 }
 
 
@@ -2191,7 +2253,28 @@ def _load_ai_config():
         cfg = {}
     merged = dict(_AI_DEFAULTS)
     merged.update({k: cfg[k] for k in _AI_DEFAULTS if k in cfg})
+    if not isinstance(merged["profiles"], dict):
+        merged["profiles"] = {}
     return merged
+
+
+def _ai_vendor_id(value):
+    value = str(value or "").strip().lower()
+    return value if re.fullmatch(r"[a-z0-9_-]{1,32}", value) else "custom"
+
+
+def _apply_ai_overrides(cfg, overrides):
+    """Overlay unsaved form values; reuse the stored key for the chosen vendor."""
+    vendor = _ai_vendor_id(overrides.get("vendor", cfg["vendor"]))
+    for field in ("provider", "endpoint", "model"):
+        if overrides.get(field):
+            cfg[field] = str(overrides[field]).strip()
+    typed = str(overrides.get("apiKey") or "").strip()
+    if typed:
+        cfg["apiKey"] = typed
+    elif vendor != _ai_vendor_id(cfg["vendor"]):
+        cfg["apiKey"] = cfg["profiles"].get(vendor, {}).get("apiKey", "")
+    return cfg
 
 
 @app.route("/api/ai-config", methods=["GET"])
@@ -2199,6 +2282,11 @@ def get_ai_config_route():
     cfg = _load_ai_config()
     key = cfg.pop("apiKey", "")
     cfg["apiKeyConfigured"] = bool(key)  # never return the key itself
+    cfg["profiles"] = {
+        name: {"endpoint": p.get("endpoint", ""), "model": p.get("model", ""),
+               "apiKeyConfigured": bool(p.get("apiKey"))}
+        for name, p in cfg["profiles"].items() if isinstance(p, dict)
+    }
     return jsonify(cfg)
 
 
@@ -2209,6 +2297,11 @@ def set_ai_config_route():
     provider = str(data.get("provider", existing["provider"])).strip().lower()
     if provider not in ("ollama", "openai"):
         provider = "ollama"
+    vendor = _ai_vendor_id(data.get("vendor", existing["vendor"]))
+    profiles = dict(existing["profiles"])
+    stored_key = profiles.get(vendor, {}).get("apiKey", "")
+    if not stored_key and vendor == _ai_vendor_id(existing["vendor"]):
+        stored_key = existing["apiKey"]
     new_key = str(data.get("apiKey", "")).strip()
     cfg = {
         "enabled": bool(data.get("enabled", existing["enabled"])),
@@ -2216,11 +2309,13 @@ def set_ai_config_route():
         "endpoint": str(data.get("endpoint", existing["endpoint"])).strip().rstrip("/"),
         "model": str(data.get("model", existing["model"])).strip(),
         # empty key means "keep stored"; clear=true erases it
-        "apiKey": "" if data.get("clear") else (new_key or existing["apiKey"]),
+        "apiKey": "" if data.get("clear") else (new_key or stored_key),
+        "vendor": vendor,
     }
+    profiles[vendor] = {k: cfg[k] for k in ("provider", "endpoint", "model", "apiKey")}
+    cfg["profiles"] = profiles
     _write_json_atomic(AI_CONFIG_FILE, cfg)
-    safe = dict(cfg)
-    safe.pop("apiKey", "")
+    safe = {k: v for k, v in cfg.items() if k not in ("apiKey", "profiles")}
     safe["apiKeyConfigured"] = bool(cfg["apiKey"])
     return jsonify({"ok": True, "config": safe})
 
@@ -2361,15 +2456,22 @@ def ai_screen_suggest():
             parsed = _extract_json_object(reply)
             decision = str((parsed or {}).get("decision", "")).lower()
             if decision not in ("include", "exclude", "unsure"):
+                # One retry with a stricter reminder; small models often add prose around the JSON.
+                reply = _ai_chat(cfg, system_prompt, user_prompt +
+                                 "\n\nYour previous answer could not be read. Reply with ONLY the JSON object.")
+                parsed = _extract_json_object(reply)
+                decision = str((parsed or {}).get("decision", "")).lower()
+            if decision not in ("include", "exclude", "unsure"):
                 raise ValueError(f"model returned no valid decision: {reply[:120]!r}")
             suggestions[pid] = {
                 "decision": decision,
                 "reason": str((parsed or {}).get("reason", ""))[:500],
                 "confidence": max(0, min(100, _to_int((parsed or {}).get("confidence"), 50))),
                 "model": cfg["model"],
+                "vendor": cfg.get("vendor") or cfg["provider"],
             }
         except Exception as exc:
-            errors.append({"paperId": pid, "error": str(exc)[:300]})
+            errors.append({"paperId": pid, "error": _friendly_ai_error(exc, cfg)})
     return jsonify({"suggestions": suggestions, "errors": errors, "model": cfg["model"]})
 
 
@@ -2377,20 +2479,103 @@ def ai_screen_suggest():
 def test_ai_config_route():
     """Round-trip a trivial prompt to verify the endpoint/model works."""
     cfg = _load_ai_config()
-    overrides = request.get_json(silent=True) or {}
-    for field in ("provider", "endpoint", "model"):
-        if overrides.get(field):
-            cfg[field] = str(overrides[field]).strip()
-    if overrides.get("apiKey"):
-        cfg["apiKey"] = str(overrides["apiKey"]).strip()
+    cfg = _apply_ai_overrides(cfg, request.get_json(silent=True) or {})
     try:
         reply = _ai_chat(cfg, "Reply with ONLY this JSON object: {\"ok\": true}", "ping", timeout=30)
         parsed = _extract_json_object(reply)
+        if parsed is None:
+            reply = _ai_chat(cfg, "Reply with ONLY this JSON object: {\"ok\": true}",
+                             "ping\n\nYour previous answer could not be read. Reply with ONLY the JSON object.", timeout=30)
+            parsed = _extract_json_object(reply)
         if parsed is not None:
             return jsonify({"ok": True, "message": f"Model '{cfg['model']}' responded."})
-        return jsonify({"ok": False, "message": f"Endpoint reachable but reply was not JSON: {str(reply)[:120]}"})
+        return jsonify({"ok": False, "message": f"Connected, but the model's reply was not usable: {str(reply)[:120]}. Try a different (larger or instruction-tuned) model."})
     except Exception as exc:
-        return jsonify({"ok": False, "message": str(exc)[:300]})
+        return jsonify({"ok": False, "message": _friendly_ai_error(exc, cfg)})
+
+
+def _friendly_ai_error(exc, cfg):
+    """Translate network/HTTP errors into guidance a non-technical user can act on."""
+    endpoint = cfg.get("endpoint", "")
+    is_local = cfg.get("provider") == "ollama" or any(
+        h in endpoint for h in ("localhost", "127.0.0.1", "192.168.", "10.", ":1234", ":11434"))
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        if is_local:
+            return (f"Can't reach the AI server at {endpoint}. Make sure Ollama / LM Studio is open and its "
+                    "server is running; if it's on another computer, check the IP address and that it "
+                    "accepts network connections.")
+        return f"Can't reach {endpoint}. Check your internet connection."
+    if isinstance(exc, requests.exceptions.Timeout):
+        return ("The AI server took too long to answer. Large models on a computer without a strong "
+                "GPU can be slow — try again or choose a smaller model.")
+    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        code = exc.response.status_code
+        if code in (401, 403):
+            return "The API key was rejected. Check that you pasted the full key for this service."
+        if code == 404:
+            return ("Model or address not found. Click 'Refresh list' and choose a model from the list, "
+                    "or check the server address.")
+        if code == 429:
+            return "The service is rate-limiting you or your account has no credit left. Check your billing/usage page."
+        if code >= 500:
+            return f"The AI service had an internal error (HTTP {code}). Try again in a moment."
+        return f"The AI service answered with HTTP {code}: {exc.response.text[:200]}"
+    return str(exc)[:300]
+
+
+@app.route("/api/ai-config/models", methods=["POST"])
+def list_ai_models_route():
+    """List models available at the configured (or overridden) endpoint."""
+    cfg = _load_ai_config()
+    overrides = request.get_json(silent=True) or {}
+    overrides.pop("model", None)
+    cfg = _apply_ai_overrides(cfg, overrides)
+    endpoint = cfg["endpoint"].rstrip("/")
+    try:
+        if cfg["provider"] == "ollama":
+            resp = requests.get(f"{endpoint}/api/tags", timeout=15)
+            resp.raise_for_status()
+            models = [m.get("name") for m in resp.json().get("models", [])]
+        else:
+            headers = {}
+            if cfg.get("apiKey"):
+                headers["Authorization"] = f"Bearer {cfg['apiKey']}"
+                # Anthropic's /v1/models authenticates via x-api-key instead of Bearer
+                headers["x-api-key"] = cfg["apiKey"]
+                headers["anthropic-version"] = "2023-06-01"
+            models_url = _openai_chat_url(endpoint)[: -len("/chat/completions")] + "/models"
+            resp = requests.get(models_url, headers=headers, timeout=15)
+            resp.raise_for_status()
+            models = [m.get("id") for m in resp.json().get("data", [])]
+        models = sorted({str(m).removeprefix("models/") for m in models if m})
+        return jsonify({"ok": True, "models": models})
+    except Exception as exc:
+        return jsonify({"ok": False, "models": [], "message": _friendly_ai_error(exc, cfg)})
+
+
+_OLLAMA_MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-/]{0,99}(:[A-Za-z0-9._\-]{1,50})?$")
+
+
+@app.route("/api/ai-config/pull", methods=["POST"])
+def pull_ai_model_route():
+    """Ask a local Ollama server to download a model (blocking until done)."""
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("model", "")).strip()
+    if not _OLLAMA_MODEL_RE.match(name):
+        return jsonify({"ok": False, "message": "Invalid model name."}), 400
+    cfg = _apply_ai_overrides(_load_ai_config(), {k: v for k, v in data.items() if k != "model"})
+    if cfg["provider"] != "ollama":
+        return jsonify({"ok": False, "message": "Model download is only available for Ollama."}), 400
+    try:
+        resp = requests.post(f"{cfg['endpoint'].rstrip('/')}/api/pull",
+                             json={"model": name, "stream": False}, timeout=3600)
+        resp.raise_for_status()
+        status = (resp.json() or {}).get("status", "")
+        if status and status != "success":
+            return jsonify({"ok": False, "message": f"Ollama reported: {status[:200]}"})
+        return jsonify({"ok": True, "message": f"Model '{name}' downloaded."})
+    except Exception as exc:
+        return jsonify({"ok": False, "message": _friendly_ai_error(exc, cfg)})
 
 
 # --- API: Test Connection (proxy to avoid browser CORS restrictions) ---
@@ -5785,6 +5970,11 @@ def save_adhoc_screening_decision(run_id):
             # an AI suggestion, and by which model?
             if body.get("aiAssisted"):
                 entry["aiAssisted"] = True
+            if body.get("aiSuggested") in ("include", "exclude", "unsure"):
+                entry["aiSuggested"] = body["aiSuggested"]
+                entry["aiConfidence"] = max(0, min(100, _to_int(body.get("aiConfidence"), 0)))
+                entry["aiVendor"] = str(body.get("aiVendor", ""))[:32]
+            if body.get("aiAssisted") or entry.get("aiSuggested"):
                 entry["aiModel"] = str(body.get("aiModel", ""))[:100]
             payload["screeningDecisions"][paper_id] = entry
             _write_json_atomic(file_path, payload)
@@ -6678,6 +6868,9 @@ def export_replication_package():
                     "screened_at": dec.get("timestamp", ""),
                     "ai_assisted": "yes" if dec.get("aiAssisted") else "no",
                     "ai_model": dec.get("aiModel", ""),
+                    "ai_vendor": dec.get("aiVendor", ""),
+                    "ai_suggested": dec.get("aiSuggested", ""),
+                    "ai_confidence": dec.get("aiConfidence", ""),
                 })
 
     # T&A screening summary for the exported flow diagram
@@ -6787,11 +6980,18 @@ def export_replication_package():
         if screening_decisions:
             sd_output = io.StringIO()
             sd_fields = ["title", "authors", "year", "source", "doi", "decision", "reason", "screened_at",
-                         "ai_assisted", "ai_model"]
+                         "ai_assisted", "ai_model", "ai_vendor", "ai_suggested", "ai_confidence"]
             sd_writer = csv.DictWriter(sd_output, fieldnames=sd_fields, extrasaction="ignore")
             sd_writer.writeheader()
             sd_writer.writerows(screening_decisions)
             zf.writestr(prefix + "02_data/screening_decisions.csv", sd_output.getvalue())
+
+        # Fill-in templates for PRISMA items 18/21 (risk of bias) and 22 (certainty)
+        final_studies = ([r for r in screening_decisions if r.get("decision") == "include"]
+                         if screening_decisions else included_docs)
+        rob_csv, grade_csv = _assessment_templates(final_studies, _load_protocol())
+        zf.writestr(prefix + "02_data/risk_of_bias_template.csv", rob_csv)
+        zf.writestr(prefix + "02_data/grade_certainty_template.csv", grade_csv)
 
         # --- 3. Images ---
         import base64 as _b64
@@ -6965,7 +7165,9 @@ def export_replication_package():
             ai_usage={
                 "count": sum(1 for r in screening_decisions if r.get("ai_assisted") == "yes"),
                 "total": len(screening_decisions),
-                "models": sorted({r.get("ai_model") for r in screening_decisions if r.get("ai_model")}),
+                "models": sorted({r.get("ai_model") for r in screening_decisions
+                                  if r.get("ai_model") and r.get("ai_assisted") == "yes"}),
+                "agreement": _ai_agreement_stats(screening_decisions),
             },
         )
         zf.writestr(prefix + "05_evidence_checklist/PRISMA_evidence_checklist.txt", checklist)
@@ -7445,6 +7647,8 @@ PRISMA 2020 guidelines for transparent reporting of systematic reviews.
 │   ├── included_studies.csv                     ← Final included studies
 │   ├── excluded_studies.csv                     ← Excluded studies with reasons
 │   ├── screening_decisions.csv                  ← Title & abstract screening decisions (if performed)
+│   ├── risk_of_bias_template.csv                ← Blank risk-of-bias table per included study (fill in)
+│   ├── grade_certainty_template.csv             ← Blank GRADE certainty table per outcome (fill in)
 │   └── prisma_data.json                         ← PRISMA flow data (machine-readable)
 ├── 03_protocol/
 │   └── protocol.md                              ← Inclusion/exclusion criteria as prose
@@ -7636,6 +7840,8 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
         row("16b: T&A screening decisions", "02_data/screening_decisions.csv"),
         row("16c: Eligibility assessment", "02_data/excluded_studies.csv"),
         row("17: Included studies", "02_data/included_studies.csv"),
+        row("18/21: Risk of bias (template)", "02_data/risk_of_bias_template.csv"),
+        row("22: Certainty/GRADE (template)", "02_data/grade_certainty_template.csv"),
         row("Flow diagram", "04_images/prisma_flow_diagram.svg"),
         row("24a: Registration", "03_protocol/review_protocol.json"),
         row("24b: Protocol access", "03_protocol/protocol.md"),
@@ -7722,6 +7928,8 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
             ("Effect measures",    "effectMeasures"),
             ("Reporting bias",     "reportingBiasMethod"),
             ("Certainty method",   "certaintyMethod"),
+            ("Heterogeneity",      "heterogeneityMethod"),
+            ("Sensitivity",        "sensitivityMethod"),
             ("Funding",            "funding"),
             ("Competing interests", "competingInterests"),
         ):
@@ -7740,14 +7948,17 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
         if recall["missing"]:
             lines.append("  Missing seeds suggest the query may be too narrow - review before reporting.")
 
-    if ai_usage and ai_usage.get("count"):
+    if ai_usage and (ai_usage.get("count") or ai_usage.get("agreement")):
         lines += [
             "",
             "--- AUTOMATION TOOLS USED IN SELECTION (PRISMA 16b) ---",
-            f"  AI-assisted decisions: {ai_usage['count']} of {ai_usage.get('total', 0)}",
+            f"  AI-assisted decisions: {ai_usage.get('count', 0)} of {ai_usage.get('total', 0)}",
             f"  Model(s):              {', '.join(ai_usage.get('models') or ['unspecified'])}",
             "  Every AI suggestion was accepted or overridden by a human reviewer.",
         ]
+        ag = ai_usage.get("agreement")
+        if ag:
+            lines.append(f"  Reviewer-AI agreement: {ag['agree']}/{ag['n']} ({ag['pct']}%), Cohen's kappa = {ag['kappa']:.2f}")
 
     lines += ["", "--- ITEMS STILL NEEDING MANUAL ATTENTION ---"]
     todo = []
@@ -7758,6 +7969,8 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
     for label, field in (
         ("11: risk-of-bias assessment", "robTool"),
         ("13: synthesis method", "synthesisMethod"),
+        ("13e: heterogeneity exploration", "heterogeneityMethod"),
+        ("13f: sensitivity analyses", "sensitivityMethod"),
         ("12: effect measures", "effectMeasures"),
         ("14: reporting-bias assessment", "reportingBiasMethod"),
         ("15: certainty assessment", "certaintyMethod"),

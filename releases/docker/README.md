@@ -256,6 +256,15 @@ The Settings page tests all API connections through the app's backend (not direc
 
 ---
 
+### AI Assistant: "Can't reach the AI server" with Ollama or LM Studio
+
+Inside Docker, `localhost` means the container, not your computer.
+→ In **Settings → AI Screening Assistant**, set the server address to `http://host.docker.internal:11434` (Ollama) or `http://host.docker.internal:1234/v1` (LM Studio), then click **Refresh list** and **Test & Save**.
+→ Make sure Ollama / LM Studio is open on your computer (LM Studio: start the server in its *Developer* tab).
+→ If it runs on another computer, use that computer's IP address instead.
+
+---
+
 ### I need help
 
 Please contact the support team and include:

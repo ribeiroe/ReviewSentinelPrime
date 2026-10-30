@@ -751,6 +751,8 @@
                                 <option value="None — no formal assessment">None — no formal assessment</option>
                                 <option value="Custom quality checklist">Custom quality checklist</option>
                                 <option value="CASP">CASP</option>
+                                <option value="RoB 2">RoB 2 (randomised trials)</option>
+                                <option value="ROBINS-I">ROBINS-I (non-randomised studies)</option>
                                 <option value="ROBIS">ROBIS</option>
                             </select>
                         </div>
@@ -766,6 +768,8 @@
                         <div><label for="protoCertainty" style="font-weight:600;font-size:0.85rem;">Certainty assessment <span style="color:#888;font-weight:400;">(item 15)</span></label><input type="text" id="protoCertainty" placeholder="e.g. None / GRADE" style="width:100%;box-sizing:border-box;"></div>
                         <div><label for="protoFunding" style="font-weight:600;font-size:0.85rem;">Funding / support <span style="color:#888;font-weight:400;">(item 25)</span></label><input type="text" id="protoFunding" placeholder="e.g. No external funding" style="width:100%;box-sizing:border-box;"></div>
                         <div><label for="protoCOI" style="font-weight:600;font-size:0.85rem;">Competing interests <span style="color:#888;font-weight:400;">(item 26)</span></label><input type="text" id="protoCOI" placeholder="e.g. The authors declare none" style="width:100%;box-sizing:border-box;"></div>
+                        <div><label for="protoHeterogeneity" style="font-weight:600;font-size:0.85rem;">Heterogeneity exploration <span style="color:#888;font-weight:400;">(item 13e)</span></label><input type="text" id="protoHeterogeneity" placeholder="e.g. Subgroup analysis by setting / None performed" style="width:100%;box-sizing:border-box;"></div>
+                        <div><label for="protoSensitivity" style="font-weight:600;font-size:0.85rem;">Sensitivity analyses <span style="color:#888;font-weight:400;">(item 13f)</span></label><input type="text" id="protoSensitivity" placeholder="e.g. Excluding high risk-of-bias studies / None performed" style="width:100%;box-sizing:border-box;"></div>
                     </div>
                     <div style="margin-top:1rem;">
                         <button class="btn btn-primary btn-sm" onclick="saveProtocol()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Protocol</button>
@@ -833,7 +837,11 @@
                             });
                             const total = (run.docs || []).length;
                             const screened = inc + exc + uns;
-                            prisma.taScreening = { screened, included: inc, excluded: exc, unsure: uns, total, runId, reasonCounts, aiAssisted, aiModels: Object.keys(aiModels) };
+                            const pid = d => d.doi ? 'doi:' + d.doi.toLowerCase().trim() : 'title:' + (d.title || '').toLowerCase().trim();
+                            const incDocs = (run.docs || []).filter(d => (decisions[pid(d)] || {}).decision === 'include');
+                            prisma.taScreening = { screened, included: inc, excluded: exc, unsure: uns, total, runId, reasonCounts, aiAssisted, aiModels: Object.keys(aiModels),
+                                aiAgreement: _aiAgreementStats(Object.values(decisions)),
+                                includedChars: _studyCharacteristics(incDocs) };
                             // Persist so PRISMA page shows up-to-date data without server round-trip next time
                             localStorage.setItem('lastPrismaData', JSON.stringify(prisma));
                             // Re-render with updated data (checklist too — 16b
@@ -848,6 +856,41 @@
 
         // ── Review Protocol: server-persisted review-level facts ──
         let reviewProtocol = {};
+
+        // Reviewer-vs-AI agreement with Cohen's kappa over the 3 decision classes.
+        function _aiAgreementStats(decisions) {
+            const cls = ['include', 'exclude', 'unsure'];
+            const pairs = decisions.filter(d => d && d.aiSuggested && cls.includes(d.decision));
+            const n = pairs.length;
+            if (!n) return null;
+            const agree = pairs.filter(d => d.aiSuggested === d.decision).length;
+            const po = agree / n;
+            const pe = cls.reduce((s, c) => s + (pairs.filter(d => d.decision === c).length / n) * (pairs.filter(d => d.aiSuggested === c).length / n), 0);
+            const kappa = pe < 1 ? (po - pe) / (1 - pe) : 1;
+            return { n, agree, pct: Math.round(po * 100), kappa: Math.round(kappa * 100) / 100 };
+        }
+
+        function _studyCharacteristics(list) {
+            if (!list || !list.length) return null;
+            const count = (key) => {
+                const m = {};
+                list.forEach(p => { const v = String(p[key] || '').trim(); if (v) m[v] = (m[v] || 0) + 1; });
+                return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            };
+            const years = list.map(p => parseInt(p.year, 10)).filter(y => y > 0);
+            return {
+                n: list.length,
+                yearMin: years.length ? Math.min(...years) : null,
+                yearMax: years.length ? Math.max(...years) : null,
+                venues: count('journal'),
+                types: count('docType'),
+                sources: count('source'),
+            };
+        }
+
+        function _agreementText(ag) {
+            return `Reviewer–AI agreement: the AI suggested a decision for ${ag.n} record${ag.n === 1 ? '' : 's'}; the reviewer's final decision matched in ${ag.agree} (${ag.pct}%), Cohen's κ = ${ag.kappa.toFixed(2)}.`;
+        }
 
         function toggleProtocolForm() {
             const form = document.getElementById('protocolForm');
@@ -875,6 +918,8 @@
             document.getElementById('protoCertainty').value = pr.certaintyMethod || '';
             document.getElementById('protoFunding').value = pr.funding || '';
             document.getElementById('protoCOI').value = pr.competingInterests || '';
+            document.getElementById('protoHeterogeneity').value = pr.heterogeneityMethod || '';
+            document.getElementById('protoSensitivity').value = pr.sensitivityMethod || '';
         }
 
         async function saveProtocol() {
@@ -895,6 +940,8 @@
                 certaintyMethod: document.getElementById('protoCertainty').value.trim(),
                 funding: document.getElementById('protoFunding').value.trim(),
                 competingInterests: document.getElementById('protoCOI').value.trim(),
+                heterogeneityMethod: document.getElementById('protoHeterogeneity').value.trim(),
+                sensitivityMethod: document.getElementById('protoSensitivity').value.trim(),
             };
             try {
                 const resp = await fetch('/api/protocol', {
@@ -1822,6 +1869,7 @@
                             const models = (ta.aiModels || []).join(', ') || 'local LLM';
                             d += ` Automation tool: ${ta.aiAssisted} of these decisions were accepted from suggestions generated by the RSP AI Screening Assistant (model: ${models}); every suggestion was reviewed and confirmed by the human reviewer.`;
                         }
+                        if (ta.aiAgreement) d += ' ' + _agreementText(ta.aiAgreement);
                     } else {
                         d += ` No manual screening stage was performed — selection relied on the automated filters above.`;
                     }
@@ -1839,6 +1887,10 @@
                 '13d': _protoItem(proto.synthesisMethod && (proto.synthesisMethod + (proto.synthesisNotes ? ' — ' + proto.synthesisNotes : '')),
                     'Synthesis method (from Review Protocol): ',
                     'Select the synthesis method in the Review Protocol form above.'),
+                '13e': _protoItem(proto.heterogeneityMethod, 'Heterogeneity exploration (from Review Protocol): ',
+                    'Describe how heterogeneity was explored — or "None performed" — in the Review Protocol form above.'),
+                '13f': _protoItem(proto.sensitivityMethod, 'Sensitivity analyses (from Review Protocol): ',
+                    'Describe the sensitivity analyses — or "None performed" — in the Review Protocol form above.'),
                 '14':  _protoItem(proto.reportingBiasMethod, 'Reporting-bias assessment (from Review Protocol): ',
                     'Describe the reporting-bias assessment method — or "None performed" — in the Review Protocol form above.'),
                 '15':  _protoItem(proto.certaintyMethod, 'Certainty assessment (from Review Protocol): ',
@@ -1909,9 +1961,17 @@
                 })()},
                 '17':  {s: (p.included||0)>0?'yes':'no', d: (() => {
                     const finalCount = (ta && ta.total > 0 && ta.included >= 0) ? ta.included : (p.included || 0);
-                    return finalCount > 0
-                        ? `${finalCount} studies included${ta && ta.total > 0 ? ' after manual T&A screening' : ' after automated filters'} with metadata per record: title, authors, year, journal/venue, DOI, URL, abstract, keywords, document type, source database.`
-                        : 'No studies included after filtering.';
+                    if (finalCount <= 0) return 'No studies included after filtering.';
+                    let d = `${finalCount} studies included${ta && ta.total > 0 ? ' after manual T&A screening' : ' after automated filters'} with metadata per record: title, authors, year, journal/venue, DOI, URL, abstract, keywords, document type, source database.`;
+                    const ch = (ta && ta.total > 0) ? ta.includedChars : _studyCharacteristics(docs);
+                    if (ch) {
+                        const fmt = arr => arr.map(([k, c]) => `${k} (${c})`).join(', ');
+                        if (ch.yearMin) d += ` Publication years: ${ch.yearMin}–${ch.yearMax}.`;
+                        if (ch.types.length) d += ` Document types: ${fmt(ch.types)}.`;
+                        if (ch.venues.length) d += ` Top venues: ${fmt(ch.venues)}.`;
+                        if (ch.sources.length) d += ` Sources: ${fmt(ch.sources)}.`;
+                    }
+                    return d + ' Full per-study table in included_docs.csv of the replication package.';
                 })()},
                 '23c': {s:'partial', d:(() => {
                     // Draft the process-limitations statement from machine-
@@ -1929,6 +1989,13 @@
                     }
                     lim.push('Deduplication used exact DOI matching with a year-corroborated normalised-title fallback; near-duplicates with differing titles may remain.');
                     lim.push('Automated term filters match titles and abstracts only, so records lacking an abstract in the source API metadata may be misclassified.');
+                    const noAbs = (docs || []).filter(d => !(d.abstract || '').trim()).length;
+                    if (noAbs > 0) {
+                        lim.push(`${noAbs} of ${docs.length} retrieved records had no abstract available and could only be assessed on title and metadata.`);
+                    }
+                    if (ta && ta.aiAssisted > 0) {
+                        lim.push(`An AI screening assistant suggested decisions; ${ta.aiAgreement ? _agreementText(ta.aiAgreement) : 'reviewer–AI agreement was not recorded.'} Suggestions may reflect model biases, although every decision was confirmed by the reviewer.`);
+                    }
                     if (state.yearFrom || state.yearTo) {
                         lim.push('Records with an unknown publication year were retained despite the year-range filter.');
                     }
@@ -1983,22 +2050,22 @@
                 {id:'13b', name:'Synthesis methods – data preparation',desc:'Describe any methods required to prepare the data for presentation or synthesis, such as handling of missing summary statistics, or data conversions.',                                                                                       mode:'auto'},
                 {id:'13c', name:'Synthesis methods – display',         desc:'Describe any methods used to tabulate or visually display results of individual studies and syntheses.',                                                                                                                                      mode:'auto'},
                 {id:'13d', name:'Synthesis methods – synthesis',       desc:'Describe any methods used to synthesise results and provide a rationale for the choice(s). If meta-analysis was performed, describe the model(s), method(s) to identify statistical heterogeneity, and software package(s) used.',          mode:'auto'},
-                {id:'13e', name:'Synthesis methods – heterogeneity',   desc:'Describe any methods used to explore possible causes of heterogeneity among study results (e.g. subgroup analysis, meta-regression).',                                                                                                       mode:'manual'},
-                {id:'13f', name:'Synthesis methods – sensitivity',     desc:'Describe any sensitivity analyses conducted to assess robustness of the synthesised results.',                                                                                                                                                mode:'manual'},
+                {id:'13e', name:'Synthesis methods – heterogeneity',   desc:'Describe any methods used to explore possible causes of heterogeneity among study results (e.g. subgroup analysis, meta-regression).',                                                                                                       mode:'auto'},
+                {id:'13f', name:'Synthesis methods – sensitivity',     desc:'Describe any sensitivity analyses conducted to assess robustness of the synthesised results.',                                                                                                                                                mode:'auto'},
                 {id:'14',  name:'Reporting bias assessment',           desc:'Describe any methods used to assess risk of bias due to missing results in a synthesis (arising from reporting biases).',                                                                                                                     mode:'auto'},
                 {id:'15',  name:'Certainty assessment',                desc:'Describe any methods used to assess certainty (or confidence) in the body of evidence for an outcome.',                                                                                                                                      mode:'auto'},
                 {section:'RESULTS'},
                 {id:'16a', name:'Study selection – flow diagram',      desc:'Describe the results of the search and selection process, from the number of records identified in the search to the number of studies included in the review, ideally using a flow diagram.',                                               mode:'auto'},
                 {id:'16b', name:'Study selection – excluded studies',  desc:'Cite studies that might appear to meet the inclusion criteria but which were excluded, and explain why they were excluded.',                                                                                                                  mode:'auto'},
                 {id:'17',  name:'Study characteristics',               desc:'Cite each included study and present its characteristics.',                                                                                                                                                                                  mode:'auto'},
-                {id:'18',  name:'Risk of bias in studies',             desc:'Present assessments of risk of bias for each included study.',                                                                                                                                                                               mode:'manual'},
+                {id:'18',  name:'Risk of bias in studies',             desc:'Present assessments of risk of bias for each included study. Template: 02_data/risk_of_bias_template.csv in the export package.',                                                                                                                                                                               mode:'manual'},
                 {id:'19',  name:'Results of individual studies',       desc:'For all outcomes, present for each study: (a) summary statistics for each group (where appropriate) and (b) an effect estimate and its precision (e.g. confidence/credible interval), ideally using structured tables or plots.',           mode:'manual'},
                 {id:'20a', name:'Results of syntheses – characteristics',desc:'For each synthesis, briefly summarise the characteristics and risk of bias among contributing studies.',                                                                                                                                   mode:'manual'},
                 {id:'20b', name:'Results of syntheses – statistics',   desc:'Present results of all statistical syntheses conducted. If meta-analysis was done, present for each the summary estimate and its precision (e.g. confidence/credible interval) and measures of statistical heterogeneity.',                 mode:'manual'},
                 {id:'20c', name:'Results of syntheses – heterogeneity',desc:'Present results of all investigations of possible causes of heterogeneity among study results.',                                                                                                                                             mode:'manual'},
                 {id:'20d', name:'Results of syntheses – sensitivity',  desc:'Present results of all sensitivity analyses conducted to assess the robustness of the synthesised results.',                                                                                                                                 mode:'manual'},
-                {id:'21',  name:'Reporting biases',                    desc:'Present assessments of risk of bias due to missing results (arising from reporting biases) for each synthesis assessed.',                                                                                                                    mode:'manual'},
-                {id:'22',  name:'Certainty of evidence',               desc:'Present assessments of certainty (or confidence) in the body of evidence for each outcome assessed.',                                                                                                                                       mode:'manual'},
+                {id:'21',  name:'Reporting biases',                    desc:'Present assessments of risk of bias due to missing results (arising from reporting biases) for each synthesis assessed. Template: publication_bias column of 02_data/grade_certainty_template.csv.',                                                                                                                    mode:'manual'},
+                {id:'22',  name:'Certainty of evidence',               desc:'Present assessments of certainty (or confidence) in the body of evidence for each outcome assessed. Template: 02_data/grade_certainty_template.csv in the export package.',                                                                                                                                       mode:'manual'},
                 {section:'DISCUSSION'},
                 {id:'23a', name:'Discussion – interpretation',         desc:'Provide a general interpretation of the results in the context of other evidence.',                                                                                                                                                          mode:'manual'},
                 {id:'23b', name:'Discussion – limitations of evidence',desc:'Discuss any limitations of the evidence included in the review.',                                                                                                                                                                           mode:'manual'},
