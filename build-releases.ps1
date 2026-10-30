@@ -23,7 +23,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $Root        = $PSScriptRoot
 $Dist        = Join-Path $Root "dist"
-$CurrentVersion = "v2.1.3" # single source of truth
+$CurrentVersion = "v2.2.0" # single source of truth
 
 # -- Validate version format --------------------------------------------------
 if ($Version -ne "" -and $Version -notmatch '^v\d+\.\d+\.\d+$') {

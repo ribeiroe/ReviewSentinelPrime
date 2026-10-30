@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.1.3 · Python 3.12 · Flask 3.1 · Docker ready
+v2.2.0 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
@@ -42,6 +42,15 @@ v2.1.3 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **API key management** | Secure local storage with per-database test connection and last-checked timestamp; optional Elsevier institutional token (Scopus/ScienceDirect/Inspec) for off-network access |
 | ▸ **Built-in manual** | Full 17-section user manual available at `/manual` |
 | ▸ **Docker ready** | One-click Docker Compose deployment with start/stop scripts for Windows and macOS |
+
+---
+
+## What's New in v2.2.0
+
+- **AI Screening Assistant** — optional AI suggestions during T&A screening, running locally (Ollama, LM Studio) or via an online service (OpenAI, Anthropic, Gemini, Groq, OpenRouter). Guided setup, one-click **Test & Save**, per-service settings, recommended-model tags, privacy confirmation, batch estimate, and one-click Ollama model download.
+- **AI provenance & agreement** — each decision records the AI suggestion, confidence and model; the Screening page and PRISMA items 8/23c report reviewer–AI agreement (Cohen's κ).
+- **PRISMA automation** — more checklist items auto-assessed; the replication package now includes risk-of-bias (RoB 2 / ROBINS-I) and GRADE certainty templates.
+- **Docker** — the container can reach Ollama / LM Studio on the host via `host.docker.internal`.
 
 ---
 

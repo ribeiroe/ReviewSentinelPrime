@@ -1,4 +1,4 @@
-# Review Sentinel Prime v2.1.3 — User Guide
+# Review Sentinel Prime v2.2.0 — User Guide
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
@@ -274,4 +274,4 @@ Please contact the support team and include:
 
 ---
 
-Review Sentinel Prime v2.1.3 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.2.0 — Systematic Literature Review Automation Platform
