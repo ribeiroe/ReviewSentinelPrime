@@ -176,6 +176,16 @@ function New-ReleaseZip ($StageDir, $ZipPath) {
         }
         foreach ($file in Get-ChildItem $StageDir -Recurse -File -Force) {
             $rel = $file.FullName.Substring($base.Length + 1).Replace('\', '/')
+            $lower = $rel.ToLowerInvariant()
+            if ($lower.EndsWith('.command') -or $lower.EndsWith('.sh')) {
+                # Git on Windows may check these out as CRLF, which breaks the
+                # bash shebang on macOS/Linux ("env: bash\r: No such file or directory").
+                $content = [System.IO.File]::ReadAllText($file.FullName)
+                $normalized = $content -replace "`r`n", "`n"
+                if ($normalized -ne $content) {
+                    [System.IO.File]::WriteAllText($file.FullName, $normalized, [System.Text.UTF8Encoding]::new($false))
+                }
+            }
             $entry = [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
                 $zip, $file.FullName, $rel,
                 [System.IO.Compression.CompressionLevel]::Optimal)
