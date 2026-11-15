@@ -1410,7 +1410,7 @@
 
             <h3>Data storage:</h3>
             <ul>
-                <li><strong>Search form state &amp; results</strong> — browser localStorage (persists across navigation)</li>
+                <li><strong>Search form state &amp; results</strong> — browser localStorage (persists across navigation). Large result sets that exceed the browser's storage limit are reloaded in full from the saved run in <code>data/results/adhoc/</code>, so the result list, exports and Print to PDF always cover every result</li>
                 <li><strong>Excluded paper lists</strong> — browser localStorage (<code>lastExcludedDocs</code>) — enables clickable PRISMA excluded cards</li>
                 <li><strong>PRISMA manual steps &amp; checklist notes</strong> — browser localStorage (persists across page refreshes)</li>
                 <li><strong>Validation papers</strong> — browser localStorage</li>

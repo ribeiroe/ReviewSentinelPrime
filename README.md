@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.2.0 · Python 3.12 · Flask 3.1 · Docker ready
+v2.2.1 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
@@ -42,6 +42,13 @@ v2.2.0 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **API key management** | Secure local storage with per-database test connection and last-checked timestamp; optional Elsevier institutional token (Scopus/ScienceDirect/Inspec) for off-network access |
 | ▸ **Built-in manual** | Full 17-section user manual available at `/manual` |
 | ▸ **Docker ready** | One-click Docker Compose deployment with start/stop scripts for Windows and macOS |
+
+---
+
+## What's New in v2.2.1
+
+- **Large result sets fixed** — searches with more results than the browser can store (e.g. 10,000+) no longer show a reduced count on the Search page or in **Print to PDF**. The full set is reloaded from the saved run, so the result list, exports and PDF match the PRISMA "Studies included" count.
+- **macOS/Linux launchers** — `start.command` / `stop.command` scripts built on Windows now keep LF line endings, fixing `env: bash\r: No such file or directory`.
 
 ---
 

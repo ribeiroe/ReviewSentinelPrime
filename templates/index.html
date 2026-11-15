@@ -1035,6 +1035,8 @@
                 }
 
                 window._lastDocsAll = data.docs;
+                window._lastRunId = data.runId || '';
+                window._resultsIncomplete = 0;
                 safeStoreResults(data.docs);
                 checkValidationPapers(data.docs);
                 if (data.prisma) {
@@ -1473,6 +1475,10 @@
             }
             const query = (document.getElementById('keywords') || {}).value || '';
             const ts = new Date().toLocaleString();
+            const missingTotal = window._resultsIncomplete || 0;
+            if (missingTotal) {
+                showToast(`Only ${docs.length} of ${missingTotal} results are available locally — re-run the search to print all of them.`, 'warning');
+            }
             const rows = docs.map((doc, i) => {
                 const title   = doc.title || 'Untitled';
                 const authors = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || '');
@@ -1509,7 +1515,7 @@
                 }
             </style></head><body>
             <h1>Search Results: <em>${escapeHtml(query)}</em></h1>
-            <div class="meta">${docs.length} results &nbsp;|&nbsp; Printed ${escapeHtml(ts)} &nbsp;|&nbsp; Review Sentinel Prime</div>
+            <div class="meta">${docs.length} results${missingTotal ? ` (of ${missingTotal} — incomplete local copy)` : ''} &nbsp;|&nbsp; Printed ${escapeHtml(ts)} &nbsp;|&nbsp; Review Sentinel Prime</div>
             ${rows}
             </body></html>`;
 
@@ -2040,11 +2046,27 @@
         });
 
         // --- Safe localStorage for large result sets ---
+        // Records how many docs the full set has vs. how many fit in
+        // localStorage, so a page reload can recover the full set from the
+        // server run instead of silently showing a slimmed/truncated copy.
+        function _storeResultsMeta(total, stored, slimmed) {
+            try {
+                const pd = JSON.parse(localStorage.getItem('lastPrismaData') || 'null');
+                localStorage.setItem('lastSearchResultsMeta', JSON.stringify({
+                    total, stored, slimmed,
+                    runId: (pd && pd.runId) || window._lastRunId || '',
+                }));
+            } catch (e) { /* meta is best-effort */ }
+        }
+
         function safeStoreResults(docs) {
+            // Drop the old copy first so its size doesn't count against the quota
+            localStorage.removeItem('lastSearchResults');
             // Try storing as-is first
             const json = JSON.stringify(docs);
             try {
                 localStorage.setItem('lastSearchResults', json);
+                _storeResultsMeta(docs.length, docs.length, false);
                 return;
             } catch (e) { /* quota exceeded – fall through */ }
 
@@ -2057,6 +2079,7 @@
             }));
             try {
                 localStorage.setItem('lastSearchResults', JSON.stringify(slim));
+                _storeResultsMeta(docs.length, slim.length, true);
                 return;
             } catch (e) { /* still too big – truncate list */ }
 
@@ -2067,11 +2090,13 @@
                 try {
                     localStorage.setItem('lastSearchResults', JSON.stringify(cut));
                     console.warn(`lastSearchResults truncated to ${cut.length} entries to fit localStorage.`);
+                    _storeResultsMeta(docs.length, cut.length, true);
                     return;
                 } catch (e) { /* keep trimming */ }
             }
             // Give up — clear stale data rather than crash
             localStorage.removeItem('lastSearchResults');
+            _storeResultsMeta(docs.length, 0, true);
         }
 
         // --- Persist form state across page navigation ---
@@ -2410,6 +2435,7 @@
             localStorage.removeItem('validationPapers');
             localStorage.removeItem('searchFormState');
             localStorage.removeItem('lastSearchResults');
+            localStorage.removeItem('lastSearchResultsMeta');
             // Clear PRISMA data
             localStorage.removeItem('lastPrismaData');
             localStorage.removeItem('prismaManualSteps');
@@ -2480,13 +2506,38 @@
             } catch (e) {}
         }
 
-        function restoreLastResults() {
+        async function restoreLastResults() {
             try {
-                const docs = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
-                if (docs.length === 0) return;
+                let docs = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
+                const pd = JSON.parse(localStorage.getItem('lastPrismaData') || 'null');
+                const meta = JSON.parse(localStorage.getItem('lastSearchResultsMeta') || 'null')
+                    // Results stored before the meta key existed: infer from PRISMA
+                    || (pd && pd.runId ? { total: pd.included || 0, stored: docs.length, slimmed: false, runId: pd.runId } : null);
+                const incomplete = !!(meta && (meta.slimmed || meta.stored < meta.total || docs.length < meta.total));
+                if (docs.length === 0 && !incomplete) return;
                 const resultsEl = document.getElementById('results');
                 const statusEl = document.getElementById('status');
                 const savedRows = parseInt(document.getElementById('rows').value) || 25;
+                let restoredIncomplete = incomplete;
+                // The browser copy was slimmed/truncated to fit localStorage —
+                // reload the full run from the server so pagination, exports
+                // and Print-to-PDF reflect every result.
+                if (incomplete && meta.runId) {
+                    statusEl.innerHTML = `<span class="results-header">Loading ${Number(meta.total).toLocaleString()} results from last search…</span>`;
+                    try {
+                        const resp = await fetch('/api/results/run/adhoc/' + encodeURIComponent(meta.runId));
+                        const run = resp.ok ? await resp.json() : null;
+                        if (run && !run.error && Array.isArray(run.docs)) {
+                            // Keep locally-added docs (e.g. snowballing) that the server run lacks
+                            const serverKeys = new Set(run.docs.map(_docKey));
+                            const extras = docs.filter(d => !serverKeys.has(_docKey(d)));
+                            docs = run.docs.concat(extras);
+                            restoredIncomplete = docs.length < meta.total;
+                        }
+                    } catch (e) { /* fall back to the local copy */ }
+                }
+                if (docs.length === 0) { statusEl.innerHTML = ''; return; }
+                window._resultsIncomplete = restoredIncomplete ? meta.total : 0;
                 statusEl.innerHTML = `<span class="results-header">Showing ${docs.length} results from last search.</span>`;
                 window._lastDocs = docs;
                 window._lastDocsAll = docs;
@@ -2564,6 +2615,7 @@
         } else {
             // Clear stale last results and run fresh
             localStorage.removeItem('lastSearchResults');
+            localStorage.removeItem('lastSearchResultsMeta');
             doSearch();
         }
 
