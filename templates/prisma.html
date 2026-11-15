@@ -1302,10 +1302,15 @@
             if (dbEntries.length > 0) {
                 html += `<div class="db-grid">`;
                 dbEntries.forEach(([db, counts]) => {
-                    html += `<div class="db-chip">
+                    const st = counts.status || (counts.error ? (counts.retrieved ? 'partial' : 'failed') : (counts.warning ? 'partial' : 'complete'));
+                    const why = counts.message || counts.error || counts.warning || '';
+                    const badge = st === 'complete' ? '' :
+                        `<div class="db-retrieved" style="color:${st === 'failed' ? '#b91c1c' : '#b45309'};font-weight:700;" title="${_ppEscape(why)}">${st === 'failed' ? 'FAILED' : 'PARTIAL'}</div>`;
+                    html += `<div class="db-chip"${st !== 'complete' ? ` style="border-color:${st === 'failed' ? '#fca5a5' : '#fcd34d'};" title="${_ppEscape(why)}"` : ''}>
                         <div class="db-name">${dbLabels[db] || db}</div>
-                        <div class="db-count">${counts.found.toLocaleString()}</div>
+                        <div class="db-count">${(counts.found || 0).toLocaleString()}</div>
                         <div class="db-retrieved">Retrieved: ${counts.retrieved}</div>
+                        ${badge}
                     </div>`;
                 });
                 html += `</div>`;
@@ -1364,6 +1369,38 @@
             html += `</div>`;
 
             html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+
+            // ─── RETRIEVAL: records counted by the databases but not downloaded ───
+            const removedDate  = p.identification.removed_date_at_database || 0;
+            const notRetrieved = p.identification.not_retrieved || 0;
+            if (removedDate || notRetrieved) {
+                const perDb = (field) => Object.entries(databases)
+                    .filter(([, c]) => (c[field] || 0) > 0)
+                    .map(([db, c]) => `<li>${dbLabels[db] || db}: ${(c[field]).toLocaleString()}</li>`).join('');
+                const lim = p.identification.date_limit_at_database || {};
+                const range = (lim.yearFrom || lim.yearTo) ? ` (${lim.yearFrom || '…'}–${lim.yearTo || ''})` : '';
+                html += `<div class="flow-row">
+                    <div class="flow-side-left"></div>
+                    <div class="flow-main">
+                        <div class="flow-box identification">
+                            <span class="box-label">Retrieval</span>
+                            <div class="box-title">Records retrieved</div>
+                            <div class="box-count">${retrieved.toLocaleString()}</div>
+                            <div class="box-desc">Records downloaded for screening. The databases reported ${totalIdentified.toLocaleString()} in total; the rest were counted but not downloaded.</div>
+                        </div>
+                    </div>
+                    <div class="flow-side">
+                        <div class="flow-connector"><span class="connector-tip" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/></svg></span></div>
+                        <div class="flow-excluded" title="Counted by each database; these records were never downloaded, so there is no paper list.">
+                            <span class="excl-label">Removed before retrieval</span>
+                            <div class="excl-count">${(removedDate + notRetrieved).toLocaleString()}</div>
+                            ${removedDate ? `<div class="excl-title">Outside the date range${range} — limit applied at the database</div><ul>${perDb('removedDateAtDatabase')}</ul>` : ''}
+                            ${notRetrieved ? `<div class="excl-title" style="color:#b45309;">Not retrieved — retrieval cap or API error (run incomplete)</div><ul>${perDb('notRetrieved')}</ul>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+            }
 
             // ─── DEDUPLICATION ───
             html += `<div class="flow-row">`;

@@ -17,7 +17,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 DIST="$ROOT/dist"
 
 # ── Current version (single source of truth in this file) ────────────────────
-VERSION="v2.2.3"
+VERSION="v2.2.4"
 
 APP_ITEMS=("app.py" "requirements.txt" "templates" "static" "LICENSE")
 
@@ -88,7 +88,7 @@ stamp_version() {
             sedi "$pattern" "$file"
             # Extra pass for Python README zip filename examples
             if [[ "$file" == *"releases/python/README.md" ]]; then
-                sedi 's|ReviewSentinelPrime_v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*|ReviewSentinelPrime_'"$new"'|g' "$file"
+                sedi 's|ReviewSentinel-v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*-Python|ReviewSentinel-'"$new"'-Python|g' "$file"
             fi
             echo "    [✓] $(realpath --relative-to="$ROOT" "$file" 2>/dev/null || basename "$file")"
         else

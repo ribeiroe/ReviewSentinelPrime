@@ -51,6 +51,7 @@ def client(tmp_data_dir):
     original_wos         = rsp_app.WOS_API_KEY_FILE
     original_wos_edition = rsp_app.WOS_EDITION_FILE
     original_github      = rsp_app.GITHUB_TOKEN_FILE
+    original_openalex    = rsp_app.OPENALEX_API_KEY_FILE
 
     rsp_app.DATA_DIR         = str(tmp_data_dir)
     rsp_app.CONFIG_FILE      = str(tmp_data_dir / "searches.json")
@@ -73,6 +74,7 @@ def client(tmp_data_dir):
     rsp_app.WOS_API_KEY_FILE         = str(tmp_data_dir / "wos_api_key.txt")
     rsp_app.WOS_EDITION_FILE         = str(tmp_data_dir / "wos_edition.txt")
     rsp_app.GITHUB_TOKEN_FILE        = str(tmp_data_dir / "github_token.txt")
+    rsp_app.OPENALEX_API_KEY_FILE    = str(tmp_data_dir / "openalex_api_key.txt")
 
     rsp_app.app.config["TESTING"] = True
     with rsp_app.app.test_client() as test_client:
@@ -92,6 +94,7 @@ def client(tmp_data_dir):
     rsp_app.WOS_API_KEY_FILE         = original_wos
     rsp_app.WOS_EDITION_FILE         = original_wos_edition
     rsp_app.GITHUB_TOKEN_FILE        = original_github
+    rsp_app.OPENALEX_API_KEY_FILE    = original_openalex
 
 
 @pytest.fixture
@@ -121,3 +124,22 @@ def created_search(client, sample_search_payload):
     # Cleanup: delete after test
     if search and search.get("id"):
         client.delete(f"/api/searches/{search['id']}")
+
+
+@pytest.fixture(autouse=True)
+def no_real_sleeps(monkeypatch):
+    """Connector throttling and retry backoff call app._sleep; skip the waits
+    and record them so tests can assert on the delays requested."""
+    import app as rsp_app
+    waits = []
+    monkeypatch.setattr(rsp_app, "_sleep", lambda s: waits.append(s))
+    rsp_app._host_last_request.clear()
+    return waits
+
+
+@pytest.fixture(autouse=True)
+def isolated_retrieval_settings(monkeypatch, tmp_path):
+    """Retrieval settings (Settings → Retrieval) live in a per-test file, so a
+    real data/retrieval_settings.json never changes test behaviour."""
+    import app as rsp_app
+    monkeypatch.setattr(rsp_app, "RETRIEVAL_SETTINGS_FILE", str(tmp_path / "retrieval_settings.json"))

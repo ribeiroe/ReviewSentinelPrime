@@ -23,7 +23,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $Root        = $PSScriptRoot
 $Dist        = Join-Path $Root "dist"
-$CurrentVersion = "v2.2.3" # single source of truth
+$CurrentVersion = "v2.2.4" # single source of truth
 
 # -- Validate version format --------------------------------------------------
 if ($Version -ne "" -and $Version -notmatch '^v\d+\.\d+\.\d+$') {
@@ -94,11 +94,11 @@ function Invoke-VersionStamp {
         -Pattern  ('Review Sentinel Prime ' + $verPattern) `
         -Replacement ('Review Sentinel Prime ' + $NewVer)
 
-    # releases/python/README.md  (zip example filename: ReviewSentinelPrime_vX.Y.Z)
+    # releases/python/README.md  (zip example filename: ReviewSentinel-vX.Y.Z-Python.zip)
     Update-VersionInFile `
         -FilePath (Join-Path $Root "releases\python\README.md") `
-        -Pattern  ('ReviewSentinelPrime_' + $verPattern) `
-        -Replacement ('ReviewSentinelPrime_' + $NewVer)
+        -Pattern  ('ReviewSentinel-' + $verPattern + '-Python') `
+        -Replacement ('ReviewSentinel-' + $NewVer + '-Python')
 
     Write-Host ""
     Write-Host "  Version stamped. All files updated to $NewVer."

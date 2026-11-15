@@ -552,7 +552,7 @@
                                 <option value="any">ANY (OR)</option>
                             </select>
                         </div>
-                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Only papers whose title, abstract or keywords contain these terms are kept.</p>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Keywords separated by commas or one per line. Only papers whose title, abstract or keywords contain these terms are kept.</p>
                         <textarea id="includeTerms" placeholder="e.g. machine learning, neural network" rows="3" style="width:100%;font-size:0.83rem;border-color:#86efac;resize:vertical;"></textarea>
                     </div>
 
@@ -566,7 +566,7 @@
                                 <option value="any" selected>ANY (OR)</option>
                             </select>
                         </div>
-                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Papers whose title, abstract or keywords contain these terms are removed.</p>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Keywords separated by commas or one per line. Papers whose title, abstract or keywords contain these terms are removed.</p>
                         <textarea id="excludeTerms" placeholder="e.g. survey, review, grey literature" rows="3" style="width:100%;font-size:0.83rem;border-color:#fca5a5;resize:vertical;"></textarea>
                     </div>
 
@@ -669,6 +669,7 @@
             </div>
         </div>
         <div id="status" class="status"></div>
+        <div id="coveragePanel"></div>
         <!-- Offline filter cache banner (shown when Offline Filter mode is ON) -->
         <div id="cacheInfoBanner" style="margin-bottom:0.75rem; padding:0.65rem 1rem; background:#fffbeb; border:1px solid #f59e0b; border-radius:7px; font-size:0.85rem; color:#92400e; align-items:flex-start; gap:0.6rem; flex-wrap:wrap; display:none;">
             <span style="width:1rem;height:1rem;display:inline-flex;align-items:center;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 1.5,3.5 6.5,4"/><path d="M2 5a7 7 0 107-7"/></svg></span>
@@ -783,9 +784,9 @@
             return {
                 yearFrom: yearFrom ? parseInt(yearFrom) : null,
                 yearTo: yearTo ? parseInt(yearTo) : null,
-                excludeTerms: excludeTerms ? excludeTerms.split(',').map(t => t.trim()).filter(Boolean) : [],
+                excludeTerms: _splitTerms(excludeTerms),
                 excludeTermsMode: excludeTermsMode,
-                includeTerms: includeTerms ? includeTerms.split(',').map(t => t.trim()).filter(Boolean) : [],
+                includeTerms: _splitTerms(includeTerms),
                 includeTermsMode: includeTermsMode,
                 includeVenues: includeVenues ? includeVenues.split(',').map(t => t.trim()).filter(Boolean) : [],
                 includeVenuesMode: includeVenuesMode,
@@ -898,6 +899,7 @@
             const useCache = localStorage.getItem('rsp_refilter_mode') === '1';
 
             // ── Build progress panel ──────────────────────────────
+            renderCoveragePanel(null);
             const dbLabelsMap = {
                 hal: 'HAL', arxiv: 'arXiv', ieee: 'IEEE Xplore',
                 scopus: 'Scopus', inspec: 'Inspec', sciencedirect: 'ScienceDirect',
@@ -1045,6 +1047,7 @@
                     // refuse to merge screening counts from a different run
                     if (data.runId) data.prisma.runId = data.runId;
                     localStorage.setItem('lastPrismaData', JSON.stringify(data.prisma));
+                    renderCoveragePanel(data.prisma);
                 }
                 if (data.excluded_docs) {
                     try { localStorage.setItem('lastExcludedDocs', JSON.stringify(data.excluded_docs)); } catch(e) {}
@@ -1447,6 +1450,62 @@
             }
             html += '</div>';
             return html;
+        }
+
+        // Per-database coverage, kept on screen after the run finishes so a
+        // failed or truncated database is never mistaken for "0 results".
+        function renderCoveragePanel(prisma) {
+            const el = document.getElementById('coveragePanel');
+            if (!el) return;
+            const dbs = (prisma && prisma.identification && prisma.identification.databases) || {};
+            const keys = Object.keys(dbs);
+            if (!keys.length) { el.innerHTML = ''; return; }
+            const labels = { hal: 'HAL', arxiv: 'arXiv', ieee: 'IEEE Xplore', scopus: 'Scopus', inspec: 'Inspec',
+                sciencedirect: 'ScienceDirect', springer: 'Springer Nature', pubmed: 'PubMed', acm: 'ACM DL',
+                openalex: 'OpenAlex', ebsco: 'EBSCO', wos: 'Web of Science' };
+            const statusOf = e => e.status || (e.error ? (e.retrieved ? 'partial' : 'failed') : (e.warning ? 'partial' : 'complete'));
+            const style = { complete: ['#dcfce7', '#166534', 'Complete'], partial: ['#fef3c7', '#92400e', 'Partial'],
+                            failed: ['#fee2e2', '#991b1b', 'Failed'] };
+            const counts = { complete: 0, partial: 0, failed: 0 };
+            const dateLimited = keys.some(k => (dbs[k] || {}).dateLimitAtDatabase);
+            const rows = keys.map(k => {
+                const e = dbs[k] || {};
+                const st = statusOf(e);
+                counts[st] = (counts[st] || 0) + 1;
+                const [bg, fg, label] = style[st] || style.partial;
+                const num = v => (typeof v === 'number' ? v.toLocaleString() : '—');
+                const msg = e.message || e.error || e.warning || '';
+                return `<tr>
+                    <td style="padding:0.3rem 0.5rem;font-weight:600;white-space:nowrap;">${escapeHtml(labels[k] || k)}</td>
+                    <td style="padding:0.3rem 0.5rem;"><span style="background:${bg};color:${fg};font-weight:700;font-size:0.75rem;padding:0.1rem 0.45rem;border-radius:4px;">${label}</span></td>
+                    <td style="padding:0.3rem 0.5rem;text-align:right;">${num(e.found)}</td>
+                    ${dateLimited ? `<td style="padding:0.3rem 0.5rem;text-align:right;" title="Counted by the database, not downloaded">${e.dateLimitAtDatabase ? (e.removedDateAtDatabase == null ? 'unknown' : num(e.removedDateAtDatabase)) : '—'}</td>` : ''}
+                    <td style="padding:0.3rem 0.5rem;text-align:right;">${num(e.retrieved)}</td>
+                    <td style="padding:0.3rem 0.5rem;text-align:right;">${num(e.included)}</td>
+                    <td style="padding:0.3rem 0.5rem;color:#4b5563;font-size:0.8rem;">${escapeHtml(msg)}</td>
+                </tr>`;
+            }).join('');
+            const problems = counts.partial + counts.failed;
+            const summary = `Database coverage: ${counts.complete} complete` +
+                (counts.partial ? ` · <strong style="color:#92400e;">${counts.partial} partial</strong>` : '') +
+                (counts.failed ? ` · <strong style="color:#991b1b;">${counts.failed} failed</strong>` : '');
+            el.innerHTML = `<details ${problems ? 'open' : ''} style="margin:0.25rem 0 0.9rem;border:1px solid ${problems ? '#fdba74' : '#e5e7eb'};border-radius:8px;background:${problems ? '#fffbeb' : '#f9fafb'};padding:0.5rem 0.85rem;">
+                <summary style="cursor:pointer;font-size:0.85rem;color:#374151;">${summary}${problems ? ' — some databases did not return every record; see details' : ''}</summary>
+                <table style="width:100%;border-collapse:collapse;margin-top:0.5rem;font-size:0.83rem;">
+                  <thead><tr style="color:#6b7280;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.03em;">
+                    <th style="text-align:left;padding:0.25rem 0.5rem;">Database</th><th style="text-align:left;padding:0.25rem 0.5rem;">Status</th>
+                    <th style="text-align:right;padding:0.25rem 0.5rem;">Reported</th>${dateLimited ? '<th style="text-align:right;padding:0.25rem 0.5rem;" title="Records outside the year range, counted by the database but not downloaded">Outside date range</th>' : ''}<th style="text-align:right;padding:0.25rem 0.5rem;">Retrieved</th>
+                    <th style="text-align:right;padding:0.25rem 0.5rem;">Included</th><th style="text-align:left;padding:0.25rem 0.5rem;">Details</th>
+                  </tr></thead><tbody>${rows}</tbody></table>
+                ${keys.some(k => /retrieval cap/i.test((dbs[k] || {}).message || '')) ? `<div style="font-size:0.8rem;color:#92400e;margin-top:0.4rem;">A database reached its retrieval cap. To retrieve everything in your year range, turn on <em>Apply the year range at the database</em> or raise the cap in <a href="/settings#retrieval">Settings → Retrieval</a>, then run the search again.</div>` : ''}
+                <div style="font-size:0.75rem;color:#6b7280;margin-top:0.4rem;">The full per-database log (query sent, pages, retries, records removed by each filter) is exported as <code>search_log.csv</code> in the replication package and the Results Hub ZIP.</div>
+              </details>`;
+        }
+
+        // Comma- or newline-separated terms; commas inside "quoted phrases" are kept.
+        function _splitTerms(text) {
+            return ((text || '').match(/"[^"]*"|[^,\n\r]+/g) || [])
+                .map(t => t.trim()).filter(t => t.replace(/["']/g, '').trim());
         }
 
         function escapeHtml(text) {
@@ -2476,6 +2535,7 @@
             // Clear PRISMA data
             localStorage.removeItem('lastPrismaData');
             localStorage.removeItem('prismaManualSteps');
+            renderCoveragePanel(null);
             document.getElementById('validationList').innerHTML = '';
             document.getElementById('validationPanel').style.display = 'none';
             updateValidationToggleLabel();
@@ -2582,6 +2642,7 @@
                 if (docs.length === 0) { statusEl.innerHTML = ''; return; }
                 window._resultsIncomplete = restoredIncomplete ? meta.total : 0;
                 statusEl.innerHTML = `<span class="results-header">Showing ${docs.length} results from last search.</span>`;
+                renderCoveragePanel(pd);
                 window._lastDocs = docs;
                 window._lastDocsAll = docs;
                 _currentPage = 1;
@@ -2944,7 +3005,16 @@
             let y=30, svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="900" viewBox="0 0 ${w} 900"><rect width="${w}" height="900" fill="#fff"/><defs><marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker><marker id="ah-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#e74c3c"/></marker></defs><style>text{font-family:'Segoe UI',Arial,sans-serif}.title{font-size:14px;font-weight:600;fill:#2c3e50}.count{font-size:24px;font-weight:700;fill:#2c3e50}.detail{font-size:11px;fill:#555}.label{font-size:9px;font-weight:700;fill:#fff;letter-spacing:0.5px}.excl-title{font-size:11px;font-weight:700;fill:#c0392b}.excl-text{font-size:10px;fill:#c0392b}.db-name{font-size:10px;font-weight:600;fill:#2c3e50}.db-count{font-size:14px;font-weight:700;fill:#3498db}</style>`;
             svg += `<text x="${mainX+bw/2}" y="${y}" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#2c3e50;">PRISMA 2020 Flow Diagram</text>`; y+=25;
             if (dbEntries.length) { const cols=Math.min(dbEntries.length,5),rows=Math.ceil(dbEntries.length/cols),gridW=cols*(dbChipW+dbGap)-dbGap,startX=mainX+bw/2-gridW/2; dbEntries.forEach(([db,counts],i)=>{ const col=i%cols,row=Math.floor(i/cols),cx=startX+col*(dbChipW+dbGap),cy=y+row*(dbChipH+dbGap); svg+=`<rect x="${cx}" y="${cy}" width="${dbChipW}" height="${dbChipH}" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/><text x="${cx+dbChipW/2}" y="${cy+18}" text-anchor="middle" class="db-name">${dbLabels[db]||db}</text><text x="${cx+dbChipW/2}" y="${cy+36}" text-anchor="middle" class="db-count">${counts.found}</text>`; }); y+=rows*(dbChipH+dbGap)+5; const midX=mainX+bw/2; svg+=_varr(midX,y,arrowGap); y+=arrowGap; }
-            svg+=_box(mainX,y,bw,bh,'#eaf5fc','#3498db','IDENTIFICATION',`Records identified: ${totalIdentified.toLocaleString()}`,`Retrieved: ${retrieved}`); y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
+            svg+=_box(mainX,y,bw,bh,'#eaf5fc','#3498db','IDENTIFICATION',`Records identified: ${totalIdentified.toLocaleString()}`,`Retrieved: ${retrieved}`);
+            const _remDate = p.identification.removed_date_at_database || 0, _notRet = p.identification.not_retrieved || 0;
+            if (_remDate || _notRet) {
+                // Counted by the databases but never downloaded (date limit at the database, cap or error)
+                const _parts = []; if (_remDate) _parts.push(`Date limit: ${_remDate.toLocaleString()}`); if (_notRet) _parts.push(`Not retrieved: ${_notRet.toLocaleString()}`);
+                svg+=_harr(mainX+bw,y+bh/2,exclX); svg+=_excl(exclX,y+bh/2-exclH/2,exclW,exclH,`Removed before retrieval (n=${(_remDate+_notRet).toLocaleString()})`,_parts.join('; '));
+                y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
+                svg+=_box(mainX,y,bw,bh,'#eaf5fc','#3498db','RETRIEVAL',`Records retrieved: ${retrieved.toLocaleString()}`,'Downloaded for screening');
+            }
+            y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
             svg+=_box(mainX,y,bw,bh,'#fef9e7','#f39c12','DEDUPLICATION',`After dedup: ${afterDedup}`,`Duplicates removed: ${duplicatesRemoved}`); if(duplicatesRemoved>0){svg+=_harr(mainX+bw,y+bh/2,exclX);svg+=_excl(exclX,y+bh/2-exclH/2,exclW,exclH,`Removed (n=${duplicatesRemoved})`,'Matched by DOI or title');} y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
             svg+=_box(mainX,y,bw,bh,'#fef9e7','#f39c12','SCREENING',`After screening: ${afterScreening}`,`Screened: ${afterDedup} | Excluded: ${screeningTotal}`); if(screeningTotal>0){svg+=_harr(mainX+bw,y+bh/2,exclX);const exT=screeningExcluded.map(([k,v])=>`${reasonLabels[k]||k}: ${v}`).join(', ');svg+=_excl(exclX,y+bh/2-exclH/2,exclW,exclH,`Excluded (n=${screeningTotal})`,exT);} y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;
             svg+=_box(mainX,y,bw,bh,'#fdebd0','#e67e22','ELIGIBILITY',`Assessed: ${afterScreening}`,`Excluded: ${eligibilityTotal}`); if(eligibilityTotal>0){svg+=_harr(mainX+bw,y+bh/2,exclX);const exT=eligibilityExcluded.map(([k,v])=>`${reasonLabels[k]||k}: ${v}`).join(', ');svg+=_excl(exclX,y+bh/2-exclH/2,exclW,exclH,`Excluded (n=${eligibilityTotal})`,exT);} y+=bh; svg+=_varr(mainX+bw/2,y,arrowGap); y+=arrowGap;

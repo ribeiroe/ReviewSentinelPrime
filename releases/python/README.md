@@ -1,4 +1,4 @@
-# Review Sentinel Prime v2.2.3 — Python Edition
+# Review Sentinel Prime v2.2.4 — Python Edition
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
@@ -78,11 +78,11 @@ sudo apt update && sudo apt install -y python3 python3-venv python3-pip
 
 ## 4. Step 2 — Extract the ZIP file
 
-1. Find the ZIP file you downloaded (e.g. `ReviewSentinelPrime_v2.2.3_python.zip`).
+1. Find the ZIP file you downloaded (e.g. `ReviewSentinel-v2.2.4-Python.zip`).
 2. **Right-click** the ZIP file and choose:
    - Windows: **Extract All…** → choose a location (e.g. your Desktop or Documents folder) → click **Extract**
    - macOS: **double-click** the ZIP file — it extracts automatically
-   - Linux: right-click → **Extract Here**, or run `unzip ReviewSentinelPrime_v2.2.3_python.zip`
+   - Linux: right-click → **Extract Here**, or run `unzip ReviewSentinel-v2.2.4-Python.zip`
 3. You should now have a folder called `ReviewSentinelPrime` (or similar). Open it.
 
 > **Do not run the app from inside the ZIP file.** Always extract it first.
@@ -226,6 +226,16 @@ Settings tests all API connections through the app's backend. If a key is reject
 
 ---
 
+### A database shows "Partial" or "Failed" in the Database coverage table
+
+After every search, a **Database coverage** table under the results shows each database as *Complete*, *Partial* or *Failed*, with the reason.
+→ **Quota or rate limit** (e.g. "quota exhausted; resets in about 3h"): wait until the time shown, then run the search again. OpenAlex without an API key allows only about 100 searches per day — add a free key in **Settings → Database API Keys → OpenAlex**.
+→ **Retrieval cap reached:** in **Settings → Retrieval**, turn on *Apply the year range at the database* or raise that database's maximum, then run the search again.
+→ **Network error** ("DNS lookup failed"): check your internet connection or VPN.
+→ Records from a *Partial* database are kept. For your final PRISMA numbers, use a run in which every database is *Complete*. The full details are in `search_log.csv` inside the downloaded ZIP.
+
+---
+
 ### AI Assistant: "Can't reach the AI server" with Ollama or LM Studio
 
 → Make sure Ollama / LM Studio is open (LM Studio: start the server in its *Developer* tab).  
@@ -243,4 +253,4 @@ Please contact the research team and include:
 
 ---
 
-Review Sentinel Prime v2.2.3 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.2.4 — Systematic Literature Review Automation Platform

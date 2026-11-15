@@ -1,4 +1,4 @@
-# Review Sentinel Prime v2.2.3 — User Guide
+# Review Sentinel Prime v2.2.4 — User Guide
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
@@ -256,6 +256,16 @@ The Settings page tests all API connections through the app's backend (not direc
 
 ---
 
+### A database shows "Partial" or "Failed" in the Database coverage table
+
+After every search, a **Database coverage** table under the results shows each database as *Complete*, *Partial* or *Failed*, with the reason.
+→ **Quota or rate limit** (e.g. "quota exhausted; resets in about 3h"): wait until the time shown, then run the search again. OpenAlex without an API key allows only about 100 searches per day — add a free key in **Settings → Database API Keys → OpenAlex**.
+→ **Retrieval cap reached:** in **Settings → Retrieval**, turn on *Apply the year range at the database* or raise that database's maximum, then run the search again.
+→ **Network error** ("DNS lookup failed"): check your internet connection or VPN.
+→ Records from a *Partial* database are kept. For your final PRISMA numbers, use a run in which every database is *Complete*. The full details are in `search_log.csv` inside the downloaded ZIP.
+
+---
+
 ### AI Assistant: "Can't reach the AI server" with Ollama or LM Studio
 
 Inside Docker, `localhost` means the container, not your computer.
@@ -274,4 +284,4 @@ Please contact the support team and include:
 
 ---
 
-Review Sentinel Prime v2.2.3 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.2.4 — Systematic Literature Review Automation Platform

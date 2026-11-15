@@ -424,7 +424,7 @@
                                 <option value="any">ANY (OR)</option>
                             </select>
                         </div>
-                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Only papers whose title, abstract or keywords contain these terms are kept.</p>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Keywords separated by commas or one per line. Only papers whose title, abstract or keywords contain these terms are kept.</p>
                         <textarea id="cfgIncludeTerms" placeholder="e.g. machine learning, neural network" rows="3" style="width:100%;font-size:0.83rem;border-color:#86efac;resize:vertical;"></textarea>
                     </div>
 
@@ -438,7 +438,7 @@
                                 <option value="any" selected>ANY (OR)</option>
                             </select>
                         </div>
-                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Comma-separated keywords. Papers whose title, abstract or keywords contain these terms are removed.</p>
+                        <p class="help-text" style="margin-bottom:0.45rem;font-size:0.78rem;">Keywords separated by commas or one per line. Papers whose title, abstract or keywords contain these terms are removed.</p>
                         <textarea id="cfgExcludeTerms" placeholder="e.g. survey, review, grey literature" rows="3" style="width:100%;font-size:0.83rem;border-color:#fca5a5;resize:vertical;"></textarea>
                     </div>
 
@@ -708,6 +708,12 @@
         });
 
 
+        // Comma- or newline-separated terms; commas inside "quoted phrases" are kept.
+        function _splitTerms(text) {
+            return ((text || '').match(/"[^"]*"|[^,\n\r]+/g) || [])
+                .map(t => t.trim()).filter(t => t.replace(/["']/g, '').trim());
+        }
+
         function getConfigFilters() {
             const yearFrom = document.getElementById('cfgYearFrom').value;
             const yearTo = document.getElementById('cfgYearTo').value;
@@ -725,9 +731,9 @@
             return {
                 yearFrom: yearFrom ? parseInt(yearFrom) : null,
                 yearTo: yearTo ? parseInt(yearTo) : null,
-                excludeTerms: excludeTerms ? excludeTerms.split(',').map(t => t.trim()).filter(Boolean) : [],
+                excludeTerms: _splitTerms(excludeTerms),
                 excludeTermsMode: excludeTermsMode,
-                includeTerms: includeTerms ? includeTerms.split(',').map(t => t.trim()).filter(Boolean) : [],
+                includeTerms: _splitTerms(includeTerms),
                 includeTermsMode: includeTermsMode,
                 includeVenues: includeVenues ? includeVenues.split(',').map(t => t.trim()).filter(Boolean) : [],
                 includeVenuesMode: includeVenuesMode,
@@ -856,8 +862,11 @@
                 const count = s.lastRunCount !== undefined
                     ? `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8.5 6,12.5 14,4"/></svg> ${s.lastRunCount.toLocaleString()} results`
                     : '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8.5 6,12.5 14,4"/></svg> OK';
+                const coverage = s.lastRunWarning
+                    ? `<span class="si-dot">·</span><span style="color:#b45309;font-weight:600;" title="${escapeHtml(s.lastRunWarning)}">⚠ incomplete coverage</span>`
+                    : '';
                 lastRunHtml = `
-                    <span class="si-result-ok">${count}</span>
+                    <span class="si-result-ok">${count}</span>${coverage}
                     <span class="si-dot">·</span>
                     <span class="si-last-run" title="${escapeHtml(new Date(s.lastRun).toLocaleString())}">${relativeTime(s.lastRun)}</span>`;
             }

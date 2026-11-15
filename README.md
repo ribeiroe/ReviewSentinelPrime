@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.2.3 · Python 3.12 · Flask 3.1 · Docker ready
+v2.2.4 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
@@ -21,6 +21,8 @@ v2.2.3 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **Multi-database search** | Search IEEE Xplore, ACM DL, Scopus, ScienceDirect, Springer, Inspec, PubMed, arXiv, HAL, OpenAlex, EBSCO, Web of Science simultaneously (12 databases) |
 | ▸ **Boolean query syntax** | Full support for `OR`, `AND`, parentheses, and exact phrases — with an in-page Query tips guide |
 | ▸ **Live progress** | Real-time per-database progress panel with elapsed timer |
+| ▸ **Retrieval settings** | Optionally apply the year range at each database (records outside it are counted for PRISMA, not downloaded) and set the maximum records per database for IEEE Xplore, Scopus and Springer Nature |
+| ▸ **Coverage status & search log** | Each database is marked complete / partial / failed after every run (never a silent 0); a per-database `search_log.csv` (query sent, reported vs retrieved, records removed per filter, pages, retries, errors) is exported with the results |
 | ▸ **Filters & criteria** | Year range, document type, language, and four color-coded filter cards (Include Terms, Exclude Terms, Include Venues, Exclude Venues) |
 | ▸ **ALL / ANY match modes** | Each filter card has an inline `ALL (AND)` / `ANY (OR)` toggle — control whether all terms or any term must match |
 | ▸ **Live / Offline filter mode** | Toggle between live network search and offline re-filtering against a local cache — iterate filter changes instantly without re-hitting APIs |
@@ -44,6 +46,18 @@ v2.2.3 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **API key management** | Secure local storage with per-database test connection and last-checked timestamp; optional Elsevier institutional token (Scopus/ScienceDirect/Inspec) for off-network access |
 | ▸ **Built-in manual** | Full 17-section user manual available at `/manual` |
 | ▸ **Docker ready** | One-click Docker Compose deployment with start/stop scripts for Windows and macOS |
+
+---
+
+## What's New in v2.2.4
+
+- **No more silent zeros** — after every search, a **Database coverage** table shows each database as *Complete*, *Partial* or *Failed*, with the reason (quota, rate limit, network error, retrieval cap, rejected query). The same status appears on the PRISMA database chips, on scheduled searches ("⚠ incomplete coverage") and in notification emails. Records from a partial database are kept.
+- **Per-database search log** — `search_log.csv` / `.json` in the replication package and the Results Hub ZIP: the query sent to each API, total reported, retrieved, records removed by each filter, pages, retries, errors and status.
+- **More reliable retrieval** — automatic retries with backoff for rate limits (429), server errors, timeouts and network errors, honouring `Retry-After`; each API's documented page size and request rate; quota exhaustion is reported with the time until it resets. Fixes OpenAlex returning 0 after its daily budget ran out, arXiv stopping silently on empty pages, and Scopus failing on a transient network error.
+- **Settings → Retrieval** — optionally apply the year range at the database (records outside it are counted for PRISMA as *Removed before retrieval*, not downloaded), and set the maximum records for IEEE Xplore, Scopus and Springer Nature, with the quota cost shown.
+- **OpenAlex API key (optional)** — a free key raises OpenAlex's daily budget 10× and allows retrieval beyond 10,000 records; the connection test is now free and shows the credits left.
+- **PRISMA** — the flow diagram adds *Removed before retrieval* (date limit at the database, or not retrieved) and *Records retrieved*, so the numbers always add up.
+- **Fixes** — Springer's year filter now uses the documented `datefrom`/`dateto` constraints; duplicates are attributed to databases in a fixed order; exclude-term phrases match across line breaks; terms can be entered one per line; *ALL* mode for exclude terms is respected when filters are sent to the APIs.
 
 ---
 
@@ -154,7 +168,7 @@ This is the first public release of Review Sentinel Prime. Highlights include:
 | PubMed | Optional (improves rate limits) |
 | arXiv | No |
 | HAL Open Science | No |
-| OpenAlex | No |
+| OpenAlex | Optional — works without a key, but the keyless budget is about 100 searches/day (one large search can use it up); a free key from `openalex.org` raises it 10× |
 | EBSCO Discovery Service | Yes — institutional EDS subscription (User ID, Password *and* Profile ID); EBSCO's licence restricts caching and redistribution of retrieved metadata |
 | Web of Science | Yes — two editions share one key. **Starter**: free at `developer.clarivate.com`, but returns **no abstracts** and free plans allow as few as 50 requests/day. **Expanded**: paid institutional subscription, full records with abstracts |
 
@@ -245,6 +259,8 @@ The four filter fields are displayed as color-coded cards on both the **Search**
 | **Exclude Terms** | 🔴 Red | Papers whose title, abstract or author keywords contain these terms are removed (same whole-word matching) |
 | **Include Venues** | 🟢 Green | Only papers whose journal/conference name matches are kept (partial match against the venue name only, never the source database; leave empty for all) |
 | **Exclude Venues** | 🔴 Red | Papers whose journal/conference name matches are removed — to exclude an entire database, uncheck it instead |
+
+Enter terms and venues separated by commas or one per line; keep a phrase that contains a comma in double quotes. The year range is applied by RSP after download by default (so PRISMA lists every removed paper); **Settings → Retrieval** can apply it at the database instead, counting the records outside it for PRISMA without downloading them.
 
 Each card has an inline **`ALL (AND)`** / **`ANY (OR)`** match mode dropdown:
 

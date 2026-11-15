@@ -27,7 +27,7 @@ from flask import Flask, render_template, request, jsonify, send_file, Response,
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-RSP_VERSION = "v2.2.3"
+RSP_VERSION = "v2.2.4"
 
 @app.context_processor
 def inject_rsp_version():
@@ -55,6 +55,7 @@ SCIENCEDIRECT_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file
 ELSEVIER_INSTTOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "elsevier_insttoken.txt")
 SPRINGER_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "springer_api_key.txt")
 PUBMED_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pubmed_api_key.txt")
+OPENALEX_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "openalex_api_key.txt")
 ACM_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "acm_api_key.txt")
 WOS_API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "wos_api_key.txt")
 # Both WoS editions authenticate with the same X-ApiKey; only the endpoint and
@@ -69,6 +70,7 @@ GOOGLE_FORM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)
 FEEDBACK_GOOGLE_FORM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "google_form_feedback_config.json")
 FEATURE_GOOGLE_FORM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "google_form_feature_config.json")
 RUN_RETENTION_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "run_retention_settings.json")
+RETRIEVAL_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "retrieval_settings.json")
 PROTOCOL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "protocol.json")
 AI_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "ai_config.json")
 
@@ -179,6 +181,7 @@ def get_sciencedirect_api_key(): return _load_api_key(SCIENCEDIRECT_API_KEY_FILE
 def get_elsevier_insttoken():    return _load_api_key(ELSEVIER_INSTTOKEN_FILE,    "ELSEVIER_INSTTOKEN")
 def get_springer_api_key():     return _load_api_key(SPRINGER_API_KEY_FILE,     "SPRINGER_API_KEY")
 def get_pubmed_api_key():       return _load_api_key(PUBMED_API_KEY_FILE,       "PUBMED_API_KEY")
+def get_openalex_api_key():     return _load_api_key(OPENALEX_API_KEY_FILE,     "OPENALEX_API_KEY")
 def get_acm_api_key():          return _load_api_key(ACM_API_KEY_FILE,          "ACM_API_KEY")
 def get_wos_api_key():          return _load_api_key(WOS_API_KEY_FILE,          "WOS_API_KEY")
 
@@ -452,6 +455,56 @@ def save_run_retention_settings(settings):
     }
     _write_json_atomic(RUN_RETENTION_SETTINGS_FILE, cfg)
     return cfg
+
+
+RETRIEVAL_CAP_MIN = 100
+RETRIEVAL_CAP_MAX = 10000
+
+
+def _clamp_cap(value, default):
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        return default
+    return min(max(v, RETRIEVAL_CAP_MIN), RETRIEVAL_CAP_MAX)
+
+
+def get_retrieval_settings():
+    """Retrieval options set in Settings → Retrieval.
+
+    yearAtDatabase: send the year range to each API (records outside it are
+    counted with one extra count-only request, not downloaded).
+    caps: per-database retrieval ceilings for the APIs that page slowly.
+    """
+    settings = {"yearAtDatabase": False, "caps": dict(RSP_RETRIEVAL_CAP)}
+    if os.path.exists(RETRIEVAL_SETTINGS_FILE):
+        try:
+            with open(RETRIEVAL_SETTINGS_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f) or {}
+            if isinstance(cfg, dict):
+                settings["yearAtDatabase"] = bool(cfg.get("yearAtDatabase", False))
+                caps = cfg.get("caps") or {}
+                for db, default in RSP_RETRIEVAL_CAP.items():
+                    settings["caps"][db] = _clamp_cap(caps.get(db, default), default)
+        except Exception:
+            pass
+    return settings
+
+
+def save_retrieval_settings(data):
+    current = get_retrieval_settings()
+    caps = (data or {}).get("caps") or {}
+    cfg = {
+        "yearAtDatabase": bool((data or {}).get("yearAtDatabase", current["yearAtDatabase"])),
+        "caps": {db: _clamp_cap(caps.get(db, current["caps"][db]), current["caps"][db])
+                 for db in RSP_RETRIEVAL_CAP},
+    }
+    _write_json_atomic(RETRIEVAL_SETTINGS_FILE, cfg)
+    return cfg
+
+
+def _retrieval_cap(db):
+    return get_retrieval_settings()["caps"].get(db, RSP_RETRIEVAL_CAP[db])
 
 
 def load_searches():
@@ -832,6 +885,10 @@ def _build_run_zip_buffer(payload):
         zf.writestr("raw_docs.csv", _docs_to_csv_string(raw_docs))
         zf.writestr("excluded_docs.json", json.dumps(excluded_docs, indent=2, ensure_ascii=False))
         zf.writestr("summary.json", json.dumps(summary, indent=2, ensure_ascii=False))
+        db_counts = payload.get("dbCounts") or (payload.get("prisma") or {}).get("identification", {}).get("databases") or {}
+        if db_counts:
+            zf.writestr("search_log.csv", _search_log_csv(db_counts))
+            zf.writestr("search_log.json", json.dumps(_search_log_rows(db_counts), indent=2, ensure_ascii=False))
 
         # Screening decisions CSV (only written when decisions exist)
         screening_decisions = payload.get("screeningDecisions") or {}
@@ -916,7 +973,8 @@ def _safe_email_link(link):
 
 
 def send_notification_email(to_address, search_name, num_found, docs,
-                            new_doc_keys=None, removed_docs=None, is_first_run=False):
+                            new_doc_keys=None, removed_docs=None, is_first_run=False,
+                            coverage_warning=""):
     """Send a scheduled-run success summary email. Requires SMTP_HOST env var at minimum."""
     cfg = get_smtp_config()
     if not cfg["host"]:
@@ -969,6 +1027,14 @@ def send_notification_email(to_address, search_name, num_found, docs,
             change_summary = f'<p style="margin:4px 0 12px 0;">Changes since last run: {", ".join(parts)}</p>'
         else:
             change_summary = '<p style="margin:4px 0 12px 0;color:#555;">No changes since last run.</p>'
+    if coverage_warning:
+        # A failed database makes its papers look "removed"; say so up front.
+        change_summary = (
+            '<p style="margin:4px 0 12px 0;padding:8px 10px;background:#fff7ed;border:1px solid #fdba74;'
+            'border-radius:4px;color:#9a3412;"><strong>Incomplete coverage:</strong> '
+            f'{html.escape(coverage_warning)}. Papers from these databases may appear as removed.</p>'
+            + change_summary
+        )
 
     # Removed papers section
     removed_html = ""
@@ -1169,74 +1235,14 @@ def _run_saved_search_inner(search_id):
     rows = 10000  # same retrieval ceiling as ad-hoc searches, so scheduled re-runs are comparable
     databases = search_config.get("databases", ["hal", "arxiv"])
     filters = search_config.get("filters", {})
-    api_filters = _api_filters(filters)
 
-    hal_query = build_query(keywords)
-    all_docs = []
-    total_found = 0
-    db_counts = {}
-
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {}
-        if "hal" in databases:
-            futures["hal"] = executor.submit(search_hal, hal_query, rows, api_filters)
-        if "arxiv" in databases:
-            futures["arxiv"] = executor.submit(search_arxiv, keywords, rows, api_filters)
-        if "ieee" in databases:
-            futures["ieee"] = executor.submit(search_ieee, keywords, rows, api_filters)
-        if "scopus" in databases:
-            futures["scopus"] = executor.submit(search_scopus, keywords, rows, api_filters)
-        if "inspec" in databases:
-            futures["inspec"] = executor.submit(search_inspec, keywords, rows, api_filters)
-        if "sciencedirect" in databases:
-            futures["sciencedirect"] = executor.submit(search_sciencedirect, keywords, rows, api_filters)
-        if "springer" in databases:
-            futures["springer"] = executor.submit(search_springer, keywords, rows, api_filters)
-        if "pubmed" in databases:
-            futures["pubmed"] = executor.submit(search_pubmed, keywords, rows, api_filters)
-        if "acm" in databases:
-            futures["acm"] = executor.submit(search_acm, keywords, rows, api_filters)
-        if "openalex" in databases:
-            futures["openalex"] = executor.submit(search_openalex, keywords, rows, api_filters)
-        if "ebsco" in databases:
-            futures["ebsco"] = executor.submit(search_ebsco, keywords, rows, api_filters)
-        if "wos" in databases:
-            futures["wos"] = executor.submit(search_wos, keywords, rows, api_filters)
-
-        for key, future in futures.items():
-            try:
-                result = future.result()
-            except Exception as exc:
-                # A crashed connector must not abort the whole multi-DB search
-                result = {"numFound": 0, "docs": [], "error": str(exc)}
-            total_found += result["numFound"]
-            db_counts[key] = {
-                "found": result["numFound"],
-                "retrieved": len(result["docs"]),
-                # PRISMA item 6 reports the date each database was searched
-                "date": datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d"),
-            }
-            if result.get("error"):
-                db_counts[key]["error"] = result["error"]
-            elif result["numFound"] > len(result["docs"]) and len(result["docs"]) < rows:
-                # Retrieval stopped short of both the total and the requested
-                # ceiling — an API pagination limit silently truncated the set.
-                db_counts[key]["warning"] = (
-                    f"Only {len(result['docs'])} of {result['numFound']} records retrieved (API pagination limit)"
-                )
-            all_docs.extend(result["docs"])
-
-    _enrich_docs_language(all_docs)
-    raw_docs = list(all_docs)
-    prisma = {
-        "identification": {"total_found": total_found, "retrieved": len(raw_docs), "databases": db_counts},
-        "screening": {},
-        "eligibility": {},
-        "search_date": datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d"),
-    }
-    filtered_docs = _apply_post_filters(all_docs, filters, prisma)
-    prisma["included"] = len(filtered_docs)
-    excluded_docs = prisma.pop("excluded_docs", {})
+    run = _execute_search(keywords, databases, rows, filters)
+    total_found = run["total_found"]
+    raw_docs = run["raw_docs"]
+    filtered_docs = run["docs"]
+    prisma = run["prisma"]
+    excluded_docs = run["excluded_docs"]
+    db_counts = run["db_counts"]
 
     # Compute diff against previous run before overwriting results
     prev_docs = load_previous_results(search_id)
@@ -1245,6 +1251,7 @@ def _run_saved_search_inner(search_id):
     new_doc_keys = curr_keys - prev_keys
     removed_docs = [d for d in prev_docs if _doc_key(d) and _doc_key(d) not in curr_keys]
     is_first_run = len(prev_docs) == 0
+    coverage_warning = _coverage_warning(db_counts)
 
     save_search_run(search_id, {
         "numFound": total_found,
@@ -1269,6 +1276,7 @@ def _run_saved_search_inner(search_id):
             new_doc_keys=new_doc_keys,
             removed_docs=removed_docs,
             is_first_run=is_first_run,
+            coverage_warning=coverage_warning,
         )
 
     # Update lastRun timestamp and clear any previous error
@@ -1278,6 +1286,10 @@ def _run_saved_search_inner(search_id):
             s["lastRun"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
             s["lastRunCount"] = len(filtered_docs)
             s.pop("lastRunError", None)  # clear error from any previous failed run
+            if coverage_warning:
+                s["lastRunWarning"] = coverage_warning
+            else:
+                s.pop("lastRunWarning", None)
             break
     save_searches(searches)
 
@@ -1918,6 +1930,22 @@ def set_pubmed_key():
     return jsonify({"ok": True})
 
 
+@app.route("/api/openalex-key", methods=["GET"])
+def get_openalex_key():
+    key = get_openalex_api_key()
+    if key:
+        return jsonify({"configured": True, "key": key[:4] + "..." + key[-4:] if len(key) > 8 else "****"})
+    return jsonify({"configured": False, "key": ""})
+
+
+@app.route("/api/openalex-key", methods=["POST"])
+def set_openalex_key():
+    data = request.get_json(silent=True) or {}
+    key = (data.get("key") or "").strip()
+    _save_api_key(OPENALEX_API_KEY_FILE, key)
+    return jsonify({"ok": True})
+
+
 # --- API: ACM Digital Library API Key ---
 
 @app.route("/api/acm-key", methods=["GET"])
@@ -2103,6 +2131,17 @@ def set_run_retention_settings_route():
         "settings": settings,
         "stats": _run_retention_stats(),
     })
+
+
+@app.route("/api/retrieval-settings", methods=["GET"])
+def get_retrieval_settings_route():
+    return jsonify({"ok": True, "settings": get_retrieval_settings(),
+                    "limits": {"min": RETRIEVAL_CAP_MIN, "max": RETRIEVAL_CAP_MAX}})
+
+
+@app.route("/api/retrieval-settings", methods=["POST"])
+def set_retrieval_settings_route():
+    return jsonify({"ok": True, "settings": save_retrieval_settings(request.get_json(silent=True) or {})})
 
 
 @app.route("/api/run-retention-settings/cleanup", methods=["POST"])
@@ -2788,24 +2827,28 @@ def test_connection():
                 return jsonify({"ok": False, "message": "ACM Digital Library timed out. Check your internet connection or try again later."})
 
         elif api == "openalex":
-            r = requests.get(
-                "https://api.openalex.org/works",
-                params={"search": "test", "per-page": 1, "mailto": "rsp@openalex.local"},
-                headers={"User-Agent": "ReviewSentinelPrime/2.0 (mailto:rsp@openalex.local)"},
-                timeout=10
-            )
+            # Single-entity lookups are free, so this check never spends the
+            # (small, keyless) daily search budget that real searches need.
+            oa_key = (key or "").strip() or get_openalex_api_key()
+            oa_params = {"select": "id"}
+            if oa_key:
+                oa_params["api_key"] = oa_key
+            r = requests.get("https://api.openalex.org/works/W2741809807", params=oa_params,
+                             headers={"User-Agent": "ReviewSentinelPrime"}, timeout=10)
+            remaining = r.headers.get("X-RateLimit-Remaining")
+            limit = r.headers.get("X-RateLimit-Limit")
+            budget = (f" Daily budget remaining: {remaining} of {limit} credits (each search page of "
+                      f"up to 100 records costs 10)." if remaining and limit else "")
+            keyed = "with your API key" if oa_key else "without an API key (keyless budget is about 100 searches/day)"
             if r.status_code == 200:
-                total = r.json().get("meta", {}).get("count", "?")
-                return jsonify({"ok": True, "message": f"Connection successful! OpenAlex is reachable ({total:,} total works indexed)." if isinstance(total, int) else f"Connection successful! OpenAlex is reachable."})
-            elif r.status_code == 429:
-                try:
-                    retry_after = int(r.headers.get("Retry-After", ""))
-                except ValueError:
-                    retry_after = None
-                wait_hint = f"Please wait about {retry_after} seconds and try again." if retry_after else "Please wait a moment and try again."
-                return jsonify({"ok": False, "message": f"Rate limit exceeded (429). Too many requests to OpenAlex — {wait_hint}"})
-            else:
-                return jsonify({"ok": False, "message": f"OpenAlex API returned status {r.status_code}."})
+                return jsonify({"ok": True, "message": f"Connection successful — OpenAlex is reachable {keyed}.{budget}"})
+            if r.status_code == 429:
+                wait = _quota_exhausted_wait(r)
+                when = f" It resets in about {_fmt_wait(wait)} (midnight UTC)." if wait is not None else " Please wait a moment and try again."
+                return jsonify({"ok": False, "message": f"OpenAlex rate limit or daily budget exceeded (429).{when}"})
+            if r.status_code in (401, 403):
+                return jsonify({"ok": False, "message": f"OpenAlex rejected the API key (HTTP {r.status_code}) — check it, or activate it from the email OpenAlex sent."})
+            return jsonify({"ok": False, "message": f"OpenAlex API returned status {r.status_code}."})
 
         elif api == "ebsco":
             creds = get_ebsco_credentials()
@@ -3186,21 +3229,13 @@ def build_db_queries(keywords, filters=None):
     springer_q = keywords
     for term in exclude_terms:
         springer_q += f" NOT {term}"
-    springer_extra = {}
-    if year_from and year_to:
-        springer_extra.update({"date-facet-mode": "between",
-                               "date-facet-start-year": year_from,
-                               "date-facet-end-year": year_to})
-    elif year_from:
-        springer_extra.update({"date-facet-mode": "between",
-                               "date-facet-start-year": year_from})
-    elif year_to:
-        springer_extra.update({"date-facet-mode": "between",
-                               "date-facet-end-year": year_to})
+    springer_date = _springer_date_clause(year_from, year_to)
+    if springer_date:
+        springer_q = f"({springer_q}) {springer_date}"
     queries["springer"] = {
         "query_param": "q",
         "query": springer_q,
-        "extra_params": springer_extra,
+        "extra_params": {},
     }
 
     # ── PubMed (E-utilities) ──────────────────────────────────────────
@@ -3308,7 +3343,19 @@ def _api_filters(filters):
     """
     val = (os.environ.get("RSP_ENABLE_API_FILTERS", "0") or "").strip().lower()
     if val in {"1", "true", "yes", "on"}:
-        return filters or {}
+        api = dict(filters or {})
+        terms = _split_filter_terms(api.get("excludeTerms", []))
+        if api.get("excludeTermsMode", "any") == "all":
+            # Connectors append one NOT per term, which is "any" semantics;
+            # "all" can only be applied by the local filter.
+            terms = []
+        # Quote multi-word terms so `NOT safety case` cannot become
+        # `NOT safety` AND `case` in the remote query.
+        api["excludeTerms"] = [
+            t if t.startswith('"') or " " not in t.strip() else f'"{t.strip()}"'
+            for t in terms
+        ]
+        return api
     return {}
 
 
@@ -3404,6 +3451,233 @@ def _enrich_docs_language(docs):
             doc["language"] = ""
             doc["languageSource"] = "unknown"
             doc["languageConfidence"] = 0.0
+
+
+# ── Connector instrumentation: retries, throttling, per-database log ────────
+# Every instrumented connector records what it actually did (query as sent,
+# pages, retries, errors, truncation) so a run can never report a silent 0.
+
+_sleep = time.sleep  # indirection so tests can skip real waits
+
+_host_throttle_lock = threading.Lock()
+_host_locks = {}
+_host_last_request = {}
+
+
+def _throttle_host(host, min_interval):
+    """Serialise requests to one host and keep at least min_interval seconds
+    between them. Shared across threads, so parallel runs (or a scheduled run
+    overlapping an ad-hoc one) cannot burst past an API's rate limit."""
+    if not min_interval:
+        return
+    with _host_throttle_lock:
+        lock = _host_locks.setdefault(host, threading.Lock())
+    with lock:
+        wait = _host_last_request.get(host, 0.0) + min_interval - time.monotonic()
+        if wait > 0:
+            _sleep(wait)
+        _host_last_request[host] = time.monotonic()
+
+
+def _parse_retry_after(value):
+    """Retry-After is either delta-seconds or an HTTP-date (RFC 9110)."""
+    if not value:
+        return None
+    value = str(value).strip()
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        pass
+    try:
+        from email.utils import parsedate_to_datetime
+        when = parsedate_to_datetime(value)
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        return max(0.0, (when - datetime.now(timezone.utc)).total_seconds())
+    except (TypeError, ValueError, IndexError, OverflowError):
+        return None
+
+
+def _fmt_wait(seconds):
+    seconds = int(max(0, seconds))
+    if seconds >= 3600:
+        return f"{seconds // 3600}h {(seconds % 3600) // 60}m"
+    if seconds >= 60:
+        return f"{seconds // 60}m {seconds % 60}s"
+    return f"{seconds}s"
+
+
+def _quota_exhausted_wait(resp):
+    """Seconds until a daily/weekly quota resets, or None for a plain throttle.
+
+    OpenAlex: X-RateLimit-Remaining 0 and X-RateLimit-Reset = seconds to
+    midnight UTC. Elsevier: X-ELS-Status QUOTA_EXCEEDED and X-RateLimit-Reset
+    as an epoch timestamp.
+    """
+    h = resp.headers
+    els_quota = "QUOTA_EXCEEDED" in (h.get("X-ELS-Status") or "").upper()
+    remaining = (h.get("X-RateLimit-Remaining") or "").strip()
+    try:
+        body_text = (resp.text or "")[:500].lower()
+    except Exception:
+        body_text = ""
+    budget_msg = any(w in body_text for w in ("not_enough_credits", "daily budget", "budget exceeded"))
+    if not (els_quota or remaining in ("0", "0.0") or budget_msg):
+        return None
+    try:
+        reset = float(h.get("X-RateLimit-Reset") or "")
+    except ValueError:
+        return 3600.0
+    if reset > 1e9:  # epoch timestamp
+        reset -= time.time()
+    return max(0.0, reset)
+
+
+class ConnectorRequestError(Exception):
+    """A request that still failed after all retries (or must not be retried)."""
+
+    def __init__(self, message, status=None, retry_after=None):
+        super().__init__(message)
+        self.status = status
+        self.retry_after = retry_after
+
+
+class ConnectorLog:
+    """What one connector did during one run — exported with the results."""
+
+    def __init__(self, db, page_size=None, cap=None):
+        self.db = db
+        self.started = datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds") + "Z"
+        self.query_sent = ""
+        self.params = {}
+        self.page_size = page_size
+        self.cap = cap
+        self.pages = 0
+        self.retries = 0
+        self.errors = []
+        self.notes = []  # degradations/fallbacks that did not stop retrieval
+        self.truncated = ""  # human-readable reason when paging stopped short
+
+    def set_request(self, query_sent, params=None):
+        self.query_sent = query_sent
+        # Never persist credentials into the exported log.
+        secret = {"apikey", "api_key", "apiKey", "key"}
+        self.params = {k: v for k, v in (params or {}).items() if k not in secret}
+
+    def error(self, message):
+        if message and message not in self.errors:
+            self.errors.append(message)
+
+    def note(self, message):
+        if message and message not in self.notes:
+            self.notes.append(message)
+
+    def to_dict(self):
+        return {
+            "started": self.started,
+            "querySent": self.query_sent,
+            "params": self.params,
+            "pageSize": self.page_size,
+            "cap": self.cap,
+            "pages": self.pages,
+            "retries": self.retries,
+            "errors": list(self.errors),
+            "notes": list(self.notes),
+            "truncated": self.truncated,
+        }
+
+
+_RETRY_STATUSES = (429, 500, 502, 503, 504)
+
+
+def _http_get(url, *, log, params=None, headers=None, timeout=30, max_retries=4,
+              base_delay=2.0, max_wait=90.0, min_interval=0.0, label="", retry_statuses=_RETRY_STATUSES):
+    """GET with exponential backoff on 429/5xx, timeouts and connection errors.
+
+    Honours Retry-After. A wait longer than max_wait is not slept through —
+    it fails fast with a message saying how long the API asked us to wait.
+    Returns the final response for any other status so the caller can map
+    4xx errors (bad query, bad key) to a specific message.
+    """
+    host = requests.utils.urlparse(url).hostname or url
+    label = label or host
+    last_problem = ""
+    for attempt in range(max_retries + 1):
+        _throttle_host(host, min_interval)
+        try:
+            resp = requests.get(url, params=params, headers=headers, timeout=timeout)
+        except requests.exceptions.Timeout:
+            last_problem = f"{label} did not respond within {timeout}s"
+            resp = None
+        except requests.exceptions.ConnectionError as e:
+            text = str(e)
+            if "NameResolution" in text or "Failed to resolve" in text or "nodename nor servname" in text:
+                last_problem = f"Could not reach {host} (DNS lookup failed — check your internet connection or VPN)"
+            else:
+                last_problem = f"Could not connect to {host} (network error)"
+            resp = None
+        except requests.RequestException as e:
+            raise ConnectorRequestError(f"{label} request failed: {e}")
+
+        if resp is not None and resp.status_code not in retry_statuses:
+            return resp
+
+        retry_after = None
+        if resp is not None:
+            retry_after = _parse_retry_after(resp.headers.get("Retry-After"))
+            if resp.status_code == 429:
+                last_problem = f"{label} rate-limited the request (HTTP 429)"
+                quota = _quota_exhausted_wait(resp)
+                if quota is not None:
+                    # Daily/weekly budget gone: retrying only burns time.
+                    raise ConnectorRequestError(
+                        f"{label} quota exhausted (HTTP 429); it resets in about "
+                        f"{_fmt_wait(quota)}. Retrieval stopped.",
+                        status=429, retry_after=quota,
+                    )
+            else:
+                last_problem = f"{label} server error (HTTP {resp.status_code})"
+
+        if attempt >= max_retries:
+            break
+        wait = retry_after if retry_after is not None else min(max_wait, base_delay * (2 ** attempt))
+        if wait > max_wait:
+            raise ConnectorRequestError(
+                f"{last_problem}; the API asked to wait {_fmt_wait(wait)} before retrying. Try again later.",
+                status=resp.status_code if resp is not None else None,
+                retry_after=wait,
+            )
+        log.retries += 1
+        _sleep(wait)
+
+    raise ConnectorRequestError(
+        f"{last_problem} after {max_retries + 1} attempts",
+        status=resp.status_code if resp is not None else None,
+    )
+
+
+def _http_error_message(label, resp):
+    """Short, specific message for a non-retryable HTTP error response."""
+    detail = ""
+    try:
+        body = resp.json()
+        if isinstance(body, dict):
+            err = body.get("error") or body.get("service-error") or body.get("message") or ""
+            if isinstance(err, dict):
+                err = err.get("status", {}).get("statusText") or err.get("message") or json.dumps(err)[:200]
+            detail = str(err)[:300]
+    except ValueError:
+        detail = (resp.text or "")[:300].strip()
+    code = resp.status_code
+    if code in (401, 403):
+        hint = "the API key/entitlement was rejected or the quota is exhausted"
+    elif code == 400:
+        hint = "the API rejected the query (syntax, length or unsupported operator)"
+    elif code == 414:
+        hint = "the query is too long for the API"
+    else:
+        hint = "request failed"
+    return f"{label}: HTTP {code} — {hint}" + (f" ({detail})" if detail else "")
 
 
 def search_hal(query, rows, filters=None):
@@ -3508,13 +3782,129 @@ def search_hal(query, rows, filters=None):
     return result
 
 
+# ── Documented API limits (checked against the providers' docs, Nov 2026) ──
+# IEEE Xplore: max_records ≤ 200, start_record offset paging.
+# Scopus: count ≤ 25 (COMPLETE view) / ≤ 200 (STANDARD); start+count ≤ 5000
+#   without cursor paging; 9 req/s throttle, 20,000 requests/week.
+# Springer Nature Meta API v2: p ≤ 25 (basic plan; 100 premium); basic plan
+#   100 requests/min and 500/day.
+# arXiv: max_results ≤ 2000 per call, 30,000 per query; ≥ 3 s between
+#   requests on a single connection (Terms of Use).
+# OpenAlex: per_page ≤ 100; page paging stops at 10,000 results (cursor
+#   paging beyond that needs an API key); keyless budget ≈ 100 searches/day,
+#   searches with > 5 boolean operators limited to 1 req/s without a key.
+IEEE_MAX_PAGE = 200
+SCOPUS_MAX_PAGE_COMPLETE = 25
+SCOPUS_MAX_PAGE_STANDARD = 200
+SCOPUS_START_LIMIT = 5000
+SPRINGER_MAX_PAGE = 25
+ARXIV_PAGE_SIZE = 200
+ARXIV_MAX_TOTAL = 30000
+ARXIV_MIN_INTERVAL = 3.0
+OPENALEX_MAX_PAGE = 100
+OPENALEX_BASIC_PAGING_LIMIT = 10000
+
+# RSP's own retrieval ceilings (not API limits): keep a run to a few dozen
+# requests per database. Hitting one is reported as a truncated result.
+RSP_RETRIEVAL_CAP = {"ieee": 1000, "scopus": 1000, "springer": 1000}
+
+
+def _connector_result(log, total, docs, error=None):
+    """Standard connector return value; records truncation when paging
+    stopped short of the reported total and no specific reason was logged."""
+    total = int(total or 0)
+    if error:
+        log.error(error)
+    if total > len(docs) and not log.truncated:
+        log.truncated = f"Retrieved {len(docs)} of {total} records reported by the API"
+    result = {"numFound": total, "docs": docs, "log": log.to_dict()}
+    if error:
+        result["error"] = error
+    return result
+
+
+def _cap_reason(cap, total, label):
+    return f"{label} retrieval cap of {cap:,} records reached; the API reported {total:,}"
+
+
+_ARXIV_NS = {
+    "atom": "http://www.w3.org/2005/Atom",
+    "opensearch": "http://a9.com/-/spec/opensearch/1.1/",
+    "arxiv": "http://arxiv.org/schemas/atom",
+}
+
+
+def _normalize_arxiv_entry(entry):
+    ns = _ARXIV_NS
+    title_el = entry.find("atom:title", ns)
+    title = title_el.text.strip() if title_el is not None and title_el.text else "Untitled"
+
+    summary_el = entry.find("atom:summary", ns)
+    abstract = summary_el.text.strip() if summary_el is not None and summary_el.text else ""
+
+    authors = []
+    for author_el in entry.findall("atom:author", ns):
+        name_el = author_el.find("atom:name", ns)
+        if name_el is not None and name_el.text:
+            authors.append(name_el.text)
+
+    published_el = entry.find("atom:published", ns)
+    year = None
+    if published_el is not None and published_el.text:
+        try:
+            year = int(published_el.text[:4])
+        except (ValueError, TypeError):
+            year = None
+
+    url = ""
+    id_el = entry.find("atom:id", ns)
+    if id_el is not None and id_el.text:
+        url = id_el.text
+
+    doi_el = entry.find("arxiv:doi", ns)
+    doi = doi_el.text.strip() if doi_el is not None and doi_el.text else ""
+
+    journal_el = entry.find("arxiv:journal_ref", ns)
+    journal = journal_el.text.strip() if journal_el is not None and journal_el.text else ""
+
+    categories = []
+    for cat_el in entry.findall("atom:category", ns):
+        term_val = cat_el.get("term", "")
+        if term_val:
+            categories.append(term_val)
+
+    return {
+        "source": "arXiv",
+        "title": title,
+        "authors": authors,
+        "year": year,
+        "journal": journal,
+        "abstract": abstract,
+        "url": url,
+        "doi": doi,
+        "keywords": categories,
+        "docType": "Preprint",
+    }
+
+
+def _arxiv_error_entry(entries):
+    """arXiv reports bad queries as HTTP 200/400 with one Atom entry whose id
+    points at /api/errors — that entry must never be treated as a paper."""
+    for entry in entries:
+        id_el = entry.find("atom:id", _ARXIV_NS)
+        if id_el is not None and id_el.text and "/api/errors" in id_el.text:
+            summary_el = entry.find("atom:summary", _ARXIV_NS)
+            return (summary_el.text or "").strip() if summary_el is not None else "unknown error"
+    return None
+
+
 def search_arxiv(keywords, rows, filters=None):
     """Search arXiv and return normalized results."""
     filters = filters or {}
-    # Build arXiv query
+    cap = min(rows, ARXIV_MAX_TOTAL)
+    log = ConnectorLog("arxiv", page_size=ARXIV_PAGE_SIZE, cap=cap)
     search_query = build_arxiv_query(keywords)
 
-    # Add exclusion terms
     exclude_terms = filters.get("excludeTerms", [])
     for term in exclude_terms:
         search_query += f" ANDNOT all:{term}"
@@ -3527,167 +3917,162 @@ def search_arxiv(keywords, rows, filters=None):
         date_to = f"{year_to}1231" if year_to else "20991231"
         search_query += f" AND submittedDate:[{date_from} TO {date_to}]"
 
-    ns = {
-        "atom": "http://www.w3.org/2005/Atom",
-        "opensearch": "http://a9.com/-/spec/opensearch/1.1/",
-        "arxiv": "http://arxiv.org/schemas/atom",
+    page_size = ARXIV_PAGE_SIZE
+    params = {
+        "search_query": search_query,
+        "start": 0,
+        "max_results": page_size,
+        "sortBy": "submittedDate",
+        "sortOrder": "descending",
     }
+    log.set_request(search_query, params)
 
-    page_size = 200  # arXiv recommends batches of ≤200
     normalized = []
-    total_records = 0
+    total_records = None
     error_msg = None
-    max_retries = 5
-    while True:
-        params = {
-            "search_query": search_query,
-            "start": len(normalized),
-            "max_results": page_size,
-            "sortBy": "submittedDate",
-            "sortOrder": "descending",
-        }
-        response = None
-        for attempt in range(max_retries):
-            try:
-                response = requests.get(ARXIV_API_URL, params=params, timeout=60)
-                if response.status_code == 429:
-                    try:
-                        # Retry-After may also be an HTTP-date, which int() can't parse
-                        retry_after = int(response.headers.get("Retry-After", ""))
-                    except ValueError:
-                        retry_after = 15 * (2 ** attempt)
-                    time.sleep(retry_after)
-                    response = None
-                    continue
-                response.raise_for_status()
-                break
-            except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    time.sleep(10 * (attempt + 1))
-                    response = None
-                    continue
-                error_msg = "arXiv request timed out. The server may be busy — please try again in a minute."
-                break
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 500:
-                    # arXiv's backend intermittently 500s on complex Boolean queries
-                    # when max_results is large; a smaller batch often succeeds.
-                    if attempt < max_retries - 1 and page_size > 25:
-                        page_size = max(25, page_size // 2)
-                        params["max_results"] = page_size
-                        time.sleep(5 * (attempt + 1))
-                        response = None
-                        continue
-                    error_msg = (
-                        "arXiv returned a 500 error — the query is likely too complex or contains "
-                        "unsupported syntax (e.g. wildcards inside quoted phrases). "
-                        "Try simplifying the search terms."
-                    )
-                else:
-                    error_msg = f"arXiv request failed: {e}"
-                break
-            except requests.RequestException as e:
-                error_msg = f"arXiv request failed: {e}"
-                break
-        if response is None and error_msg is None:
-            error_msg = "arXiv is rate-limiting requests (HTTP 429). Please wait a moment and try again."
-        if error_msg or response is None:
+    empty_retries = 0
+    while len(normalized) < cap:
+        params["start"] = len(normalized)
+        params["max_results"] = min(page_size, cap - len(normalized))
+        try:
+            response = _http_get(ARXIV_API_URL, log=log, params=params, timeout=60,
+                                 base_delay=5.0, max_wait=120.0,
+                                 min_interval=ARXIV_MIN_INTERVAL, label="arXiv",
+                                 retry_statuses=(429, 502, 503, 504))
+        except ConnectorRequestError as e:
+            error_msg = str(e)
+            break
+        if response.status_code == 500:
+            # arXiv's backend intermittently 500s on complex Boolean queries
+            # with large pages; a smaller batch often succeeds.
+            if page_size > 25:
+                page_size = max(25, page_size // 2)
+                log.page_size = page_size
+                log.retries += 1
+                log.note(f"arXiv HTTP 500 — page size reduced to {page_size}")
+                continue
+            error_msg = ("arXiv returned HTTP 500 even with 25-record pages — the query is likely "
+                         "too complex for arXiv (e.g. wildcards inside quoted phrases)")
             break
 
         try:
             root = ET.fromstring(response.text)
         except ET.ParseError:
+            error_msg = f"arXiv returned an unreadable response (HTTP {response.status_code}) at offset {params['start']}"
             break
+        entries = root.findall("atom:entry", _ARXIV_NS)
+        api_error = _arxiv_error_entry(entries)
+        if api_error or response.status_code != 200:
+            error_msg = f"arXiv rejected the query (HTTP {response.status_code}): {api_error or 'no details'}"
+            break
+        log.pages += 1
 
-        if total_records == 0:
-            total_results_el = root.find("opensearch:totalResults", ns)
-            total_records = int(total_results_el.text) if total_results_el is not None else 0
+        if total_records is None:
+            total_el = root.find("opensearch:totalResults", _ARXIV_NS)
+            try:
+                total_records = int(total_el.text) if total_el is not None else 0
+            except (TypeError, ValueError):
+                total_records = 0
 
-        entries = root.findall("atom:entry", ns)
         if not entries:
+            if len(normalized) >= total_records:
+                break
+            # arXiv intermittently serves an empty page mid-result-set; retry
+            # the same offset before giving up, then report the truncation.
+            if empty_retries < 3:
+                empty_retries += 1
+                log.retries += 1
+                _sleep(5 * empty_retries)
+                continue
+            error_msg = (f"arXiv returned empty pages at offset {params['start']} of "
+                         f"{total_records} after {empty_retries} retries; retrieval stopped early")
             break
-
-        for entry in entries:
-            title_el = entry.find("atom:title", ns)
-            title = title_el.text.strip() if title_el is not None and title_el.text else "Untitled"
-
-            summary_el = entry.find("atom:summary", ns)
-            abstract = summary_el.text.strip() if summary_el is not None and summary_el.text else ""
-
-            authors = []
-            for author_el in entry.findall("atom:author", ns):
-                name_el = author_el.find("atom:name", ns)
-                if name_el is not None and name_el.text:
-                    authors.append(name_el.text)
-
-            published_el = entry.find("atom:published", ns)
-            year = None
-            if published_el is not None and published_el.text:
-                try:
-                    year = int(published_el.text[:4])
-                except (ValueError, TypeError):
-                    year = None
-
-            url = ""
-            id_el = entry.find("atom:id", ns)
-            if id_el is not None and id_el.text:
-                url = id_el.text
-
-            doi_el = entry.find("arxiv:doi", ns)
-            doi = doi_el.text.strip() if doi_el is not None and doi_el.text else ""
-
-            journal_el = entry.find("arxiv:journal_ref", ns)
-            journal = journal_el.text.strip() if journal_el is not None and journal_el.text else ""
-
-            categories = []
-            for cat_el in entry.findall("atom:category", ns):
-                term_val = cat_el.get("term", "")
-                if term_val:
-                    categories.append(term_val)
-
-            normalized.append({
-                "source": "arXiv",
-                "title": title,
-                "authors": authors,
-                "year": year,
-                "journal": journal,
-                "abstract": abstract,
-                "url": url,
-                "doi": doi,
-                "keywords": categories,
-                "docType": "Preprint",
-            })
-
+        empty_retries = 0
+        normalized.extend(_normalize_arxiv_entry(e) for e in entries)
         if len(normalized) >= total_records:
             break
-        # arXiv recommends ≥3s between requests to avoid rate limiting
-        time.sleep(3)
 
-    if error_msg and not normalized:
-        return {"numFound": 0, "docs": [], "error": error_msg}
-    result = {"numFound": total_records, "docs": normalized}
-    if error_msg:
-        result["error"] = error_msg
-    return result
+    total_records = total_records or 0
+    if not error_msg and total_records > len(normalized) and len(normalized) >= cap:
+        log.truncated = (f"arXiv allows at most {ARXIV_MAX_TOTAL:,} results per query"
+                         if cap == ARXIV_MAX_TOTAL else _cap_reason(cap, total_records, "Requested"))
+    return _connector_result(log, total_records, normalized, error_msg)
+
+
+def _normalize_ieee_article(article):
+    title = article.get("title", "Untitled")
+    authors_list = []
+    if "authors" in article and "authors" in article["authors"]:
+        for author in article["authors"]["authors"]:
+            full_name = author.get("full_name", "")
+            if full_name:
+                authors_list.append(full_name)
+
+    year = None
+    pub_year = article.get("publication_year")
+    if pub_year:
+        try:
+            year = int(pub_year)
+        except (ValueError, TypeError):
+            pass
+
+    journal = article.get("publication_title", "")
+    abstract = article.get("abstract", "")
+    doi = article.get("doi", "")
+    url = article.get("html_url", "")
+    if not url and doi:
+        url = f"https://doi.org/{doi}"
+
+    content_type = article.get("content_type", "")
+    _ieee_type_map = {
+        "Conferences": "conference",
+        "Journals": "article",
+        "Early Access": "article",
+        "Books": "book chapter",
+        "Standards": "article",
+        "Courses": "article",
+    }
+    doc_type = _ieee_type_map.get(content_type, "article")
+
+    keywords_list = []
+    if "index_terms" in article:
+        idx_terms = article["index_terms"]
+        if "ieee_terms" in idx_terms and "terms" in idx_terms["ieee_terms"]:
+            keywords_list.extend(idx_terms["ieee_terms"]["terms"])
+        if "author_terms" in idx_terms and "terms" in idx_terms["author_terms"]:
+            keywords_list.extend(idx_terms["author_terms"]["terms"])
+
+    language = article.get("language", "") or ""
+
+    return {
+        "source": "IEEE",
+        "title": title,
+        "authors": authors_list,
+        "year": year,
+        "journal": journal,
+        "abstract": abstract,
+        "url": url,
+        "doi": doi,
+        "keywords": keywords_list[:10],
+        "docType": doc_type,
+        "language": language,
+    }
 
 
 def search_ieee(keywords, rows, filters=None):
     """Search IEEE Xplore and return normalized results."""
     filters = filters or {}
-    # IEEE API returns 200 records per call max; cap at 1 000 to avoid 50+
-    # sequential HTTP requests which causes the browser stream to time out.
-    rows = min(rows, 1000)
+    cap = min(rows, _retrieval_cap("ieee"))
+    log = ConnectorLog("ieee", page_size=IEEE_MAX_PAGE, cap=cap)
     api_key = get_ieee_api_key()
     if not api_key:
-        return {"numFound": 0, "docs": [], "error": "IEEE API key not configured"}
+        return _connector_result(log, 0, [], "IEEE API key not configured")
 
     # The IEEE REST API's dedicated 'abstract' parameter does not support
     # parentheses, so complex boolean queries (which always have parens) return 0.
     # Use 'querytext' which fully supports boolean operators and parentheses.
-    # (The previous .ti.ab. dot-notation was website-only and is not used here.)
     query_text = keywords
 
-    # Add exclusion terms
     exclude_terms = filters.get("excludeTerms", [])
     for term in exclude_terms:
         query_text += f" NOT {term}"
@@ -3699,133 +4084,140 @@ def search_ieee(keywords, rows, filters=None):
     params = {
         "apikey": api_key,
         "querytext": query_text,
-        "max_records": 200,
+        "max_records": IEEE_MAX_PAGE,
         "start_record": 1,
         "sort_order": "desc",
         "sort_field": "publication_year",
     }
-
-    # Year filter
     year_from = filters.get("yearFrom")
     year_to = filters.get("yearTo")
     if year_from:
         params["start_year"] = year_from
     if year_to:
         params["end_year"] = year_to
+    log.set_request(query_text, params)
 
     normalized = []
-    total_records = 0
+    total_records = None
     error_msg = None
-    while len(normalized) < rows:
-        batch = min(200, rows - len(normalized))
-        if total_records > 0:
+    while len(normalized) < cap:
+        batch = min(IEEE_MAX_PAGE, cap - len(normalized))
+        if total_records is not None:
             batch = min(batch, total_records - len(normalized))
         if batch <= 0:
             break
         params["max_records"] = batch
         params["start_record"] = len(normalized) + 1
         try:
-            response = requests.get(IEEE_API_URL, params=params, timeout=20)
-            response.raise_for_status()
+            response = _http_get(IEEE_API_URL, log=log, params=params, timeout=30,
+                                 min_interval=0.2, label="IEEE Xplore")
+        except ConnectorRequestError as e:
+            error_msg = str(e)
+            break
+        if response.status_code != 200:
+            error_msg = _http_error_message("IEEE Xplore", response)
+            break
+        try:
             data = response.json()
-        except requests.RequestException as e:
-            error_msg = f"Request failed: {e}"
+        except ValueError:
+            error_msg = f"IEEE Xplore returned a non-JSON response at record {params['start_record']}"
             break
-        if total_records == 0:
-            total_records = data.get("total_records", 0)
-        articles = data.get("articles", [])
+        log.pages += 1
+        if total_records is None:
+            total_records = int(data.get("total_records") or 0)
+        articles = data.get("articles") or []
         if not articles:
+            if len(normalized) < total_records:
+                error_msg = (f"IEEE Xplore returned an empty page at record {params['start_record']} "
+                             f"of {total_records}; retrieval stopped early")
             break
-        for article in articles:
-            title = article.get("title", "Untitled")
-            authors_list = []
-            if "authors" in article and "authors" in article["authors"]:
-                for author in article["authors"]["authors"]:
-                    full_name = author.get("full_name", "")
-                    if full_name:
-                        authors_list.append(full_name)
+        normalized.extend(_normalize_ieee_article(a) for a in articles)
 
-            year = None
-            pub_year = article.get("publication_year")
-            if pub_year:
-                try:
-                    year = int(pub_year)
-                except (ValueError, TypeError):
-                    pass
+    total_records = total_records or 0
+    if not error_msg and total_records > len(normalized) and len(normalized) >= cap:
+        log.truncated = _cap_reason(cap, total_records, "RSP")
+    return _connector_result(log, total_records, normalized, error_msg)
 
-            journal = article.get("publication_title", "")
-            abstract = article.get("abstract", "")
-            doi = article.get("doi", "")
-            url = article.get("html_url", "")
-            if not url and doi:
-                url = f"https://doi.org/{doi}"
 
-            content_type = article.get("content_type", "")
-            _ieee_type_map = {
-                "Conferences": "conference",
-                "Journals": "article",
-                "Early Access": "article",
-                "Books": "book chapter",
-                "Standards": "article",
-                "Courses": "article",
-            }
-            doc_type = _ieee_type_map.get(content_type, "article")
+def _normalize_scopus_entry(entry):
+    title = entry.get("dc:title", "Untitled")
+    authors_list = []
+    for a in entry.get("author") or []:
+        name = a.get("authname") or " ".join(
+            x for x in [a.get("given-name"), a.get("surname")] if x
+        )
+        if name:
+            authors_list.append(name)
+    if not authors_list:
+        creator = entry.get("dc:creator", "")
+        if creator:
+            authors_list.append(creator)
 
-            keywords_list = []
-            if "index_terms" in article:
-                idx_terms = article["index_terms"]
-                if "ieee_terms" in idx_terms and "terms" in idx_terms["ieee_terms"]:
-                    keywords_list.extend(idx_terms["ieee_terms"]["terms"])
-                if "author_terms" in idx_terms and "terms" in idx_terms["author_terms"]:
-                    keywords_list.extend(idx_terms["author_terms"]["terms"])
+    year = None
+    cover_date = entry.get("prism:coverDate", "")
+    if cover_date:
+        try:
+            year = int(cover_date[:4])
+        except (ValueError, TypeError):
+            pass
 
-            language = article.get("language", "") or ""
+    journal = entry.get("prism:publicationName", "")
+    abstract = entry.get("dc:description", "") or ""
+    doi = entry.get("prism:doi", "") or ""
 
-            normalized.append({
-                "source": "IEEE",
-                "title": title,
-                "authors": authors_list,
-                "year": year,
-                "journal": journal,
-                "abstract": abstract,
-                "url": url,
-                "doi": doi,
-                "keywords": keywords_list[:10],
-                "docType": doc_type,
-                "language": language,
-            })
-        if len(normalized) >= total_records:
-            break
+    url = ""
+    eid = entry.get("eid", "")
+    if doi:
+        url = f"https://doi.org/{doi}"
+    elif eid:
+        url = f"https://www.scopus.com/record/display.uri?eid={eid}&origin=resultslist"
 
-    result = {"numFound": total_records, "docs": normalized}
-    if error_msg:
-        result["error"] = error_msg
-    return result
+    _scopus_raw = (entry.get("subtypeDescription", "") or "").lower()
+    _scopus_type_map = {
+        "article": "article", "review": "article", "short survey": "article",
+        "conference paper": "conference", "conference review": "conference",
+        "book chapter": "book chapter", "book": "book chapter",
+        "editorial": "article", "letter": "article", "note": "article",
+        "report": "report",
+    }
+    doc_type = _scopus_type_map.get(_scopus_raw, "article" if _scopus_raw else "")
+    keywords_list = []
+    authkeywords = entry.get("authkeywords", "")
+    if authkeywords:
+        keywords_list = [k.strip() for k in authkeywords.split("|") if k.strip()]
+
+    language = entry.get("prism:language", "") or ""
+
+    return {
+        "source": "Scopus",
+        "title": title,
+        "authors": authors_list,
+        "year": year,
+        "journal": journal,
+        "abstract": abstract,
+        "url": url,
+        "doi": doi,
+        "keywords": keywords_list[:10],
+        "docType": doc_type,
+        "language": language,
+    }
 
 
 def search_scopus(keywords, rows, filters=None):
     """Search Scopus and return normalized results."""
     filters = filters or {}
-    # Scopus returns 25 records per call; cap total retrieval so broad queries
-    # can't trigger hundreds of sequential requests (see IEEE/Springer for the
-    # same fix).
-    rows = min(rows, 1000)
+    cap = min(rows, _retrieval_cap("scopus"))
+    log = ConnectorLog("scopus", page_size=SCOPUS_MAX_PAGE_COMPLETE, cap=cap)
     api_key = get_scopus_api_key()
     if not api_key:
-        return {"numFound": 0, "docs": [], "error": "Scopus API key not configured"}
+        return _connector_result(log, 0, [], "Scopus API key not configured")
 
-    # Build Scopus query
-    query_text = keywords
+    query = f"TITLE-ABS-KEY({keywords})"
 
-    # Wrap in TITLE-ABS-KEY for better results
-    query = f"TITLE-ABS-KEY({query_text})"
-
-    # Add exclusion terms
     exclude_terms = filters.get("excludeTerms", [])
     for term in exclude_terms:
         query += f" AND NOT TITLE-ABS-KEY({term})"
 
-    # Year filter
     year_from = filters.get("yearFrom")
     year_to = filters.get("yearTo")
     if year_from and year_to:
@@ -3835,7 +4227,6 @@ def search_scopus(keywords, rows, filters=None):
     elif year_to:
         query += f" AND PUBYEAR < {int(year_to) + 1}"
 
-    # Document type filter
     doc_types = filters.get("docTypes", [])
     scopus_doc_map = {
         "ART": "ar", "COMM": "cp", "THESE": "th",
@@ -3845,7 +4236,6 @@ def search_scopus(keywords, rows, filters=None):
         scopus_types = [scopus_doc_map.get(t, t) for t in doc_types]
         query += " AND DOCTYPE(" + " OR ".join(scopus_types) + ")"
 
-    # Language filter
     languages = filters.get("languages", [])
     lang_map = {"en": "English", "fr": "French", "de": "German", "es": "Spanish", "pt": "Portuguese", "it": "Italian", "zh": "Chinese", "ja": "Japanese"}
     if languages:
@@ -3854,10 +4244,10 @@ def search_scopus(keywords, rows, filters=None):
 
     params = {
         "query": query,
-        "count": 25,
         "sort": "-coverDate",
         "field": "dc:title,dc:creator,author,prism:coverDate,prism:publicationName,dc:description,prism:doi,citedby-count,subtypeDescription,authkeywords,prism:url,eid,prism:language",
     }
+    log.set_request(query, params)
 
     headers = {
         "X-ELS-APIKey": api_key,
@@ -3868,127 +4258,81 @@ def search_scopus(keywords, rows, filters=None):
         headers["X-ELS-Insttoken"] = insttoken
 
     normalized = []
-    total_records = 0
+    total_records = None
     error_msg = None
-    # Entitlement-dependent features, each dropped gracefully on a 4xx:
-    # COMPLETE view returns the full author list (STANDARD has only the
-    # first author); cursor pagination removes the 5000-record ceiling of
-    # start-based paging.
+    # Entitlement-dependent features, each dropped on a 4xx before any data:
+    # COMPLETE view returns the full author list (STANDARD has only the first
+    # author) but caps count at 25; cursor paging removes the 5,000-record
+    # ceiling of start-based paging.
     view_complete = True
     use_cursor = True
     cursor = "*"
-    while len(normalized) < rows:
+    while len(normalized) < cap:
+        page_max = SCOPUS_MAX_PAGE_COMPLETE if view_complete else SCOPUS_MAX_PAGE_STANDARD
+        log.page_size = page_max
         req = dict(params)
-        req["count"] = min(25, rows - len(normalized))
+        req["count"] = min(page_max, cap - len(normalized))
         if view_complete:
             req["view"] = "COMPLETE"
         if use_cursor:
             req["cursor"] = cursor
         else:
             start = len(normalized)
-            # Elsevier API hard limit for start-based paging: start + count ≤ 5000
-            if start >= 5000:
+            if start >= SCOPUS_START_LIMIT:
+                log.truncated = (f"Scopus start-based paging stops at {SCOPUS_START_LIMIT:,} records "
+                                 "(cursor paging is not enabled for this API key)")
                 break
             req["start"] = start
-            req["count"] = min(req["count"], 5000 - start)
+            req["count"] = min(req["count"], SCOPUS_START_LIMIT - start)
         try:
-            response = requests.get(SCOPUS_API_URL, params=req, headers=headers, timeout=20)
-            if response.status_code in (400, 401, 403) and not normalized and (view_complete or use_cursor):
-                if view_complete:
-                    view_complete = False
-                elif use_cursor:
-                    use_cursor = False
-                continue
-            response.raise_for_status()
-            data = response.json()
-        except requests.RequestException as e:
-            error_msg = f"Request failed: {e}"
+            response = _http_get(SCOPUS_API_URL, log=log, params=req, headers=headers,
+                                 timeout=30, min_interval=0.12, label="Scopus")
+        except ConnectorRequestError as e:
+            error_msg = str(e)
             break
+        if response.status_code in (400, 401, 403) and not normalized and (view_complete or use_cursor):
+            if view_complete:
+                view_complete = False
+                log.note(f"Scopus HTTP {response.status_code} with view=COMPLETE — retried with the STANDARD view (first author only)")
+            else:
+                use_cursor = False
+                log.note(f"Scopus HTTP {response.status_code} with cursor paging — retried with start-based paging (max {SCOPUS_START_LIMIT:,} records)")
+            continue
+        if response.status_code != 200:
+            error_msg = _http_error_message("Scopus", response)
+            break
+        try:
+            data = response.json()
+        except ValueError:
+            error_msg = "Scopus returned a non-JSON response"
+            break
+        log.pages += 1
 
         search_results = data.get("search-results", {})
-        if total_records == 0:
-            total_records = int(search_results.get("opensearch:totalResults", 0))
+        if total_records is None:
+            total_records = int(search_results.get("opensearch:totalResults") or 0)
         next_cursor = (search_results.get("cursor") or {}).get("@next") or ""
-        entries = search_results.get("entry", [])
+        # An empty result set comes back as a single {"error": "Result set was empty"} entry.
+        entries = [e for e in search_results.get("entry", []) if "error" not in e]
         if not entries:
+            if len(normalized) < total_records:
+                error_msg = (f"Scopus returned an empty page after {len(normalized)} of "
+                             f"{total_records} records; retrieval stopped early")
             break
-
-        for entry in entries:
-            if "error" in entry:
-                continue
-
-            title = entry.get("dc:title", "Untitled")
-            authors_list = []
-            for a in entry.get("author") or []:
-                name = a.get("authname") or " ".join(
-                    x for x in [a.get("given-name"), a.get("surname")] if x
-                )
-                if name:
-                    authors_list.append(name)
-            if not authors_list:
-                creator = entry.get("dc:creator", "")
-                if creator:
-                    authors_list.append(creator)
-
-            year = None
-            cover_date = entry.get("prism:coverDate", "")
-            if cover_date:
-                try:
-                    year = int(cover_date[:4])
-                except (ValueError, TypeError):
-                    pass
-
-            journal = entry.get("prism:publicationName", "")
-            abstract = entry.get("dc:description", "") or ""
-            doi = entry.get("prism:doi", "") or ""
-
-            url = ""
-            eid = entry.get("eid", "")
-            if doi:
-                url = f"https://doi.org/{doi}"
-            elif eid:
-                url = f"https://www.scopus.com/record/display.uri?eid={eid}&origin=resultslist"
-
-            _scopus_raw = (entry.get("subtypeDescription", "") or "").lower()
-            _scopus_type_map = {
-                "article": "article", "review": "article", "short survey": "article",
-                "conference paper": "conference", "conference review": "conference",
-                "book chapter": "book chapter", "book": "book chapter",
-                "editorial": "article", "letter": "article", "note": "article",
-                "report": "report",
-            }
-            doc_type = _scopus_type_map.get(_scopus_raw, "article" if _scopus_raw else "")
-            keywords_list = []
-            authkeywords = entry.get("authkeywords", "")
-            if authkeywords:
-                keywords_list = [k.strip() for k in authkeywords.split("|") if k.strip()]
-
-            language = entry.get("prism:language", "") or ""
-
-            normalized.append({
-                "source": "Scopus",
-                "title": title,
-                "authors": authors_list,
-                "year": year,
-                "journal": journal,
-                "abstract": abstract,
-                "url": url,
-                "doi": doi,
-                "keywords": keywords_list[:10],
-                "docType": doc_type,
-                "language": language,
-            })
+        normalized.extend(_normalize_scopus_entry(e) for e in entries)
         if len(normalized) >= total_records:
             break
         if use_cursor:
             if not next_cursor or next_cursor == cursor:
+                error_msg = (f"Scopus stopped returning a next cursor after {len(normalized)} of "
+                             f"{total_records} records")
                 break
             cursor = next_cursor
 
-    result = {"numFound": total_records, "docs": normalized}
-    if error_msg:
-        result["error"] = error_msg
-    return result
+    total_records = total_records or 0
+    if not error_msg and not log.truncated and total_records > len(normalized) and len(normalized) >= cap:
+        log.truncated = _cap_reason(cap, total_records, "RSP")
+    return _connector_result(log, total_records, normalized, error_msg)
 
 
 def search_inspec(keywords, rows, filters=None):
@@ -4302,223 +4646,156 @@ def search_sciencedirect(keywords, rows, filters=None):
     return result
 
 
+def _normalize_springer_record(item):
+    title = item.get("title", "Untitled") or "Untitled"
+
+    authors_list = []
+    creators = item.get("creators", [])
+    if isinstance(creators, list):
+        for c in creators:
+            name = c.get("creator", "")
+            if name:
+                authors_list.append(name)
+
+    year = None
+    pub_date = item.get("publicationDate", "") or item.get("onlineDate", "")
+    if pub_date:
+        try:
+            year = int(str(pub_date)[:4])
+        except (ValueError, TypeError):
+            pass
+
+    journal = item.get("publicationName", "") or ""
+    abstract = item.get("abstract", "") or ""
+    doi = item.get("doi", "") or ""
+
+    url = ""
+    urls = item.get("url", [])
+    if isinstance(urls, list):
+        for u in urls:
+            if u.get("format") == "html":
+                url = u.get("value", "")
+                break
+        if not url and urls:
+            url = urls[0].get("value", "")
+    if not url and doi:
+        url = f"https://doi.org/{doi}"
+
+    _sp_raw = (item.get("contentType", "") or "").lower().replace("-", " ")
+    _sp_type_map = {
+        "article": "article", "review article": "article", "brief communication": "article",
+        "chapter": "book chapter", "book chapter": "book chapter",
+        "conference paper": "conference", "conferencepaper": "conference",
+        "report": "report",
+    }
+    doc_type = _sp_type_map.get(_sp_raw, "article" if _sp_raw else "")
+
+    keywords_list = []
+    kw_data = item.get("keyword", [])
+    if isinstance(kw_data, list):
+        keywords_list = kw_data[:10]
+
+    language = item.get("language", "") or ""
+
+    return {
+        "source": "Springer Nature",
+        "title": title,
+        "authors": authors_list,
+        "year": year,
+        "journal": journal,
+        "abstract": abstract,
+        "url": url,
+        "doi": doi,
+        "keywords": keywords_list,
+        "docType": doc_type,
+        "language": language,
+    }
+
+
+def _springer_date_clause(year_from, year_to):
+    if not (year_from or year_to):
+        return ""
+    start = f"{int(year_from)}-01-01" if year_from else "1900-01-01"
+    end = f"{int(year_to)}-12-31" if year_to else f"{datetime.now().year + 1}-12-31"
+    return f"datefrom:{start} dateto:{end}"
+
+
 def search_springer(keywords, rows, filters=None):
     """Search Springer Nature and return normalized results."""
     filters = filters or {}
-    # Springer's API returns only 25 records per call. Broad queries can match
-    # tens of thousands of records, so without a ceiling this loop can issue
-    # hundreds of sequential requests (worse with 429 backoff sleeps), running
-    # for many minutes. Cap total retrieval like the IEEE connector does.
-    rows = min(rows, 1000)
+    cap = min(rows, _retrieval_cap("springer"))
+    log = ConnectorLog("springer", page_size=SPRINGER_MAX_PAGE, cap=cap)
     api_key = get_springer_api_key()
     if not api_key:
-        return {"numFound": 0, "docs": [], "error": "Springer Nature API key not configured"}
+        return _connector_result(log, 0, [], "Springer Nature API key not configured")
 
-    # Build query
     query_text = keywords
-
-    # Add exclusion terms
     exclude_terms = filters.get("excludeTerms", [])
     for term in exclude_terms:
         query_text += f" NOT {term}"
 
+    # Publication-date limit: the documented datefrom:/dateto: constraints
+    # (Basic and Premium plans). The date-facet-* parameters used previously
+    # only shape facet counts and never filtered the results.
+    date_clause = _springer_date_clause(filters.get("yearFrom"), filters.get("yearTo"))
+    if date_clause:
+        query_text = f"({query_text}) {date_clause}"
+
     params = {
         "q": query_text,
         "api_key": api_key,
-        "p": 25,
+        "p": SPRINGER_MAX_PAGE,
         "s": 1,
     }
-
-    # Year filter
-    year_from = filters.get("yearFrom")
-    year_to = filters.get("yearTo")
-    if year_from and year_to:
-        params["date-facet-mode"] = "between"
-        params["date-facet-start-year"] = year_from
-        params["date-facet-end-year"] = year_to
-    elif year_from:
-        params["date-facet-mode"] = "between"
-        params["date-facet-start-year"] = year_from
-        params["date-facet-end-year"] = str(datetime.now().year + 5)
-    elif year_to:
-        params["date-facet-mode"] = "between"
-        params["date-facet-start-year"] = "1900"
-        params["date-facet-end-year"] = year_to
 
     # NOTE: Springer Nature API does NOT support language:en in the query string —
     # appending it causes the API to return 0 results. Language filtering is not
     # available as a separate API parameter either, so we skip it entirely.
+    log.set_request(query_text, params)
 
     normalized = []
-    total_records = 0
+    total_records = None
     error_msg = None
-
-    def _format_springer_429_error(retry_after=None, start_index=None, partial=False):
-        where = f" while fetching records starting at {start_index}" if start_index else ""
-        wait_hint = (
-            f"Please wait about {retry_after} seconds and run again."
-            if isinstance(retry_after, int) and retry_after > 0
-            else "Please wait 30-60 seconds and run again."
-        )
-        partial_hint = " Partial results were kept." if partial else ""
-        return (
-            f"Springer Nature temporarily rate-limited this search (HTTP 429){where}. "
-            f"{wait_hint}{partial_hint} "
-            "Tip: reduce Max records per database or run fewer databases at once."
-        )
-
-    max_retries = 3
-    while len(normalized) < rows:
-        params["p"] = min(25, rows - len(normalized))
+    while len(normalized) < cap:
+        params["p"] = min(SPRINGER_MAX_PAGE, cap - len(normalized))
         params["s"] = len(normalized) + 1
-        data = None
-        for attempt in range(max_retries):
+        try:
+            # Basic plan: 100 requests/minute → keep ≥ 0.6 s between calls.
+            response = _http_get(SPRINGER_API_URL, log=log, params=params, timeout=30,
+                                 min_interval=0.6, label="Springer Nature")
+        except ConnectorRequestError as e:
+            error_msg = str(e)
+            break
+        if response.status_code != 200:
+            error_msg = _http_error_message("Springer Nature", response)
+            break
+        try:
+            data = response.json()
+        except ValueError:
+            error_msg = f"Springer Nature returned a non-JSON response at record {params['s']}"
+            break
+        log.pages += 1
+
+        if total_records is None:
+            result_info = data.get("result") or [{}]
             try:
-                response = requests.get(SPRINGER_API_URL, params=params, timeout=30)
-                if response.status_code == 429:
-                    try:
-                        retry_after = int(response.headers.get("Retry-After", ""))
-                    except ValueError:
-                        retry_after = min(60, 15 * (2 ** attempt))
-                    # Never block the request thread on a server-dictated wait longer than
-                    # this — a large Retry-After (minutes+) previously caused searches to
-                    # hang for a very long time instead of failing fast with a clear error.
-                    if attempt < max_retries - 1 and retry_after <= 30:
-                        time.sleep(retry_after)
-                        continue
-                    error_msg = _format_springer_429_error(
-                        retry_after=retry_after,
-                        start_index=params.get("s"),
-                        partial=len(normalized) > 0,
-                    )
-                    break
-
-                if response.status_code in (401, 403):
-                    error_msg = (
-                        "Springer Nature rejected the request (authentication/authorization error). "
-                        "Please verify the API key in Settings and try again."
-                    )
-                    break
-
-                response.raise_for_status()
-                data = response.json()
-                break
-            except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    time.sleep(5 * (attempt + 1))
-                    continue
-                error_msg = (
-                    "Springer request timed out. The server may be busy; please try again in a minute."
-                )
-                break
-            except requests.exceptions.HTTPError as e:
-                status_code = e.response.status_code if e.response is not None else None
-                if status_code == 429:
-                    retry_after_hdr = e.response.headers.get("Retry-After") if e.response is not None else None
-                    try:
-                        retry_after = int(retry_after_hdr or "")
-                    except ValueError:
-                        retry_after = None
-                    error_msg = _format_springer_429_error(
-                        retry_after=retry_after,
-                        start_index=params.get("s"),
-                        partial=len(normalized) > 0,
-                    )
-                elif status_code in (401, 403):
-                    error_msg = (
-                        "Springer Nature rejected the request (authentication/authorization error). "
-                        "Please verify the API key in Settings and try again."
-                    )
-                elif status_code is not None:
-                    error_msg = f"Springer request failed (HTTP {status_code}). Please try again shortly."
-                else:
-                    error_msg = "Springer request failed. Please try again shortly."
-                break
-            except requests.RequestException:
-                error_msg = "Springer request failed due to a network error. Please try again shortly."
-                break
-
-        if data is None:
-            break
-
-        result_info = data.get("result", [{}])
-        if total_records == 0 and isinstance(result_info, list) and result_info:
-            total_records = int(result_info[0].get("total", 0))
-        records = data.get("records", [])
+                total_records = int((result_info[0] or {}).get("total") or 0)
+            except (TypeError, ValueError, IndexError, AttributeError):
+                total_records = 0
+        records = data.get("records") or []
         if not records:
+            if len(normalized) < total_records:
+                error_msg = (f"Springer Nature returned an empty page at record {params['s']} of "
+                             f"{total_records}; retrieval stopped early")
             break
-
-        for item in records:
-            title = item.get("title", "Untitled") or "Untitled"
-
-            authors_list = []
-            creators = item.get("creators", [])
-            if isinstance(creators, list):
-                for c in creators:
-                    name = c.get("creator", "")
-                    if name:
-                        authors_list.append(name)
-
-            year = None
-            pub_date = item.get("publicationDate", "") or item.get("onlineDate", "")
-            if pub_date:
-                try:
-                    year = int(str(pub_date)[:4])
-                except (ValueError, TypeError):
-                    pass
-
-            journal = item.get("publicationName", "") or ""
-            abstract = item.get("abstract", "") or ""
-            doi = item.get("doi", "") or ""
-
-            url = ""
-            urls = item.get("url", [])
-            if isinstance(urls, list):
-                for u in urls:
-                    if u.get("format") == "html":
-                        url = u.get("value", "")
-                        break
-                if not url and urls:
-                    url = urls[0].get("value", "")
-            if not url and doi:
-                url = f"https://doi.org/{doi}"
-
-            _sp_raw = (item.get("contentType", "") or "").lower().replace("-", " ")
-            _sp_type_map = {
-                "article": "article", "review article": "article", "brief communication": "article",
-                "chapter": "book chapter", "book chapter": "book chapter",
-                "conference paper": "conference", "conferencepaper": "conference",
-                "report": "report",
-            }
-            doc_type = _sp_type_map.get(_sp_raw, "article" if _sp_raw else "")
-
-            keywords_list = []
-            kw_data = item.get("keyword", [])
-            if isinstance(kw_data, list):
-                keywords_list = kw_data[:10]
-
-            language = item.get("language", "") or ""
-
-            normalized.append({
-                "source": "Springer Nature",
-                "title": title,
-                "authors": authors_list,
-                "year": year,
-                "journal": journal,
-                "abstract": abstract,
-                "url": url,
-                "doi": doi,
-                "keywords": keywords_list,
-                "docType": doc_type,
-                "language": language,
-            })
+        normalized.extend(_normalize_springer_record(r) for r in records)
         if len(normalized) >= total_records:
             break
 
-    result = {"numFound": total_records, "docs": normalized}
-    if error_msg:
-        result["error"] = error_msg
-    return result
+    total_records = total_records or 0
+    if not error_msg and total_records > len(normalized) and len(normalized) >= cap:
+        log.truncated = _cap_reason(cap, total_records, "RSP")
+    return _connector_result(log, total_records, normalized, error_msg)
 
 
 def search_pubmed(keywords, rows, filters=None):
@@ -4869,16 +5146,17 @@ def search_acm(keywords, rows, filters=None):
 
 
 def search_openalex(keywords, rows, filters=None):
-    """Search OpenAlex (free, no API key required) and return normalised results.
+    """Search OpenAlex and return normalised results.
 
-    OpenAlex covers 250 M+ works.  Polite-pool access: we send a mailto
-    parameter so OpenAlex can contact us if our traffic causes problems.
-    Pagination: up to 200 results per page, max 10 000 per query.
+    Without an API key, OpenAlex allows ~100 searches/day and page paging up
+    to 10,000 results; with a free key (Settings or OPENALEX_API_KEY) the
+    budget is 10× larger and cursor paging can go deeper.
     """
     filters = filters or {}
-    per_page = min(rows, 200)
+    api_key = get_openalex_api_key()
+    cap = rows if api_key else min(rows, OPENALEX_BASIC_PAGING_LIMIT)
+    log = ConnectorLog("openalex", page_size=OPENALEX_MAX_PAGE, cap=cap)
 
-    # ── Build filter string ─────────────────────────────────────────────
     filter_parts = []
     year_from = filters.get("yearFrom")
     year_to   = filters.get("yearTo")
@@ -4900,163 +5178,97 @@ def search_openalex(keywords, rows, filters=None):
     if len(oa_types) == 1:
         filter_parts.append(f"type:{oa_types[0]}")
 
+    search_text = strip_wildcards_in_quotes(keywords)
     params = {
         # OpenAlex's default search is stemmed and returns 400 for wildcards inside quotes.
-        "search":   strip_wildcards_in_quotes(keywords),
-        "per-page": per_page,
+        "search":   search_text,
+        "per_page": OPENALEX_MAX_PAGE,
         "select":   ("id,doi,title,publication_year,primary_location,"
                      "authorships,abstract_inverted_index,keywords,type,language"),
-        "mailto":   "rsp@openalex.local",
     }
     if filter_parts:
         params["filter"] = ",".join(filter_parts)
+    log.set_request(search_text, params)
+    if api_key:
+        params["api_key"] = api_key
+    else:
+        log.note("No OpenAlex API key: the keyless budget is about 100 searches per day "
+                 "and each 100 records costs one search. Add a free key in Settings.")
 
-    _hdrs = {"User-Agent": "ReviewSentinelPrime/2.0 (mailto:rsp@openalex.local)"}
+    # Searches with more than 5 boolean operators: 1 req/s keyless, 5 req/s with a key.
+    n_ops = len(re.findall(r"\b(?:AND|OR|NOT)\b", re.sub(r'"[^"]*"', " ", search_text)))
+    if n_ops > 5:
+        min_interval = 0.25 if api_key else 1.05
+    else:
+        min_interval = 0.05 if api_key else 0.12
+
+    _hdrs = {"User-Agent": "ReviewSentinelPrime"}
     _base = "https://api.openalex.org/works"
-
-    def _format_openalex_429_error(retry_after=None, page=None, partial=False):
-        where = f" while fetching page {page}" if page else ""
-        wait_hint = (
-            f"Please wait about {retry_after} seconds and run again."
-            if isinstance(retry_after, int) and retry_after > 0
-            else "Please wait 30-60 seconds and run again."
-        )
-        partial_hint = " Partial results were kept." if partial else ""
-        return (
-            f"OpenAlex temporarily rate-limited this search (HTTP 429){where}. "
-            f"{wait_hint}{partial_hint} "
-            "Tip: reduce Max records per database or run fewer databases at once to lower burst traffic."
-        )
-
-    max_retries = 3
-    data = None
-    for attempt in range(max_retries):
-        try:
-            resp = requests.get(_base, params=params, headers=_hdrs, timeout=20)
-            if resp.status_code == 429:
-                try:
-                    retry_after = int(resp.headers.get("Retry-After", ""))
-                except ValueError:
-                    retry_after = min(60, 15 * (2 ** attempt))
-                # Never block the request thread on a server-dictated wait longer than
-                # this — a large Retry-After (minutes+) previously caused searches to
-                # hang for a very long time instead of failing fast with a clear error.
-                if attempt < max_retries - 1 and retry_after <= 30:
-                    time.sleep(retry_after)
-                    continue
-                return {
-                    "numFound": 0,
-                    "docs": [],
-                    "error": _format_openalex_429_error(retry_after=retry_after),
-                }
-            resp.raise_for_status()
-            data = resp.json()
-            break
-        except requests.exceptions.Timeout:
-            if attempt < max_retries - 1:
-                time.sleep(5 * (attempt + 1))
-                continue
-            return {
-                "numFound": 0,
-                "docs": [],
-                "error": "OpenAlex request timed out. The server may be busy; please try again in a minute.",
-            }
-        except requests.exceptions.HTTPError as e:
-            if e.response is not None and e.response.status_code == 429:
-                retry_after_hdr = e.response.headers.get("Retry-After")
-                try:
-                    retry_after = int(retry_after_hdr or "")
-                except ValueError:
-                    retry_after = None
-                return {
-                    "numFound": 0,
-                    "docs": [],
-                    "error": _format_openalex_429_error(retry_after=retry_after),
-                }
-            return {"numFound": 0, "docs": [], "error": f"Request failed: {e}"}
-        except requests.RequestException as e:
-            return {"numFound": 0, "docs": [], "error": f"Request failed: {e}"}
-
-    if data is None:
-        return {
-            "numFound": 0,
-            "docs": [],
-            "error": "OpenAlex request could not be completed. Please try again shortly.",
-        }
-
-    meta    = data.get("meta", {})
-    total   = int(meta.get("count", 0))
-    results = list(data.get("results", []))
-
-    # Paginate if caller wants more than 200
+    use_cursor = bool(api_key)
+    cursor = "*"
+    page = 1
+    results = []
+    total = None
     error_msg = None
-    page = 2
-    while len(results) < min(rows, total):
-        p_params = dict(params)
-        p_params["page"]     = page
-        p_params["per-page"] = min(rows - len(results), 200)
-        page_ok = False
-        for attempt in range(max_retries):
-            try:
-                r2 = requests.get(_base, params=p_params, headers=_hdrs, timeout=20)
-                if r2.status_code == 429:
-                    try:
-                        retry_after = int(r2.headers.get("Retry-After", ""))
-                    except ValueError:
-                        retry_after = min(60, 15 * (2 ** attempt))
-                    if attempt < max_retries - 1 and retry_after <= 30:
-                        time.sleep(retry_after)
-                        continue
-                    error_msg = _format_openalex_429_error(
-                        retry_after=retry_after,
-                        page=page,
-                        partial=True,
-                    )
-                    break
-                r2.raise_for_status()
-                new = r2.json().get("results", [])
-                if not new:
-                    page_ok = True
-                    break
-                results.extend(new)
-                page += 1
-                page_ok = True
+    while len(results) < cap:
+        req = dict(params)
+        req["per_page"] = min(OPENALEX_MAX_PAGE, cap - len(results))
+        if use_cursor:
+            req["cursor"] = cursor
+        else:
+            if (page - 1) * OPENALEX_MAX_PAGE >= OPENALEX_BASIC_PAGING_LIMIT:
                 break
-            except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    time.sleep(5 * (attempt + 1))
-                    continue
-                error_msg = (
-                    "OpenAlex timed out while retrieving additional pages. "
-                    "Partial results were kept; try again in a minute for a fuller set."
-                )
-                break
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 429:
-                    retry_after_hdr = e.response.headers.get("Retry-After")
-                    try:
-                        retry_after = int(retry_after_hdr or "")
-                    except ValueError:
-                        retry_after = None
-                    error_msg = _format_openalex_429_error(
-                        retry_after=retry_after,
-                        page=page,
-                        partial=True,
-                    )
-                else:
-                    error_msg = f"Request failed: {e}"
-                break
-            except requests.RequestException as e:
-                error_msg = f"Request failed: {e}"
-                break
-        if not page_ok:
+            req["page"] = page
+            req["per_page"] = OPENALEX_MAX_PAGE
+        try:
+            resp = _http_get(_base, log=log, params=req, headers=_hdrs, timeout=30,
+                             min_interval=min_interval, label="OpenAlex")
+        except ConnectorRequestError as e:
+            error_msg = str(e)
+            if e.status == 429 and not api_key:
+                error_msg += " Add a free OpenAlex API key in Settings to raise the daily budget 10×."
             break
+        if resp.status_code != 200:
+            error_msg = _http_error_message("OpenAlex", resp)
+            break
+        try:
+            data = resp.json()
+        except ValueError:
+            error_msg = f"OpenAlex returned a non-JSON response on page {page}"
+            break
+        log.pages += 1
+        remaining = resp.headers.get("X-RateLimit-Remaining")
+        if remaining is not None:
+            log.params["creditsRemaining"] = remaining
 
-    normalized = [_normalize_openalex_doc(w, "OpenAlex") for w in results[:rows]]
-    result = {"numFound": total, "docs": normalized}
-    if error_msg:
-        result["error"] = error_msg
-    return result
+        meta = data.get("meta") or {}
+        if total is None:
+            total = int(meta.get("count") or 0)
+        batch = data.get("results") or []
+        if not batch:
+            if len(results) < min(total, cap):
+                error_msg = (f"OpenAlex returned an empty page after {len(results)} of {total} "
+                             "records; retrieval stopped early")
+            break
+        results.extend(batch)
+        if len(results) >= total:
+            break
+        if use_cursor:
+            cursor = meta.get("next_cursor") or ""
+            if not cursor:
+                break
+        page += 1
+
+    total = total or 0
+    results = results[:cap]
+    if not error_msg and total > len(results):
+        if not api_key and len(results) >= OPENALEX_BASIC_PAGING_LIMIT:
+            log.truncated = (f"OpenAlex page paging stops at {OPENALEX_BASIC_PAGING_LIMIT:,} results; "
+                             f"the API reported {total:,}. An API key enables cursor paging.")
+        elif len(results) >= cap:
+            log.truncated = _cap_reason(cap, total, "Requested")
+    normalized = [_normalize_openalex_doc(w, "OpenAlex") for w in results]
+    return _connector_result(log, total, normalized, error_msg)
 
 
 # ── EBSCO Discovery Service (EDS) ────────────────────────────────────────
@@ -5736,6 +5948,357 @@ def _wos_http_error(r, collected, expanded=False):
     return f"Web of Science API returned status {r.status_code}.{partial}"
 
 
+# ── Multi-database fan-out shared by ad-hoc, streamed and scheduled runs ────
+
+# Fixed order used to assemble results before deduplication, so which
+# database "keeps" a duplicate no longer depends on which API answered first.
+# Curated indexes come first; broad aggregators (whose records duplicate
+# almost everything else) come last.
+_DB_ORDER = ["ieee", "scopus", "sciencedirect", "inspec", "springer", "wos",
+             "ebsco", "acm", "pubmed", "hal", "arxiv", "openalex"]
+
+_DB_LABELS = {
+    "hal": "HAL", "arxiv": "arXiv", "ieee": "IEEE Xplore", "scopus": "Scopus",
+    "inspec": "Inspec", "sciencedirect": "ScienceDirect", "springer": "Springer Nature",
+    "pubmed": "PubMed", "acm": "ACM DL", "openalex": "OpenAlex", "ebsco": "EBSCO",
+    "wos": "Web of Science",
+}
+
+# doc["source"] label written by each connector -> database key
+_SOURCE_TO_DB = {
+    "HAL": "hal", "arXiv": "arxiv", "IEEE": "ieee", "Scopus": "scopus", "Inspec": "inspec",
+    "ScienceDirect": "sciencedirect", "Springer Nature": "springer", "PubMed": "pubmed",
+    "ACM": "acm", "OpenAlex": "openalex", "EBSCO": "ebsco", "Web of Science": "wos",
+}
+
+_FILTER_REASONS = ["duplicates", "year_range", "doc_type", "language", "exclude_terms",
+                   "must_include_terms", "include_venues", "exclude_venues"]
+
+
+def _connector_table():
+    return {
+        "hal": search_hal, "arxiv": search_arxiv, "ieee": search_ieee,
+        "scopus": search_scopus, "inspec": search_inspec,
+        "sciencedirect": search_sciencedirect, "springer": search_springer,
+        "pubmed": search_pubmed, "acm": search_acm, "openalex": search_openalex,
+        "ebsco": search_ebsco, "wos": search_wos,
+    }
+
+
+def _run_connectors(databases, keywords, rows, api_filters, count_filters=None):
+    """Run the selected connectors in parallel; yield (db_key, result, count)
+    as each database finishes.
+
+    When count_filters is given, a count-only request (rows=1) runs alongside
+    each search so the all-years total is known while only in-range records
+    are downloaded; `count` is that result, otherwise None. Unknown database
+    IDs and crashed connectors yield an error result instead of disappearing.
+    """
+    table = _connector_table()
+    hal_query = build_query(keywords)
+    unknown = [db for db in databases if db not in table]
+    for db in unknown:
+        yield db, {"numFound": 0, "docs": [], "error": f"Unknown database '{db}' — not searched"}, None
+    jobs = [db for db in dict.fromkeys(databases) if db in table]
+    if not jobs:
+        return
+
+    def _safe(fn, *args):
+        try:
+            return fn(*args)
+        except Exception as exc:
+            app.logger.exception("Connector %s crashed", getattr(fn, "__name__", fn))
+            return {"numFound": 0, "docs": [], "error": f"Connector crashed: {exc}"}
+
+    want_count = count_filters is not None
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_job = {}
+        for db in jobs:
+            query = hal_query if db == "hal" else keywords
+            future_to_job[executor.submit(_safe, table[db], query, rows, api_filters)] = (db, "main")
+            if want_count:
+                future_to_job[executor.submit(_safe, table[db], query, 1, count_filters)] = (db, "count")
+        done = {db: {} for db in jobs}
+        for future in as_completed(future_to_job):
+            db, part = future_to_job[future]
+            done[db][part] = future.result()
+            if "main" in done[db] and (not want_count or "count" in done[db]):
+                yield db, done[db]["main"], done[db].get("count")
+
+
+def _db_status_entry(db, result):
+    """Per-database identification record with an explicit status.
+
+    complete — every record the API reported was retrieved;
+    partial  — records were retrieved but some are missing (error mid-way,
+               paging limit, RSP cap or a short page);
+    failed   — nothing was retrieved because of an error.
+    A database that reports matches but returns none is never "complete".
+    """
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    docs = result.get("docs") or []
+    found = int(result.get("numFound") or 0)
+    retrieved = len(docs)
+    error = result.get("error") or ""
+    log = result.get("log") or {}
+    truncated = log.get("truncated") or ""
+
+    if error and retrieved == 0:
+        status = "failed"
+    elif error:
+        status = "partial"
+    elif found > retrieved:
+        status = "failed" if retrieved == 0 else "partial"
+        if not truncated:
+            truncated = (f"API reported {found:,} records but returned none" if retrieved == 0
+                         else f"Only {retrieved:,} of {found:,} records retrieved (API pagination limit)")
+    else:
+        status = "complete"
+
+    entry = {
+        "found": found,
+        "retrieved": retrieved,
+        # PRISMA item 6 reports the date each database was searched
+        "date": now.strftime("%Y-%m-%d"),
+        "timestamp": now.isoformat(timespec="seconds") + "Z",
+        "status": status,
+        "log": log,
+    }
+    if error:
+        entry["error"] = error
+    if truncated:
+        entry["warning"] = truncated
+    entry["message"] = error or truncated or (
+        "The API reported no matching records" if found == 0 else "All reported records retrieved")
+    return entry
+
+
+def _apply_date_limit(entry, count_result):
+    """Turn an in-range search plus its all-years count into identification
+    numbers: found = all years, removedDateAtDatabase = found − in range."""
+    log = entry.setdefault("log", {})
+    entry["dateLimitAtDatabase"] = True
+    in_range_known = not (entry["status"] == "failed" and entry["found"] == 0)
+    entry["foundInRange"] = entry["found"] if in_range_known else None
+    count_ok = count_result is not None and not count_result.get("error")
+    if count_ok:
+        all_years = int(count_result.get("numFound") or 0)
+        if in_range_known:
+            all_years = max(all_years, entry["found"])
+            entry["removedDateAtDatabase"] = all_years - entry["found"]
+        else:
+            entry["removedDateAtDatabase"] = None
+        entry["found"] = all_years
+        log["allYearsQuery"] = (count_result.get("log") or {}).get("querySent", "")
+    else:
+        entry["removedDateAtDatabase"] = None
+        why = (count_result or {}).get("error") or "not run"
+        note = (f"All-years count unavailable ({why}); records identified for this database "
+                "is the in-range total only")
+        log.setdefault("notes", []).append(note)
+        entry["dateLimitNote"] = note
+    return entry
+
+
+def _make_db_entry(db, result, count_result, date_limited):
+    entry = _db_status_entry(db, result)
+    if date_limited:
+        _apply_date_limit(entry, count_result)
+    return entry
+
+
+def _identification_breakdown(prisma, db_counts):
+    """Per-database and total records removed by the date limit at the
+    database and records not retrieved (cap, error, short paging), so the
+    PRISMA flow adds up: identified − date-limited − not retrieved = retrieved."""
+    removed_total = not_retrieved_total = 0
+    for e in db_counts.values():
+        removed = e.get("removedDateAtDatabase") or 0
+        missing = max(0, int(e.get("found") or 0) - removed - int(e.get("retrieved") or 0))
+        e["notRetrieved"] = missing
+        removed_total += removed
+        not_retrieved_total += missing
+    ident = prisma.setdefault("identification", {})
+    ident["removed_date_at_database"] = removed_total
+    ident["not_retrieved"] = not_retrieved_total
+
+
+def _check_date_limit_applied(db_counts):
+    """Safety net: if a database was sent the year range but many of the
+    records it returned fall outside it, the API probably ignored the limit."""
+    for db, e in db_counts.items():
+        if not e.get("dateLimitAtDatabase"):
+            continue
+        retrieved = int(e.get("retrieved") or 0)
+        outside = int((e.get("removed") or {}).get("year_range") or 0)
+        if retrieved and outside > max(2, 0.05 * retrieved):
+            warn = (f"{_DB_LABELS.get(db, db)} may have ignored the date limit: {outside:,} of "
+                    f"{retrieved:,} retrieved records were outside the year range (removed by RSP)")
+            if e.get("dateLimitWarning") == warn:
+                continue  # already recorded (cache re-filter)
+            e["dateLimitWarning"] = warn
+            e["message"] = f"{e.get('message', '')} — {warn}".strip(" —")
+            e.setdefault("log", {}).setdefault("notes", []).append(warn)
+
+
+def _search_filters_for_apis(filters):
+    """(api_filters, count_filters): filters sent to the APIs, and — when a
+    year range goes to the APIs — the same filters without it for the
+    all-years count-only request."""
+    api_filters = dict(_api_filters(filters))
+    if get_retrieval_settings()["yearAtDatabase"]:
+        for key in ("yearFrom", "yearTo"):
+            if filters.get(key):
+                api_filters[key] = filters[key]
+    if api_filters.get("yearFrom") or api_filters.get("yearTo"):
+        count_filters = {k: v for k, v in api_filters.items() if k not in ("yearFrom", "yearTo")}
+        return api_filters, count_filters
+    return api_filters, None
+
+
+def _progress_event(db, entry):
+    event = {
+        "type": "progress", "db": db, "found": entry["found"],
+        "retrieved": entry["retrieved"], "status": entry["status"],
+        "message": entry["message"],
+    }
+    if entry.get("error"):
+        event["error"] = entry["error"]
+    if entry.get("warning"):
+        event["warning"] = entry["warning"]
+    return event
+
+
+def _assemble_docs(results_by_db):
+    """Concatenate connector docs in the fixed database order and remember
+    which database each record came from (for per-database filter counts)."""
+    order = [db for db in _DB_ORDER if db in results_by_db]
+    order += [db for db in results_by_db if db not in order]
+    all_docs, origin = [], {}
+    for db in order:
+        for doc in results_by_db[db].get("docs") or []:
+            all_docs.append(doc)
+            origin[id(doc)] = db
+    return all_docs, origin
+
+
+def _attach_filter_breakdown(db_counts, prisma, included_docs, origin):
+    """Move prisma["removed_by_db"] into each database's identification entry."""
+    removed_by_db = prisma.pop("removed_by_db", {}) or {}
+    included = {}
+    for doc in included_docs:
+        db = origin.get(id(doc))
+        if db:
+            included[db] = included.get(db, 0) + 1
+    for db, entry in db_counts.items():
+        entry["removed"] = {reason: (removed_by_db.get(reason) or {}).get(db, 0)
+                            for reason in _FILTER_REASONS}
+        entry["included"] = included.get(db, 0)
+
+
+def _coverage_warning(db_counts):
+    """One line naming every database that failed or was only partly retrieved."""
+    parts = []
+    for db, e in (db_counts or {}).items():
+        status = e.get("status")
+        if status in ("failed", "partial"):
+            parts.append(f"{_DB_LABELS.get(db, db)} {status}: {e.get('message', '')}")
+    return "; ".join(parts)
+
+
+def _search_log_rows(db_counts):
+    """Flatten identification entries into the exported per-database log."""
+    rows = []
+    for db, e in (db_counts or {}).items():
+        log = e.get("log") or {}
+        removed = e.get("removed") or {}
+        row = {
+            "database": _DB_LABELS.get(db, db),
+            "database_id": db,
+            "timestamp": e.get("timestamp") or log.get("started") or e.get("date", ""),
+            "status": e.get("status") or ("failed" if e.get("error") and not e.get("retrieved") else
+                                          "partial" if e.get("error") or e.get("warning") else "complete"),
+            "query_sent": log.get("querySent", ""),
+            "total_reported": e.get("found", 0),
+            "retrieved": e.get("retrieved", 0),
+            "date_limit_at_database": "yes" if e.get("dateLimitAtDatabase") else "no",
+            "reported_in_date_range": e.get("foundInRange", "") if e.get("dateLimitAtDatabase") else "",
+            "removed_date_at_database": (e.get("removedDateAtDatabase") if e.get("removedDateAtDatabase") is not None
+                                         else ("unknown" if e.get("dateLimitAtDatabase") else 0)),
+            "not_retrieved": e.get("notRetrieved", max(0, int(e.get("found") or 0) - int(e.get("retrieved") or 0))),
+        }
+        for reason in _FILTER_REASONS:
+            row[f"removed_{reason}"] = removed.get(reason, 0)
+        row.update({
+            "included": e.get("included", ""),
+            "pages": log.get("pages", ""),
+            "page_size": log.get("pageSize", ""),
+            "retrieval_cap": log.get("cap", ""),
+            "retries": log.get("retries", ""),
+            "errors": " | ".join(log.get("errors") or ([e["error"]] if e.get("error") else [])),
+            "truncation": log.get("truncated") or e.get("warning", ""),
+            "notes": " | ".join(log.get("notes") or []),
+            "all_years_count_query": log.get("allYearsQuery", ""),
+            "request_params": json.dumps(log.get("params") or {}, ensure_ascii=False, sort_keys=True),
+        })
+        rows.append(row)
+    return rows
+
+
+def _search_log_csv(db_counts):
+    rows = _search_log_rows(db_counts)
+    if not rows:
+        return ""
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=list(rows[0].keys()), lineterminator="\r\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(_csv_safe_row(row))
+    return "\ufeff" + buf.getvalue()
+
+
+def _execute_search(keywords, databases, rows, filters, on_progress=None):
+    """Run every selected connector, filter, and return the pieces a run stores.
+
+    on_progress(db, entry) is called as each database finishes.
+    """
+    api_filters, count_filters = _search_filters_for_apis(filters)
+    date_limited = count_filters is not None
+    results_by_db, db_counts = {}, {}
+    for db, result, count in _run_connectors(databases, keywords, rows, api_filters, count_filters):
+        results_by_db[db] = result
+        db_counts[db] = _make_db_entry(db, result, count, date_limited)
+        if on_progress:
+            on_progress(db, db_counts[db])
+    all_docs, origin = _assemble_docs(results_by_db)
+    total_found = sum(e["found"] for e in db_counts.values())
+    _enrich_docs_language(all_docs)
+    raw_docs = list(all_docs)
+    prisma = {
+        "identification": {"total_found": total_found, "retrieved": len(raw_docs), "databases": db_counts},
+        "screening": {},
+        "eligibility": {},
+        "search_date": datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d"),
+    }
+    if date_limited:
+        prisma["identification"]["date_limit_at_database"] = {
+            "yearFrom": filters.get("yearFrom"), "yearTo": filters.get("yearTo")}
+    filtered = _apply_post_filters(all_docs, filters, prisma, origin=origin)
+    prisma["included"] = len(filtered)
+    excluded_docs = prisma.pop("excluded_docs", {})
+    _attach_filter_breakdown(db_counts, prisma, filtered, origin)
+    _check_date_limit_applied(db_counts)
+    _identification_breakdown(prisma, db_counts)
+    return {
+        "total_found": total_found,
+        "raw_docs": raw_docs,
+        "docs": filtered,
+        "prisma": prisma,
+        "excluded_docs": excluded_docs,
+        "db_counts": db_counts,
+    }
+
+
 @app.route("/search", methods=["POST"])
 def search():
     data = request.get_json()
@@ -5743,93 +6306,25 @@ def search():
     rows = max(1, _to_int(data.get("rows"), 10000))  # fetch all; each search fn stops when API is exhausted
     databases = data.get("databases", ["hal", "arxiv"])
     filters = data.get("filters", {})
-    api_filters = _api_filters(filters)
 
     if not keywords:
         return jsonify({"error": "Please provide at least one keyword."}), 400
 
-    hal_query = build_query(keywords)
-    all_docs = []
-    total_found = 0
-
-    db_counts = {}
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {}
-        if "hal" in databases:
-            futures["hal"] = executor.submit(search_hal, hal_query, rows, api_filters)
-        if "arxiv" in databases:
-            futures["arxiv"] = executor.submit(search_arxiv, keywords, rows, api_filters)
-        if "ieee" in databases:
-            futures["ieee"] = executor.submit(search_ieee, keywords, rows, api_filters)
-        if "scopus" in databases:
-            futures["scopus"] = executor.submit(search_scopus, keywords, rows, api_filters)
-        if "inspec" in databases:
-            futures["inspec"] = executor.submit(search_inspec, keywords, rows, api_filters)
-        if "sciencedirect" in databases:
-            futures["sciencedirect"] = executor.submit(search_sciencedirect, keywords, rows, api_filters)
-        if "springer" in databases:
-            futures["springer"] = executor.submit(search_springer, keywords, rows, api_filters)
-        if "pubmed" in databases:
-            futures["pubmed"] = executor.submit(search_pubmed, keywords, rows, api_filters)
-        if "acm" in databases:
-            futures["acm"] = executor.submit(search_acm, keywords, rows, api_filters)
-        if "openalex" in databases:
-            futures["openalex"] = executor.submit(search_openalex, keywords, rows, api_filters)
-        if "ebsco" in databases:
-            futures["ebsco"] = executor.submit(search_ebsco, keywords, rows, api_filters)
-        if "wos" in databases:
-            futures["wos"] = executor.submit(search_wos, keywords, rows, api_filters)
-
-        for key, future in futures.items():
-            try:
-                result = future.result()
-            except Exception as exc:
-                # A crashed connector must not abort the whole multi-DB search
-                result = {"numFound": 0, "docs": [], "error": str(exc)}
-            total_found += result["numFound"]
-            db_counts[key] = {
-                "found": result["numFound"],
-                "retrieved": len(result["docs"]),
-                # PRISMA item 6 reports the date each database was searched
-                "date": datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d"),
-            }
-            if result.get("error"):
-                db_counts[key]["error"] = result["error"]
-            elif result["numFound"] > len(result["docs"]) and len(result["docs"]) < rows:
-                # Retrieval stopped short of both the total and the requested
-                # ceiling — an API pagination limit silently truncated the set.
-                db_counts[key]["warning"] = (
-                    f"Only {len(result['docs'])} of {result['numFound']} records retrieved (API pagination limit)"
-                )
-            all_docs.extend(result["docs"])
-
-    # PRISMA tracking
-    _enrich_docs_language(all_docs)
-    raw_docs = list(all_docs)
-
-    prisma = {
-        "identification": {"total_found": total_found, "retrieved": len(raw_docs), "databases": db_counts},
-        "screening": {},
-        "eligibility": {},
-        "search_date": datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d"),
-    }
-
-    all_docs = _apply_post_filters(all_docs, filters, prisma)
-    prisma["included"] = len(all_docs)
-    excluded_docs = prisma.pop("excluded_docs", {})
+    run = _execute_search(keywords, databases, rows, filters)
     run_id = save_ad_hoc_run({
-        "numFound": total_found,
-        "docs": all_docs,
+        "numFound": run["total_found"],
+        "docs": run["docs"],
         "query": keywords,
         "databases": databases,
         "filters": filters,
-        "rawDocs": raw_docs,
-        "excluded_docs": excluded_docs,
-        "prisma": prisma,
-        "dbCounts": db_counts,
+        "rawDocs": run["raw_docs"],
+        "excluded_docs": run["excluded_docs"],
+        "prisma": run["prisma"],
+        "dbCounts": run["db_counts"],
     })
 
-    return jsonify({"numFound": total_found, "docs": all_docs, "prisma": prisma, "excluded_docs": excluded_docs, "runId": run_id})
+    return jsonify({"numFound": run["total_found"], "docs": run["docs"], "prisma": run["prisma"],
+                    "excluded_docs": run["excluded_docs"], "runId": run_id})
 
 
 @app.route("/api/results/folder", methods=["GET"])
@@ -6193,8 +6688,29 @@ def _term_matches(term, text_lower):
     term = (term or "").strip().strip('"').strip("'").strip()
     if not term:
         return False
-    pattern = r"(?<!\w)" + re.escape(term.lower()) + r"(?!\w)"
+    # Any run of whitespace in a phrase matches any run in the text, so a
+    # phrase still matches across the line breaks arXiv puts in abstracts.
+    words = [re.escape(w) for w in term.lower().split()]
+    pattern = r"(?<!\w)" + r"\s+".join(words) + r"(?!\w)"
     return re.search(pattern, text_lower) is not None
+
+
+def _split_filter_terms(terms):
+    """Normalise a term list: one term per comma- or newline-separated entry.
+
+    A list pasted one-phrase-per-line arrives as a single entry with embedded
+    newlines, which would otherwise be matched as one impossible phrase.
+    Commas inside double quotes are kept, so "safety, critical" stays whole.
+    """
+    if isinstance(terms, str):
+        terms = [terms]
+    out = []
+    for entry in terms or []:
+        for part in re.findall(r'"[^"]*"|[^,\n\r]+', str(entry)):
+            part = part.strip()
+            if part.strip('"').strip("'").strip():
+                out.append(part)
+    return out
 
 
 def _term_haystack(doc):
@@ -6214,9 +6730,22 @@ def _term_haystack(doc):
     return " ".join(parts).lower()
 
 
-def _apply_post_filters(all_docs, filters, prisma):
-    """Apply post-search filters and deduplication. Mutates prisma dict. Returns filtered docs."""
+def _apply_post_filters(all_docs, filters, prisma, origin=None):
+    """Apply post-search filters and deduplication. Mutates prisma dict. Returns filtered docs.
+
+    origin maps id(doc) -> database key; when given, prisma["removed_by_db"]
+    records how many records of each database every filter removed.
+    """
     excl = {}  # excluded docs keyed by reason, slimmed
+    removed_by_db = {}
+
+    def _tally(reason, removed):
+        if origin is None:
+            return
+        counts = removed_by_db.setdefault(reason, {})
+        for d in removed:
+            key = origin.get(id(d), "unknown")
+            counts[key] = counts.get(key, 0) + 1
 
     # Remove duplicates
     # Uses DOI as primary key and normalised title as fallback.
@@ -6272,6 +6801,7 @@ def _apply_post_filters(all_docs, filters, prisma):
     if duplicates_removed > 0:
         prisma["screening"]["duplicates"] = duplicates_removed
         excl["duplicates"] = [_slim_doc(d) for d in dup_docs[:_MAX_EXCL]]
+        _tally("duplicates", dup_docs)
 
     year_from = filters.get("yearFrom")
     year_to = filters.get("yearTo")
@@ -6296,6 +6826,7 @@ def _apply_post_filters(all_docs, filters, prisma):
         prisma["screening"]["year_range"] = before - len(all_docs)
         if removed_yr:
             excl["year_range"] = [_slim_doc(d) for d in removed_yr[:_MAX_EXCL]]
+            _tally("year_range", removed_yr)
 
     doc_types = filters.get("docTypes", [])
     if doc_types:
@@ -6314,6 +6845,7 @@ def _apply_post_filters(all_docs, filters, prisma):
         prisma["screening"]["doc_type"] = before - len(all_docs)
         if removed_dt:
             excl["doc_type"] = [_slim_doc(d) for d in removed_dt[:_MAX_EXCL]]
+            _tally("doc_type", removed_dt)
 
     languages = filters.get("languages", [])
     if languages:
@@ -6334,8 +6866,9 @@ def _apply_post_filters(all_docs, filters, prisma):
         prisma["screening"]["language"] = before - len(all_docs)
         if removed_lang:
             excl["language"] = [_slim_doc(d) for d in removed_lang[:_MAX_EXCL]]
+            _tally("language", removed_lang)
 
-    exclude_terms = filters.get("excludeTerms", [])
+    exclude_terms = _split_filter_terms(filters.get("excludeTerms", []))
     if exclude_terms:
         before = len(all_docs)
         exclude_mode = filters.get("excludeTermsMode", "any")
@@ -6354,8 +6887,9 @@ def _apply_post_filters(all_docs, filters, prisma):
         prisma["eligibility"]["exclude_terms"] = before - len(all_docs)
         if removed_et:
             excl["exclude_terms"] = [_slim_doc(d) for d in removed_et[:_MAX_EXCL]]
+            _tally("exclude_terms", removed_et)
 
-    include_terms = filters.get("includeTerms", [])
+    include_terms = _split_filter_terms(filters.get("includeTerms", []))
     if include_terms:
         before = len(all_docs)
         include_mode = filters.get("includeTermsMode", "all")
@@ -6375,6 +6909,7 @@ def _apply_post_filters(all_docs, filters, prisma):
         prisma["eligibility"]["must_include_terms"] = before - len(all_docs)
         if removed_inc:
             excl["must_include_terms"] = [_slim_doc(d) for d in removed_inc[:_MAX_EXCL]]
+            _tally("must_include_terms", removed_inc)
 
     include_venues = filters.get("includeVenues", [])
     if include_venues:
@@ -6400,6 +6935,7 @@ def _apply_post_filters(all_docs, filters, prisma):
         prisma["eligibility"]["include_venues"] = before - len(all_docs)
         if removed_iv:
             excl["include_venues"] = [_slim_doc(d) for d in removed_iv[:_MAX_EXCL]]
+            _tally("include_venues", removed_iv)
 
     exclude_venues = filters.get("excludeVenues", [])
     if exclude_venues:
@@ -6425,8 +6961,11 @@ def _apply_post_filters(all_docs, filters, prisma):
         prisma["eligibility"]["exclude_venues"] = before - len(all_docs)
         if removed_ev:
             excl["exclude_venues"] = [_slim_doc(d) for d in removed_ev[:_MAX_EXCL]]
+            _tally("exclude_venues", removed_ev)
 
     prisma["excluded_docs"] = excl
+    if origin is not None:
+        prisma["removed_by_db"] = removed_by_db
     return all_docs
 
 
@@ -6506,6 +7045,9 @@ def snowball():
     errors = []
     seed_info = []  # [{"input": ..., "resolved_title": ..., "work_id": ...}]
     ua_params = {"mailto": "rsp@local"}
+    _oa_key = get_openalex_api_key()
+    if _oa_key:
+        ua_params["api_key"] = _oa_key
 
     for seed in seeds:
         doi_clean = seed.replace("https://doi.org/", "").replace("http://doi.org/", "")
@@ -6613,14 +7155,13 @@ def search_stream():
     databases = data.get("databases", ["hal", "arxiv"])
     filters = data.get("filters", {})
     use_cache = bool(data.get("use_cache", False))
-    api_filters = _api_filters(filters)
+    api_filters, count_filters = _search_filters_for_apis(filters)
+    date_limited = count_filters is not None
 
     if not keywords:
         def _err():
             yield f"data: {json.dumps({'type': 'error', 'message': 'Please provide at least one keyword.'})}\n\n"
         return Response(stream_with_context(_err()), mimetype="text/event-stream")
-
-    hal_query = build_query(keywords)
 
     def generate():
         all_docs = []
@@ -6646,68 +7187,14 @@ def search_stream():
 
         # ── Live mode: call APIs ─────────────────────────────────
         else:
-            db_fns = {}
-            if "hal" in databases:
-                db_fns["hal"] = (search_hal, hal_query, rows, api_filters)
-            if "arxiv" in databases:
-                db_fns["arxiv"] = (search_arxiv, keywords, rows, api_filters)
-            if "ieee" in databases:
-                db_fns["ieee"] = (search_ieee, keywords, rows, api_filters)
-            if "scopus" in databases:
-                db_fns["scopus"] = (search_scopus, keywords, rows, api_filters)
-            if "inspec" in databases:
-                db_fns["inspec"] = (search_inspec, keywords, rows, api_filters)
-            if "sciencedirect" in databases:
-                db_fns["sciencedirect"] = (search_sciencedirect, keywords, rows, api_filters)
-            if "springer" in databases:
-                db_fns["springer"] = (search_springer, keywords, rows, api_filters)
-            if "pubmed" in databases:
-                db_fns["pubmed"] = (search_pubmed, keywords, rows, api_filters)
-            if "acm" in databases:
-                db_fns["acm"] = (search_acm, keywords, rows, api_filters)
-            if "openalex" in databases:
-                db_fns["openalex"] = (search_openalex, keywords, rows, api_filters)
-            if "ebsco" in databases:
-                db_fns["ebsco"] = (search_ebsco, keywords, rows, api_filters)
-            if "wos" in databases:
-                db_fns["wos"] = (search_wos, keywords, rows, api_filters)
+            results_by_db = {}
+            for key, result, count in _run_connectors(databases, keywords, rows, api_filters, count_filters):
+                results_by_db[key] = result
+                db_counts[key] = _make_db_entry(key, result, count, date_limited)
+                yield f"data: {json.dumps(_progress_event(key, db_counts[key]))}\n\n"
 
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                future_to_key = {
-                    executor.submit(fn, *args): key
-                    for key, (fn, *args) in db_fns.items()
-                }
-                for future in as_completed(future_to_key):
-                    key = future_to_key[future]
-                    search_date = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
-                    try:
-                        result = future.result()
-                    except Exception as exc:
-                        result = {"numFound": 0, "docs": [], "error": str(exc)}
-                    num_found = result.get("numFound", 0)
-                    retrieved = len(result.get("docs", []))
-                    total_found += num_found
-                    db_counts[key] = {"found": num_found, "retrieved": retrieved, "date": search_date}
-                    all_docs.extend(result.get("docs", []))
-                    error = result.get("error")
-                    warning = None
-                    if not error and num_found > retrieved and retrieved < rows:
-                        warning = f"Only {retrieved} of {num_found} records retrieved (API pagination limit)"
-                        db_counts[key]["warning"] = warning
-                    if error:
-                        db_counts[key]["error"] = error
-                    event = {
-                        "type": "progress",
-                        "db": key,
-                        "found": num_found,
-                        "retrieved": retrieved,
-                    }
-                    if error:
-                        event["error"] = error
-                    if warning:
-                        event["warning"] = warning
-                    yield f"data: {json.dumps(event)}\n\n"
-
+            all_docs, origin = _assemble_docs(results_by_db)
+            total_found = sum(e["found"] for e in db_counts.values())
             _enrich_docs_language(all_docs)
             raw_docs = list(all_docs)
 
@@ -6731,9 +7218,18 @@ def search_stream():
             "eligibility": {},
             "search_date": datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d") if not use_cache else _cache.get("timestamp", "")[:10],
         }
-        all_docs_filtered = _apply_post_filters(all_docs, filters, prisma)
+        if use_cache:
+            # Cached raw docs carry their source label, not the database key.
+            origin = {id(d): _SOURCE_TO_DB.get(d.get("source"), d.get("source") or "unknown") for d in all_docs}
+        if not use_cache and date_limited:
+            prisma["identification"]["date_limit_at_database"] = {
+                "yearFrom": filters.get("yearFrom"), "yearTo": filters.get("yearTo")}
+        all_docs_filtered = _apply_post_filters(all_docs, filters, prisma, origin=origin)
         prisma["included"] = len(all_docs_filtered)
         excluded_docs = prisma.pop("excluded_docs", {})
+        _attach_filter_breakdown(db_counts, prisma, all_docs_filtered, origin)
+        _check_date_limit_applied(db_counts)
+        _identification_breakdown(prisma, db_counts)
 
         # Diff against previous run with same query+databases before saving
         prev_run      = _find_previous_adhoc_run(keywords, databases)
@@ -6918,19 +7414,31 @@ def export_replication_package():
         # Use _api_filters so the documented queries match what was actually
         # dispatched: by default all inclusion/exclusion filtering happens
         # locally after retrieval, so no filter clauses were sent to the APIs.
-        db_query_map = build_db_queries(keywords, _api_filters(filters))
+        query_filters = dict(_api_filters(filters))
+        # Settings → Retrieval: the run may have sent only the year range.
+        date_limit = (prisma.get("identification") or {}).get("date_limit_at_database") or {}
+        query_filters.update({k: v for k, v in date_limit.items() if v})
+        db_query_map = build_db_queries(keywords, query_filters)
         api_filters_active = bool(_api_filters(filters))
+        if api_filters_active:
+            filter_note = ""
+        elif date_limit:
+            filter_note = ("NOTE: the year range was applied AT THE DATABASE (included in the\n"
+                           "queries below); records outside it were counted with a separate\n"
+                           "all-years count request but not downloaded (see search_log.csv).\n"
+                           "All other inclusion/exclusion criteria were applied LOCALLY by\n"
+                           "Review Sentinel Prime after retrieval — see filters_and_constraints.txt.")
+        else:
+            filter_note = ("NOTE: inclusion/exclusion criteria (terms, venues, year range, document\n"
+                           "type, language) were applied LOCALLY by Review Sentinel Prime after\n"
+                           "retrieval — see filters_and_constraints.txt. Replaying these queries\n"
+                           "against the APIs returns the pre-filter record set.")
         db_strings_lines = [
             "SEARCH STRINGS PER DATABASE",
             "=" * 70,
             "These are the exact query strings submitted to each database API.",
             "API keys are not shown.",
-            ""
-            if api_filters_active
-            else "NOTE: inclusion/exclusion criteria (terms, venues, year range, document\n"
-                 "type, language) were applied LOCALLY by Review Sentinel Prime after\n"
-                 "retrieval — see filters_and_constraints.txt. Replaying these queries\n"
-                 "against the APIs returns the pre-filter record set.",
+            filter_note,
             "",
         ]
         for db in databases:
@@ -6950,6 +7458,13 @@ def export_replication_package():
         # Filters & constraints
         filter_doc = _build_filter_documentation(filters)
         zf.writestr(prefix + "01_search_strategy/filters_and_constraints.txt", filter_doc)
+
+        # Per-database retrieval log: what each API was sent, what it reported,
+        # what was retrieved and removed, and whether coverage was complete.
+        if db_counts:
+            zf.writestr(prefix + "01_search_strategy/search_log.csv", _search_log_csv(db_counts))
+            zf.writestr(prefix + "01_search_strategy/search_log.json",
+                        json.dumps(_search_log_rows(db_counts), indent=2, ensure_ascii=False))
 
         # --- 2. Data Files (CSV) ---
         # Initial results (all retrieved before dedup/filtering) — prefer the
@@ -7206,7 +7721,20 @@ def _build_search_strategy(search_name, keywords, databases, filters, execution_
         info = db_counts.get(db, {})
         date_str = info.get("date", execution_date[:10] if execution_date else "unknown")
         found_str = f", {info['found']:,} records found" if "found" in info else ""
-        lines.append(f"  - {db_labels.get(db, db)} — searched on {date_str}{found_str}")
+        retrieved_str = f", {info['retrieved']:,} retrieved" if "retrieved" in info else ""
+        lines.append(f"  - {db_labels.get(db, db)} — searched on {date_str}{found_str}{retrieved_str}")
+        if info.get("dateLimitAtDatabase"):
+            removed = info.get("removedDateAtDatabase")
+            removed_txt = f"{removed:,}" if isinstance(removed, int) else "unknown"
+            lines.append(f"      Date limit applied at the database: {info.get('foundInRange', 0) or 0:,} records in range; "
+                         f"{removed_txt} outside the range were counted, not downloaded")
+        status = info.get("status")
+        if status and status != "complete":
+            lines.append(f"      COVERAGE {status.upper()}: {info.get('message', '')}")
+        elif not status and (info.get("error") or info.get("warning")):
+            lines.append(f"      COVERAGE WARNING: {info.get('error') or info.get('warning')}")
+    if db_counts:
+        lines.append("  (Per-database details: search_log.csv in this folder)")
     lines.append("")
     lines.append("--- FILTERS & CONSTRAINTS ---")
     if filters.get("yearFrom") or filters.get("yearTo"):
@@ -7373,6 +7901,8 @@ def _build_prisma_svg(prisma, search_name="", ta_screening=None):
     total_identified = int(identification.get("total_found", 0))
     retrieved        = int(identification.get("retrieved",   0))
     databases        = identification.get("databases", {})
+    removed_date     = int(identification.get("removed_date_at_database") or 0)
+    not_retrieved    = int(identification.get("not_retrieved") or 0)
 
     duplicates_removed = int(screening.get("duplicates", 0))
     after_dedup        = retrieved - duplicates_removed
@@ -7490,6 +8020,26 @@ def _build_prisma_svg(prisma, search_name="", ta_screening=None):
                      "#eaf5fc", "#2563eb", "IDENTIFICATION",
                      f"Records identified: {total_identified:,}",
                      f"Retrieved: {retrieved:,}"))
+    if removed_date or not_retrieved:
+        # Records counted by the databases but never downloaded: outside the
+        # date limit applied at the database, or not retrieved (cap/error).
+        mid_y = cur_y + BH // 2
+        parts = []
+        if removed_date:
+            parts.append(f"Date limit: {removed_date:,}")
+        if not_retrieved:
+            parts.append(f"Not retrieved: {not_retrieved:,}")
+        lines.append(harrow(MAIN_X + BW, mid_y, EXCL_X))
+        lines.append(excl_box(EXCL_X, mid_y - EXCL_H // 2,
+                              f"Removed before retrieval (n={removed_date + not_retrieved:,})",
+                              "; ".join(parts)))
+        cur_y += BH
+        lines.append(varrow(MAIN_X + BW // 2, cur_y, ARROW_GAP))
+        cur_y += ARROW_GAP
+        lines.append(box(MAIN_X, cur_y, BW, BH,
+                         "#eaf5fc", "#2563eb", "RETRIEVAL",
+                         f"Records retrieved: {retrieved:,}",
+                         "Downloaded for screening"))
     cur_y += BH
     lines.append(varrow(MAIN_X + BW // 2, cur_y, ARROW_GAP))
     cur_y += ARROW_GAP

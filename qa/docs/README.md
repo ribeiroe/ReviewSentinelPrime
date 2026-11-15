@@ -10,6 +10,7 @@ The suite covers:
 - POST /search with mocked external APIs + dedup/filter logic
 - ZIP export correctness
 - AI screening provenance, reviewer–AI agreement and assessment templates
+- Connector paging, retries (429/5xx/timeouts), truncation and the per-database coverage log for IEEE, Scopus, Springer, arXiv and OpenAlex (mocked APIs); exclude-term matching; year range at the database
 - Helper function unit tests
 - Negative / edge-case / security tests
 
@@ -74,6 +75,7 @@ qa/
 │   ├── test_search_endpoint.py  # POST /search tests (mocked APIs)
 │   ├── test_export.py           # ZIP export tests
 │   ├── test_ai_provenance.py    # AI screening provenance / agreement tests
+│   ├── test_connector_coverage.py # Connector paging/retry/coverage + date-limit tests
 │   ├── test_helpers.py          # build_query / build_arxiv_query unit tests
 │   └── test_edge_cases.py       # Negative / boundary / security tests
 ├── test_data/

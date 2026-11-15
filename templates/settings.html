@@ -513,23 +513,31 @@
             <p class="last-checked" id="acmLastChecked"></p>
         </div>
 
-        <div class="db-tier">No key needed &mdash; connection check only</div>
-
         <!-- OpenAlex -->
         <div class="card">
-            <h2>OpenAlex</h2>
-            <p class="desc">No API key required — OpenAlex is completely free and openly accessible. Covers 250M+ scholarly works.</p>
+            <h2>OpenAlex API Key</h2>
+            <p class="desc">Optional but recommended — without a key, OpenAlex allows only about 100 searches per day (each 100 records retrieved uses one), so a single large search can use up the day's budget. A free key raises it 10&times; and lets RSP retrieve more than 10,000 records. Get your free API key from
+                <a href="https://openalex.org/signup" target="_blank" rel="noopener" class="help-link">openalex.org</a>:
+                create an account, click the verification link in the email OpenAlex sends, then copy the key from
+                <a href="https://openalex.org/settings/api-key" target="_blank" rel="noopener" class="help-link">Settings &rarr; API key</a>.
+            </p>
             <div class="api-key-row">
-                <label>Status:</label>
-                <span class="status-badge configured">No key needed</span>
+                <label>API Key (optional):</label>
+                <input type="text" id="openalexKey" placeholder="Optional — free OpenAlex API key">
+                <span id="openalexStatus" class="status-badge not-configured">Not configured</span>
             </div>
+            <p class="key-info" id="openalexInfo"></p>
             <div class="btn-group">
+                <button class="btn btn-success" onclick="saveOpenalexKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Key</button>
                 <button class="btn btn-teal" onclick="testOpenAlexConnection(this)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</button>
+                <button class="btn btn-danger" onclick="confirmClearOpenalexKey()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear Key</button>
             </div>
             <div class="alert alert-success" id="openalexSuccess"></div>
             <div class="alert alert-error" id="openalexError"></div>
             <p class="last-checked" id="openalexLastChecked"></p>
         </div>
+
+        <div class="db-tier">No key needed &mdash; connection check only</div>
 
         <!-- HAL Open Science -->
         <div class="card">
@@ -647,6 +655,33 @@
             <div class="alert alert-error" id="retentionError"></div>
         </div>
         </div><!-- /.retentionGroup -->
+
+        <!-- Retrieval (collapsible group) -->
+        <div id="retrieval" class="db-group-header" onclick="toggleGroup('retrievalGroup')">
+            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10 11.5,6.5"/><path d="M2.5 11v2.5h11V11"/></svg> Retrieval</h2>
+            <span class="db-group-chevron" id="retrievalGroupChevron">&#9660;</span>
+        </div>
+        <div class="db-group-body" id="retrievalGroup">
+        <div class="card">
+            <h2>Year range at the database</h2>
+            <label style="display:flex;gap:0.6rem;align-items:flex-start;font-weight:normal;cursor:pointer;margin:0.4rem 0 0.5rem;">
+                <input type="checkbox" id="yearAtDatabase" style="margin-top:0.2rem;">
+                <span><strong>Apply the year range at the database</strong> (records outside it are counted, not downloaded)</span>
+            </label>
+            <p class="desc">By default RSP downloads every year and removes records outside your Year range afterwards, so the per-database caps below can fill up with records you later discard. When this is on, the Year range is sent to each database and only records inside it are downloaded. One extra count-only request per database records the all-years total, so PRISMA still shows <em>Records identified</em> and a <em>Removed before retrieval — outside the date range</em> count per database (without a list of those papers, as they are never downloaded). RSP still checks the year locally as a safety net and warns if a database appears to ignore the limit. Has no effect when no Year range is set.</p>
+            <p class="desc"><strong>When to use it:</strong> when the Database coverage table shows <em>Partial — retrieval cap reached</em> for a database. If every database shows <em>Complete</em>, leaving it off gives the same counts plus a list of the removed papers.</p>
+        </div>
+        <div class="card">
+            <h2>Maximum records per database</h2>
+            <p class="desc">These databases return few records per request and have request quotas, so RSP limits how many records it downloads from each. A database that reaches its limit is shown as <em>Partial</em>, never as complete. The other databases are limited only by their APIs (e.g. arXiv 30,000; OpenAlex 10,000 without an API key).</p>
+            <div class="retention-form" id="capForm"></div>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveRetrievalSettings()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Retrieval Settings</button>
+            </div>
+            <div class="alert alert-success" id="retrievalSuccess"></div>
+            <div class="alert alert-error" id="retrievalError"></div>
+        </div>
+        </div><!-- /.retrievalGroup -->
 
         <!-- AI Screening Assistant (collapsible group) -->
         <div id="aiAssistant" class="db-group-header" onclick="toggleGroup('aiGroup')">
@@ -796,6 +831,14 @@
                 }
                 const anchor = document.getElementById('smtp');
                 if (anchor) setTimeout(function() { anchor.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+            } else if (window.location.hash === '#retrieval') {
+                const body = document.getElementById('retrievalGroup');
+                const chevron = document.getElementById('retrievalGroupChevron');
+                if (body && !body.classList.contains('open')) {
+                    body.classList.add('open');
+                    if (chevron) chevron.classList.add('open');
+                }
+                setTimeout(() => document.getElementById('retrieval').scrollIntoView({ behavior: 'smooth' }), 100);
             } else if (window.location.hash === '#runRetention') {
                 const body = document.getElementById('retentionGroup');
                 const chevron = document.getElementById('retentionGroupChevron');
@@ -851,6 +894,69 @@
             el.textContent = Number.isNaN(date.getTime())
                 ? ('Last cleanup: ' + ts)
                 : ('Last cleanup: ' + date.toLocaleString());
+        }
+
+        // ── Retrieval settings ─────────────────────────────────
+        // Records per request and the quota that matters, per capped database.
+        const RETRIEVAL_DBS = [
+            { id: 'ieee',     label: 'IEEE Xplore',     perPage: 200, quota: 'free key: reportedly ~200 requests/day (unconfirmed)', daily: 200 },
+            { id: 'scopus',   label: 'Scopus',          perPage: 25,  quota: 'quota: 20,000 requests/week', weekly: 20000 },
+            { id: 'springer', label: 'Springer Nature', perPage: 25,  quota: 'basic plan: 500 requests/day', daily: 500 },
+        ];
+        const CAP_CHOICES = [500, 1000, 2000, 5000, 10000];
+
+        function _capHint(db, cap) {
+            const req = Math.ceil(cap / db.perPage);
+            let warn = '';
+            if (db.daily && req > db.daily * 0.25) warn = ` ⚠ ${Math.round(100 * req / db.daily)}% of the daily quota per run`;
+            if (db.id === 'scopus' && cap > 5000) warn = ' ⚠ above 5,000 needs cursor paging enabled on your Scopus key';
+            return `${req.toLocaleString()} requests per run (${db.quota})${warn}`;
+        }
+
+        function renderCapForm(caps) {
+            document.getElementById('capForm').innerHTML = RETRIEVAL_DBS.map(db => {
+                const cur = caps[db.id] || 1000;
+                const choices = CAP_CHOICES.includes(cur) ? CAP_CHOICES : CAP_CHOICES.concat([cur]).sort((a, b) => a - b);
+                return `<div class="smtp-field">
+                    <label class="smtp-label" for="cap-${db.id}">${db.label}</label>
+                    <select id="cap-${db.id}" onchange="document.getElementById('capHint-${db.id}').textContent = _capHint(RETRIEVAL_DBS.find(d => d.id === '${db.id}'), parseInt(this.value, 10))">
+                        ${choices.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${c.toLocaleString()} records</option>`).join('')}
+                    </select>
+                    <span class="smtp-hint" id="capHint-${db.id}">${_capHint(db, cur)}</span>
+                </div>`;
+            }).join('');
+        }
+
+        async function loadRetrievalSettings() {
+            try {
+                const resp = await fetch('/api/retrieval-settings');
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) throw new Error(data.error || 'Failed to load retrieval settings');
+                document.getElementById('yearAtDatabase').checked = !!data.settings.yearAtDatabase;
+                renderCapForm(data.settings.caps || {});
+            } catch (e) {
+                renderCapForm({});
+                showAlert('retrievalError', 'Error loading retrieval settings: ' + e.message);
+            }
+        }
+
+        async function saveRetrievalSettings() {
+            const caps = {};
+            RETRIEVAL_DBS.forEach(db => { caps[db.id] = parseInt(document.getElementById('cap-' + db.id).value, 10); });
+            try {
+                const resp = await fetch('/api/retrieval-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ yearAtDatabase: document.getElementById('yearAtDatabase').checked, caps }),
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) throw new Error(data.error || 'Failed to save retrieval settings');
+                document.getElementById('yearAtDatabase').checked = !!data.settings.yearAtDatabase;
+                renderCapForm(data.settings.caps);
+                showAlert('retrievalSuccess', 'Retrieval settings saved. They apply to the next search, including scheduled runs.');
+            } catch (e) {
+                showAlert('retrievalError', 'Error saving retrieval settings: ' + e.message);
+            }
         }
 
         async function loadRunRetentionSettings() {
@@ -1545,6 +1651,66 @@
             }
         }
 
+        async function loadOpenalexKey() {
+            try {
+                const resp = await fetch('/api/openalex-key');
+                const data = await resp.json();
+                const statusEl = document.getElementById('openalexStatus');
+                const inputEl = document.getElementById('openalexKey');
+                const infoEl = document.getElementById('openalexInfo');
+                if (data.configured) {
+                    statusEl.textContent = 'Configured';
+                    statusEl.className = 'status-badge configured';
+                    markKeyConfigured(inputEl, data.key);
+                    infoEl.textContent = 'Key is saved — OpenAlex searches use your free daily budget.';
+                } else {
+                    statusEl.textContent = 'Not configured';
+                    statusEl.className = 'status-badge not-configured';
+                    markKeyNotConfigured(inputEl);
+                    infoEl.textContent = 'OpenAlex works without a key, but with a much smaller daily budget (about 100 searches/day).';
+                }
+                return !!data.configured;
+            } catch (e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        async function saveOpenalexKey() {
+            const key = document.getElementById('openalexKey').value.trim();
+            if (!key) { showAlert('openalexError', 'Please enter an API key.'); return; }
+            try {
+                const resp = await fetch('/api/openalex-key', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                if (resp.ok) { await loadOpenalexKey(); testOpenAlexConnection(null, 'manual'); }
+                else showAlert('openalexError', 'Failed to save key.');
+            } catch (e) {
+                showAlert('openalexError', 'Error saving key: ' + e.message);
+            }
+        }
+
+        async function clearOpenalexKey() {
+            try {
+                await fetch('/api/openalex-key', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: ''})
+                });
+                document.getElementById('openalexKey').value = '';
+                showAlert('openalexSuccess', 'OpenAlex API key cleared.');
+                loadOpenalexKey();
+            } catch (e) {
+                showAlert('openalexError', 'Error clearing key: ' + e.message);
+            }
+        }
+
+        function confirmClearOpenalexKey() {
+            showConfirmModal({ icon: RSP_ICONS.key, title: 'Clear OpenAlex API Key?',
+                message: 'OpenAlex will fall back to the keyless budget (about 100 searches per day).',
+                confirmLabel: 'Yes, clear it', cancelLabel: 'Keep key', onConfirm: clearOpenalexKey });
+        }
+
         async function savePubmedKey() {
             const key = document.getElementById('pubmedKey').value.trim();
             if (!key) {
@@ -1842,7 +2008,8 @@
                 loadAcmKey(),
                 loadEbscoKey(),
                 loadWosKey(),
-                loadElsevierInsttoken()
+                loadElsevierInsttoken(),
+                loadOpenalexKey()
             ]);
             restoreConnectionStates();
             // Auto-test no-key APIs and key-based APIs that are configured.
@@ -1943,6 +2110,7 @@
 
         loadSmtpConfig();
         loadRunRetentionSettings();
+        loadRetrievalSettings();
 
         // --- HAL / arXiv Connectivity Tests ---
         async function testHalConnection(btn, trigger = 'manual') {
@@ -1954,7 +2122,8 @@
         }
 
         async function testOpenAlexConnection(btn, trigger = 'manual') {
-            await testConnection('openalex', '', 'openalexSuccess', 'openalexError', btn, trigger);
+            const key = (document.getElementById('openalexKey') || {}).value || '';
+            await testConnection('openalex', key.trim(), 'openalexSuccess', 'openalexError', btn, trigger);
         }
 
         // ── Confirm wrappers for all destructive actions ──────────────

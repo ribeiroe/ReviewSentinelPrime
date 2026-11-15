@@ -70,6 +70,8 @@ def _arxiv_response(n=2):
     </feed>"""
     mock = MagicMock()
     mock.text = xml_body
+    mock.status_code = 200
+    mock.headers = {}
     mock.raise_for_status = MagicMock()
     return mock
 
