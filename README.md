@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.2.1 · Python 3.12 · Flask 3.1 · Docker ready
+v2.2.2 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
@@ -42,6 +42,13 @@ v2.2.1 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **API key management** | Secure local storage with per-database test connection and last-checked timestamp; optional Elsevier institutional token (Scopus/ScienceDirect/Inspec) for off-network access |
 | ▸ **Built-in manual** | Full 17-section user manual available at `/manual` |
 | ▸ **Docker ready** | One-click Docker Compose deployment with start/stop scripts for Windows and macOS |
+
+---
+
+## What's New in v2.2.2
+
+- **Correct result count after reload** — reopening the Search page no longer mixes an older search's results into the latest one (e.g. 16,494 shown vs 2,242 in PRISMA). The list, exports and Print to PDF now always match the PRISMA "Studies included" count.
+- **Print to PDF no longer hangs** — large result sets are rendered progressively with a progress indicator and an explicit **Print / Save as PDF** button; above 1,000 results you can choose to leave out abstracts.
 
 ---
 

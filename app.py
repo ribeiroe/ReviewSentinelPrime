@@ -27,7 +27,7 @@ from flask import Flask, render_template, request, jsonify, send_file, Response,
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-RSP_VERSION = "v2.2.1"
+RSP_VERSION = "v2.2.2"
 
 @app.context_processor
 def inject_rsp_version():

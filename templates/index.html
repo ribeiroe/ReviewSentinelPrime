@@ -1479,7 +1479,7 @@
             if (missingTotal) {
                 showToast(`Only ${docs.length} of ${missingTotal} results are available locally — re-run the search to print all of them.`, 'warning');
             }
-            const rows = docs.map((doc, i) => {
+            const renderDoc = (doc, i, includeAbstracts) => {
                 const title   = doc.title || 'Untitled';
                 const authors = Array.isArray(doc.authors) ? doc.authors.join(', ') : (doc.authors || '');
                 const year    = doc.year || '';
@@ -1487,43 +1487,82 @@
                 const doi     = doc.doi || '';
                 const url     = safeUrl(doc.url);
                 const src     = (doc.sources && doc.sources.length ? doc.sources.join(', ') : (doc.source || ''));
-                const abst    = doc.abstract
-                    ? escapeHtml(doc.abstract)
-                    : '<em style="color:#999">No abstract available.</em>';
-                const doiLink = doi ? `<a href="https://doi.org/${encodeURIComponent(doi)}" style="color:#1d4ed8;">${escapeHtml(doi)}</a>` : '';
-                const titleStr = url
-                    ? `<a href="${escapeHtml(url)}" style="color:#1d4ed8; text-decoration:none;">${escapeHtml(title)}</a>`
-                    : escapeHtml(title);
-                return `<div style="page-break-inside:avoid; border:1px solid #e2e8f0; border-radius:6px; padding:0.85rem 1rem; margin-bottom:1rem; background:#fff;">
-                    <div style="font-size:0.7rem; color:#6b7280; margin-bottom:0.2rem;">#${i+1} &nbsp;|&nbsp; ${escapeHtml(src)}</div>
-                    <div style="font-size:1rem; font-weight:700; color:#0f172a; margin-bottom:0.25rem; line-height:1.35;">${titleStr}</div>
-                    <div style="font-size:0.82rem; color:#374151; margin-bottom:0.2rem;">${escapeHtml(authors)}</div>
-                    <div style="font-size:0.8rem; color:#6b7280; margin-bottom:0.5rem;">${escapeHtml([year, journal].filter(Boolean).join(' — '))}${doiLink ? ' &nbsp;|&nbsp; DOI: ' + doiLink : ''}</div>
-                    <div style="font-size:0.85rem; color:#1e293b; line-height:1.55;">${abst}</div>
-                </div>`;
-            }).join('');
+                const doiLink = doi ? `<a href="https://doi.org/${encodeURIComponent(doi)}">${escapeHtml(doi)}</a>` : '';
+                const titleStr = url ? `<a href="${escapeHtml(url)}">${escapeHtml(title)}</a>` : escapeHtml(title);
+                const abst = !includeAbstracts ? ''
+                    : `<div class="ab">${doc.abstract ? escapeHtml(doc.abstract) : '<em class="na">No abstract available.</em>'}</div>`;
+                return `<div class="r"><div class="src">#${i+1} &nbsp;|&nbsp; ${escapeHtml(src)}</div>` +
+                    `<div class="t">${titleStr}</div><div class="au">${escapeHtml(authors)}</div>` +
+                    `<div class="m">${escapeHtml([year, journal].filter(Boolean).join(' — '))}${doiLink ? ' &nbsp;|&nbsp; DOI: ' + doiLink : ''}</div>` +
+                    `${abst}</div>`;
+            };
 
-            const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+            const shell = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
             <title>Search Results — ${escapeHtml(query)}</title>
             <style>
                 body { font-family: Georgia, serif; margin: 2cm; color: #0f172a; background: #f8fafc; }
                 h1 { font-size: 1.3rem; margin-bottom: 0.15rem; }
                 .meta { font-size: 0.8rem; color: #6b7280; margin-bottom: 1.5rem; }
+                .bar { position: sticky; top: 0; background: #f8fafc; padding: 0.5rem 0; margin-bottom: 1rem; font-size: 0.85rem; color: #374151; }
+                .bar button { font: inherit; padding: 0.35rem 0.9rem; cursor: pointer; }
+                .r { page-break-inside: avoid; break-inside: avoid; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 1rem; background: #fff; }
+                .src { font-size: 0.7rem; color: #6b7280; margin-bottom: 0.2rem; }
+                .t { font-size: 1rem; font-weight: 700; margin-bottom: 0.25rem; line-height: 1.35; }
+                .t a { text-decoration: none; }
+                a { color: #1d4ed8; }
+                .au { font-size: 0.82rem; color: #374151; margin-bottom: 0.2rem; }
+                .m { font-size: 0.8rem; color: #6b7280; }
+                .ab { font-size: 0.85rem; color: #1e293b; line-height: 1.55; margin-top: 0.5rem; }
+                .na { color: #999; }
                 @media print {
                     body { background: #fff; margin: 1.5cm; }
                     a { color: #000 !important; }
+                    .bar { display: none; }
                 }
             </style></head><body>
+            <div class="bar"><span id="prog">Preparing…</span> <button id="printBtn" disabled onclick="window.print()">Print / Save as PDF</button></div>
             <h1>Search Results: <em>${escapeHtml(query)}</em></h1>
             <div class="meta">${docs.length} results${missingTotal ? ` (of ${missingTotal} — incomplete local copy)` : ''} &nbsp;|&nbsp; Printed ${escapeHtml(ts)} &nbsp;|&nbsp; Review Sentinel Prime</div>
-            ${rows}
+            <div id="list"></div>
             </body></html>`;
 
             const win = window.open('', '_blank');
             if (!win) { showToast('Pop-up blocked. Please allow pop-ups for this page.', 'error'); return; }
-            win.document.write(html);
+            win.document.open();
+            win.document.write(shell);
             win.document.close();
-            win.onload = () => win.print();
+
+            // Asked after window.open so a slow answer can't expire the click's
+            // pop-up permission. Abstracts dominate the page count.
+            const includeAbstracts = docs.length <= 1000 || confirm(
+                `You are about to print ${docs.length.toLocaleString()} results. Including abstracts produces ` +
+                `thousands of pages and the browser's print preview may take minutes.\n\n` +
+                `OK = include abstracts\nCancel = titles/metadata only (much faster)`);
+            // Append in chunks so neither window freezes on large result sets;
+            // print is triggered explicitly because onload is unreliable after
+            // document.write and never fired for big pages.
+            const CHUNK = 250;
+            let i = 0;
+            const step = () => {
+                if (win.closed) return;
+                const list = win.document.getElementById('list');
+                const prog = win.document.getElementById('prog');
+                if (!list) { setTimeout(step, 50); return; }
+                const end = Math.min(i + CHUNK, docs.length);
+                let html = '';
+                for (; i < end; i++) html += renderDoc(docs[i], i, includeAbstracts);
+                list.insertAdjacentHTML('beforeend', html);
+                if (i < docs.length) {
+                    prog.textContent = `Preparing ${i.toLocaleString()} / ${docs.length.toLocaleString()}…`;
+                    setTimeout(step, 0);
+                } else {
+                    prog.textContent = `${docs.length.toLocaleString()} results ready.`;
+                    win.document.getElementById('printBtn').disabled = false;
+                    win.focus();
+                    setTimeout(() => { if (!win.closed) win.print(); }, 300);
+                }
+            };
+            step();
         }
 
         async function saveCurrentSearch() {
@@ -2052,9 +2091,12 @@
         function _storeResultsMeta(total, stored, slimmed) {
             try {
                 const pd = JSON.parse(localStorage.getItem('lastPrismaData') || 'null');
+                // The live run ID wins: lastPrismaData is only rewritten after
+                // the results are stored, so its runId may still be the
+                // previous search's and would restore the wrong run on reload.
                 localStorage.setItem('lastSearchResultsMeta', JSON.stringify({
                     total, stored, slimmed,
-                    runId: (pd && pd.runId) || window._lastRunId || '',
+                    runId: window._lastRunId || (pd && pd.runId) || '',
                 }));
             } catch (e) { /* meta is best-effort */ }
         }
@@ -2522,16 +2564,22 @@
                 // The browser copy was slimmed/truncated to fit localStorage —
                 // reload the full run from the server so pagination, exports
                 // and Print-to-PDF reflect every result.
-                if (incomplete && meta.runId) {
+                // lastPrismaData belongs to the latest search; a meta runId that
+                // disagrees with it is stale and would load an older run.
+                const restoreRunId = (pd && pd.runId) || (meta && meta.runId) || '';
+                if (incomplete && restoreRunId) {
                     statusEl.innerHTML = `<span class="results-header">Loading ${Number(meta.total).toLocaleString()} results from last search…</span>`;
                     try {
-                        const resp = await fetch('/api/results/run/adhoc/' + encodeURIComponent(meta.runId));
+                        const resp = await fetch('/api/results/run/adhoc/' + encodeURIComponent(restoreRunId));
                         const run = resp.ok ? await resp.json() : null;
                         if (run && !run.error && Array.isArray(run.docs)) {
-                            // Keep locally-added docs (e.g. snowballing) that the server run lacks
+                            // Keep only locally-added snowballing docs the server run lacks —
+                            // any other local doc belongs to a different run.
                             const serverKeys = new Set(run.docs.map(_docKey));
-                            const extras = docs.filter(d => !serverKeys.has(_docKey(d)));
+                            const extras = docs.filter(d => String(d.source || '').startsWith('Snowball')
+                                && !serverKeys.has(_docKey(d)));
                             docs = run.docs.concat(extras);
+                            window._lastRunId = restoreRunId;
                             restoredIncomplete = docs.length < meta.total;
                         }
                     } catch (e) { /* fall back to the local copy */ }
