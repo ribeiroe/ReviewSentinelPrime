@@ -177,7 +177,7 @@
                 <li><a href="#query-syntax">Query Syntax Guide</a></li>
                 <li><a href="#databases">Supported Databases</a></li>
                 <li><a href="#filters">Filters &amp; Criteria</a></li>
-                <li><a href="#validation">Validation Papers</a></li>
+                <li><a href="#validation">Validation Papers &amp; Citation Snowballing</a></li>
                 <li><a href="#saved-searches">Saved Searches &amp; Scheduling</a></li>
                 <li><a href="#email-notifications">Email Notifications &amp; Diff</a></li>
                 <li><a href="#screening">T&amp;A Screening</a></li>
@@ -223,6 +223,7 @@
                 <li>Search across 12 scientific databases simultaneously</li>
                 <li>Apply multi-level inclusion/exclusion criteria (year, type, language, terms, venues)</li>
                 <li>Validate completeness using known reference papers</li>
+                <li>Extend the result set with forward/backward citation snowballing (OpenAlex)</li>
                 <li>Screen titles &amp; abstracts manually — with optional AI suggestions from a local or online model (human-in-the-loop)</li>
                 <li>Capture a Review Protocol (research questions, registration, methods) that auto-completes PRISMA items</li>
                 <li>Auto-generate PRISMA 2020 flow diagrams and evidence checklists</li>
@@ -349,7 +350,7 @@
             <p>Each database row shows <strong>X found, Y retrieved</strong> once it completes:</p>
             <ul>
                 <li><strong>Found</strong> — total matching records reported by the API for your query</li>
-                <li><strong>Retrieved</strong> — records actually downloaded (limited by your <em>Max results</em> setting). Retrieved will always be ≤ found.</li>
+                <li><strong>Retrieved</strong> — records actually downloaded (up to 10,000 per database). Retrieved will always be ≤ found.</li>
                 <li><strong>Partial retrieval warning</strong> — if a database found more records than its API allowed RSP to download (a pagination limit, not your settings), the row shows an amber warning such as <em>"Only 5,000 of 12,340 records retrieved (API pagination limit)"</em>. For a systematic review, treat this as a signal to narrow the query for that database — the identification count is otherwise incomplete.</li>
             </ul>
 
@@ -383,7 +384,7 @@
             <ul>
                 <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="8" y1="2" x2="8" y2="14"/><path d="M2 5l6-3 6 3v7l-6 3-6-3z"/><polyline points="2,5 8,8 14,5"/></svg> Export Replication Package (ZIP)</strong> — Build and download the full PRISMA-aligned replication package</li>
                 <li><strong class="lbl lbl-dark"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M13 13H3V3h7.5L13 5.5V13z"/><path d="M5 3v4h6V3"/><rect x="6" y="9" width="4" height="4"/></svg> Export Config (JSON)</strong> — Download a <code>search_configuration.json</code> you can import later to replay this exact search</li>
-                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z"/><polyline points="9,2 9,6 13,6"/></svg> Print to PDF</strong> — Open a print-ready page of all results; use browser <em>Print → Save as PDF</em>. For more than 1,000 results you can choose to leave out abstracts to keep the PDF manageable</li>
+                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z"/><polyline points="9,2 9,6 13,6"/></svg> Print to PDF</strong> — Open a print-ready page of all results (source, title, authors, year, venue, DOI); use browser <em>Print → Save as PDF</em>. <strong>Print to PDF + Abstracts</strong> produces the same page with each paper's abstract added (a much longer PDF)</li>
             </ul>
 
             <div class="tip">
@@ -394,7 +395,7 @@
         <!-- 3. Query Syntax -->
         <div class="manual-section" id="query-syntax">
             <h2>3. Query Syntax Guide</h2>
-            <p>RSP uses <strong>Boolean query syntax</strong> — the same syntax accepted by academic databases. Queries are passed directly to each database without modification.</p>
+            <p>RSP uses <strong>Boolean query syntax</strong> — the same syntax accepted by academic databases. RSP normalises Boolean operators to uppercase and translates your query into each database's own syntax before sending it (for example, wildcards inside quoted phrases are removed for arXiv and OpenAlex).</p>
 
             <h3>Operators:</h3>
             <ul>
@@ -627,7 +628,7 @@
 
         <!-- 6. Validation Papers -->
         <div class="manual-section" id="validation">
-            <h2>6. Validation Papers</h2>
+            <h2>6. Validation Papers &amp; Citation Snowballing</h2>
             <p>Validation Papers let you verify that your search criteria are comprehensive enough by tracking whether known-relevant papers appear in your results.</p>
 
             <div class="illustration">
@@ -670,6 +671,20 @@
                 <strong>Tip:</strong> Title matching is fuzzy — minor punctuation variations still match. Validation papers are saved with your search configuration when you use "Save Search".
                 The validation panel open/closed state now also persists across refreshes and saved search restores.
             </div>
+
+            <h3>Citation snowballing:</h3>
+            <p>Below the Validation Papers panel, <strong>+ Citation Snowballing</strong> extends your results by following citations from a few key "seed" papers. It uses <strong>OpenAlex</strong> (free, no API key).</p>
+            <div class="step-grid">
+                <div><span class="step-num">1</span></div>
+                <div class="step-text">Click <strong>"+ Citation Snowballing"</strong> to expand the panel</div>
+                <div><span class="step-num">2</span></div>
+                <div class="step-text">Enter a seed paper's <strong>DOI</strong> (e.g. <code>10.1145/3519939</code>) or its <strong>title</strong> and click <strong>Add</strong>. Titles are matched to the top OpenAlex result, and the resolved title is shown so you can check it. Up to 20 seeds are used per run</div>
+                <div><span class="step-num">3</span></div>
+                <div class="step-text">Choose a <strong>Direction</strong>: <em>Forward</em> (papers that cite the seeds), <em>Backward</em> (papers cited by the seeds — up to the first 50 references of each seed) or <em>Both directions</em></div>
+                <div><span class="step-num">4</span></div>
+                <div class="step-text">Click <strong>Run Snowballing</strong>. New papers are merged into the current results (duplicates by DOI or title are skipped), tagged with a <em>Snowball↑Forward</em> / <em>Snowball↓Backward</em> source, and added to the PRISMA identification counts. <strong>Clear Snowball Results</strong> removes them again</div>
+            </div>
+            <p>Seeds are stored with a saved search and in the exported configuration, and are restored when you reload either. Snowballing itself runs only when you click <strong>Run Snowballing</strong> on the Search page. To record citation searching done elsewhere (hand-search, grey literature), use the <em>Snowballing / Other Sources</em> panel on the PRISMA page (section 11).</p>
         </div>
 
         <!-- 7. Saved Searches -->
@@ -706,18 +721,21 @@
                     <!-- divider -->
                     <line x1="20" y1="77" x2="650" y2="77" stroke="#f0f0f0" stroke-width="1"/>
                     <!-- Action buttons -->
-                    <rect x="430" y="84" width="62" height="18" rx="3" fill="#f39c12"/>
-                    <text x="461" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Run Now</text>
-                    <rect x="500" y="84" width="54" height="18" rx="3" fill="#95a5a6"/>
-                    <text x="527" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Edit</text>
-                    <rect x="562" y="84" width="58" height="18" rx="3" fill="#e74c3c"/>
-                    <text x="591" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff"> Delete</text>
+                    <rect x="360" y="84" width="62" height="18" rx="3" fill="#f39c12"/>
+                    <text x="391" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Run Now</text>
+                    <rect x="430" y="84" width="54" height="18" rx="3" fill="#95a5a6"/>
+                    <text x="457" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Results</text>
+                    <rect x="492" y="84" width="46" height="18" rx="3" fill="#95a5a6"/>
+                    <text x="515" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Edit</text>
+                    <rect x="546" y="84" width="58" height="18" rx="3" fill="#e74c3c"/>
+                    <text x="575" y="96" text-anchor="middle" font-size="7" font-weight="600" fill="#fff"> Delete</text>
                 </svg>
-                <div class="caption">Figure 7: A scheduled saved search — schedule badge, live countdown timer, last run status, and action buttons</div>
+                <div class="caption">Figure 7: A scheduled saved search — schedule badge, live countdown timer, last run status, and the Run Now / Results / Edit / Delete buttons</div>
             </div>
 
             <ul>
                 <li><strong class="lbl lbl-orange"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polygon points="5,3 13,8 5,13"/></svg> Run Now</strong> — Execute the search immediately and store results</li>
+                <li><strong class="lbl lbl-grey">Results</strong> — Show the stored results of the last run in a panel below the list</li>
                 <li><strong class="lbl lbl-grey"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M11 2l3 3-9 9H2v-3z"/><line x1="9" y1="4" x2="12" y2="7"/></svg> Edit</strong> — Modify query, databases, filters, schedule, or notification email</li>
                 <li><strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="2,4 14,4"/><path d="M5 4V2h6v2"/><rect x="3" y="4" width="10" height="10" rx="1"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg> Delete</strong> — Remove the saved search and its history</li>
             </ul>
@@ -851,17 +869,20 @@
                 <div><span class="step-num">1</span></div>
                 <div class="step-text">Each paper is shown with its title, authors, year, venue, and abstract. Review each paper's title and abstract carefully.</div>
                 <div><span class="step-num">2</span></div>
-                <div class="step-text">Click one of the three decision buttons: <strong class="lbl lbl-green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg> Include</strong>, <strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> Exclude</strong>, or <strong class="lbl lbl-orange">? Unsure</strong>. The active decision is highlighted with a deeper colour.</div>
+                <div class="step-text">Click one of the three decision buttons: <strong class="lbl lbl-green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg> Include</strong>, <strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> Exclude</strong>, or <strong class="lbl lbl-orange">? Unsure</strong>. The active decision is highlighted with a deeper colour. Include and Unsure are recorded immediately; <strong>Exclude</strong> opens a <em>Reason</em> row — pick a preset (or <em>Custom reason…</em>) and click <strong>Confirm</strong>. Exclusion reasons feed PRISMA item 16b.</div>
                 <div><span class="step-num">3</span></div>
-                <div class="step-text">Navigate with the <strong>← Prev</strong> / <strong>Next →</strong> arrow buttons. A progress counter (e.g. <em>Paper 3 / 42</em>) tracks where you are.</div>
+                <div class="step-text">Navigate with the <strong>← Prev</strong> / <strong>Next →</strong> buttons, jump to the next undecided paper with <strong>Next Unscreened</strong>, or type a number in <strong>Go to</strong>. A progress bar with included / excluded / unsure / unscreened counts tracks where you are.</div>
                 <div><span class="step-num">4</span></div>
-                <div class="step-text">Decisions are saved automatically in your browser as you go — you can leave the page and return without losing progress.</div>
+                <div class="step-text">Decisions are saved automatically as you go — on the server when you opened a saved run (so they are included in that run's exports), or in your browser when you used <em>Use Last Search (memory)</em>. You can leave the page and return without losing progress.</div>
             </div>
+
+            <h3>Summary tab:</h3>
+            <p>Switch from <strong>Screen Papers</strong> to <strong>Summary</strong> for a table of every paper with its decision and reason. Filter it by <em>All / Included / Excluded / Unsure / Unscreened</em>, search by title, and jump back to any paper from its row.</p>
 
             <h3>Action buttons:</h3>
             <ul>
                 <li><strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="2,4 14,4"/><path d="M5 4V2h6v2"/><rect x="3" y="4" width="10" height="10" rx="1"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg> Reset All</strong> — Clear all decisions after confirmation (irreversible)</li>
-                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10.5 11.5,6.5"/><path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg> Export CSV</strong> — Download a CSV of all papers with their screening decision (<code>include</code>, <code>exclude</code>, <code>unsure</code>, or <code>undecided</code>)</li>
+                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10.5 11.5,6.5"/><path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg> Export CSV</strong> — Download a CSV of all papers with their screening decision (<code>include</code>, <code>exclude</code>, <code>unsure</code>, or <code>unscreened</code>), plus reason and timestamp</li>
             </ul>
 
             <div class="tip">
@@ -887,52 +908,72 @@
             <p>The <strong>Results</strong> page is a central archive of all local run snapshots — both ad-hoc searches you ran from the Search page and scheduled automatic runs triggered by saved searches.</p>
 
             <div class="illustration">
-                <svg width="660" height="170" viewBox="0 0 660 170">
-                    <rect x="20" y="10" width="620" height="150" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+                <svg width="660" height="182" viewBox="0 0 660 182">
+                    <rect x="20" y="10" width="620" height="162" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
                     <text x="40" y="34" font-size="12" font-weight="700" fill="#1e293b">Search Results Hub</text>
                     <text x="40" y="50" font-size="9" fill="#888">Browse, review, and download local result snapshots from ad-hoc and saved runs.</text>
                     <line x1="30" y1="60" x2="630" y2="60" stroke="#e2e8f0" stroke-width="1"/>
 
                     <!-- run item 1 (saved) -->
-                    <rect x="36" y="68" width="52" height="16" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1"/>
-                    <text x="62" y="80" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1d4ed8">Saved</text>
-                    <text x="96" y="79" font-size="9.5" font-weight="600" fill="#1e293b">My SLR Search · machine learning AND software testing</text>
-                    <text x="96" y="92" font-size="8" fill="#6b7280">23 May 2026, 09:14 · 142 papers</text>
-                    <rect x="555" y="68" width="82" height="18" rx="5" fill="#7c3aed"/>
-                    <text x="596" y="81" text-anchor="middle" font-size="8" font-weight="600" fill="#fff">Download ZIP</text>
-                    <line x1="30" y1="110" x2="630" y2="110" stroke="#f1f5f9" stroke-width="1"/>
+                    <rect x="36" y="68" width="56" height="16" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1"/>
+                    <text x="62" y="80" text-anchor="middle" font-size="6.5" font-weight="700" fill="#1d4ed8">Saved Search</text>
+                    <text x="100" y="79" font-size="8" fill="#6b7280">23 May 2026, 09:14</text>
+                    <rect x="285" y="68" width="62" height="18" rx="5" fill="#f1f5f9"/>
+                    <text x="316" y="80.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">View Details</text>
+                    <rect x="353" y="68" width="62" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="384" y="80.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">Download JSON</text>
+                    <rect x="421" y="68" width="70" height="18" rx="5" fill="#7c3aed"/>
+                    <text x="456" y="80.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Download ZIP</text>
+                    <rect x="497" y="68" width="44" height="18" rx="5" fill="#dc2626"/>
+                    <text x="519" y="80.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Delete</text>
+                    <text x="40" y="100" font-size="9.5" font-weight="600" fill="#1e293b">machine learning AND software testing</text>
+                    <text x="40" y="112" font-size="7.5" fill="#6b7280">Found: 160 · Included: 142 · DBs: arXiv, HAL · Search ID: 3f9a…</text>
+                    <line x1="30" y1="120" x2="630" y2="120" stroke="#f1f5f9" stroke-width="1"/>
 
                     <!-- run item 2 (ad-hoc) -->
-                    <rect x="36" y="118" width="50" height="16" rx="3" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="1"/>
-                    <text x="61" y="130" text-anchor="middle" font-size="7.5" font-weight="700" fill="#374151">Ad-hoc</text>
-                    <text x="94" y="129" font-size="9.5" font-weight="600" fill="#1e293b">Ad-hoc search · deep learning OR neural network</text>
-                    <text x="94" y="142" font-size="8" fill="#6b7280">20 May 2026, 15:37 · 89 papers</text>
-                    <rect x="555" y="118" width="82" height="18" rx="5" fill="#7c3aed"/>
-                    <text x="596" y="131" text-anchor="middle" font-size="8" font-weight="600" fill="#fff">Download ZIP</text>
+                    <rect x="36" y="128" width="56" height="16" rx="3" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="1"/>
+                    <text x="64" y="140" text-anchor="middle" font-size="7.5" font-weight="700" fill="#374151">Ad-hoc</text>
+                    <text x="100" y="139" font-size="8" fill="#6b7280">20 May 2026, 15:37</text>
+                    <rect x="215" y="128" width="62" height="18" rx="5" fill="#f1f5f9"/>
+                    <text x="246" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">View Details</text>
+                    <rect x="283" y="128" width="44" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="305" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">Screen</text>
+                    <rect x="333" y="128" width="62" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="364" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">Download JSON</text>
+                    <rect x="401" y="128" width="70" height="18" rx="5" fill="#7c3aed"/>
+                    <text x="436" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Download ZIP</text>
+                    <rect x="477" y="128" width="44" height="18" rx="5" fill="#dc2626"/>
+                    <text x="499" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Delete</text>
+                    <text x="40" y="160" font-size="7.5" fill="#6b7280">deep learning OR neural network  ·  Found: 95 · Included: 89 · DBs: arXiv · 12/89 screened</text>
                 </svg>
-                <div class="caption">Figure 9: Results Hub — each run shows its type badge, query, timestamp, paper count, and a Download ZIP button</div>
+                <div class="caption">Figure 9: Results Hub — each run shows its type badge, timestamp, action buttons (View Details, Screen, Download JSON, Download ZIP, Delete), query and summary counts</div>
             </div>
 
             <h3>Run types:</h3>
             <ul>
-                <li><strong>Saved</strong> <span style="display:inline-block;background:#dbeafe;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;vertical-align:middle;">blue badge</span> — Run was triggered by a saved search (manual "Run Now" or automatic schedule)</li>
+                <li><strong>Saved Search</strong> <span style="display:inline-block;background:#dbeafe;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;vertical-align:middle;">blue badge</span> — Run was triggered by a saved search (manual "Run Now" or automatic schedule)</li>
                 <li><strong>Ad-hoc</strong> <span style="display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;vertical-align:middle;">grey badge</span> — Run was done directly from the Search page without saving</li>
             </ul>
 
             <h3>Each entry shows:</h3>
             <ul>
-                <li>Run name and truncated query string</li>
-                <li>Timestamp — date and time the search was executed</li>
-                <li>Paper count — total papers in the result set</li>
-                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10.5 11.5,6.5"/><path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg> Download ZIP</strong> — Download the full PRISMA-aligned replication package for that run</li>
+                <li>Type badge and timestamp — when the search was executed</li>
+                <li>The query string</li>
+                <li>Counts — <em>Found</em> (reported by the databases), <em>Included</em> (after filters), the databases searched, the saved-search ID, and a <em>screened</em> badge showing T&amp;A screening progress</li>
+                <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10.5 11.5,6.5"/><path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg> Download ZIP</strong> — Download a snapshot of that run: <code>run.json</code>, <code>included_docs.csv</code>, <code>raw_docs.csv</code>, <code>excluded_docs.json</code>, <code>summary.json</code> and, if screening was done, <code>screening_decisions.csv</code></li>
+                <li><strong class="lbl lbl-grey">View Details</strong> — Expand the run to see its settings and eligibility summary</li>
+                <li><strong class="lbl lbl-grey">Screen</strong> (ad-hoc runs) — Open this run in T&amp;A Screening</li>
+                <li><strong class="lbl lbl-grey">Download JSON</strong> — Download the raw run record</li>
+                <li><strong class="lbl lbl-red">Delete</strong> — Remove the run after confirmation</li>
             </ul>
+            <p>The toolbar at the top has <strong>Refresh</strong> and <strong>Open Results Folder</strong> (opens the local folder in your file manager).</p>
 
             <div class="info">
                 <strong>Run retention:</strong> RSP stores a configurable number of recent snapshots locally. Older runs are automatically pruned once the limit is reached. Adjust the limit in <strong>Settings → Run Retention</strong>.
             </div>
 
             <div class="tip">
-                <strong>Tip:</strong> Use the Results Hub to compare snapshots over time if you are running scheduled searches. Each ZIP is a self-contained replication package — ideal for open science deposits.
+                <strong>Tip:</strong> Use the Results Hub to compare snapshots over time if you are running scheduled searches. For a full PRISMA-aligned replication package, use <strong>Export Replication Package (ZIP)</strong> on the Search page (section 13).
             </div>
         </div>
 
@@ -1006,7 +1047,8 @@
                 <li><strong>Clickable stage cards</strong> — click any main flow box (Identification, Deduplication, Screening, Eligibility, Included) to open the paper list panel with Cards / List view toggle</li>
                 <li><strong>Clickable removed/excluded cards</strong> — the red side boxes (Duplicates removed, Screening excluded, Eligibility excluded) are also clickable and show the actual papers that were removed at that stage</li>
                 <li><strong>Sub-criteria pills</strong> below each stage show which filters were active and how many papers each removed</li>
-                <li><strong>Manual Review Steps</strong> — add post-inclusion steps (full-text review, snowballing, etc.) that appear as new boxes in the flow and can also remove papers</li>
+                <li><strong>Snowballing / Other Sources</strong> — record backward and forward snowballing, other sources (hand-search, grey literature) and the number excluded after T&amp;A screening; these appear as a parallel card at the Identification stage</li>
+                <li><strong>Manual Review Steps</strong> — add post-inclusion steps (full-text review, etc.) that appear as new boxes in the flow and can also remove papers</li>
                 <li><strong>Export Diagram as PNG</strong> — captures the full rendered diagram exactly as it appears on screen</li>
                 <li><strong>Review Protocol form</strong> — capture review-level facts no search can infer (research questions, rationale, outcomes, registration record, reviewer team, synthesis and risk-of-bias methods, funding, competing interests). Saved server-side, exported as <code>03_protocol/review_protocol.json</code> in the replication package, and used to auto-complete the corresponding checklist items</li>
                 <li><strong>PRISMA 2020 Evidence Checklist</strong> — interactive 27-item checklist (39 entries including sub-items) with AUTO (up to 29 entries auto-assessed from your search data and Review Protocol, including a drafted structured abstract and process-limitations statement) and MANUAL (10 entries requiring study-content analysis) modes, with progress bar and localStorage persistence</li>
@@ -1022,6 +1064,9 @@
             <div class="info">
                 <strong>Note:</strong> Excluded paper lists (Duplicates, Screening, Eligibility cards) are populated when a search is run with the current version of RSP. If you see "No paper details available", run a new search to enable this feature.
             </div>
+
+            <h3>Snowballing / Other Sources panel:</h3>
+            <p>Below the diagram, enter the number of records found by <strong>backward snowballing</strong>, <strong>forward snowballing</strong> and <strong>other sources</strong>, plus those <strong>excluded after T&amp;A screening</strong>, add an optional note, and click <strong>+ Save</strong>. Use this for citation searching or hand-searching done outside RSP; snowballing run from the Search page (section 6) is already counted automatically.</p>
 
             <h3>Adding manual review steps:</h3>
             <p>Below the diagram, the <strong>Manual Review Steps</strong> panel lets you add steps that occur after automated filtering (e.g., manual full-text review by two researchers, backward snowballing). Each step specifies:</p>
@@ -1050,7 +1095,7 @@
             <h3>Available charts:</h3>
             <ol>
                 <li><strong>Publications per Year</strong> — Bar chart with trend line (green = increasing, red = decreasing) and average line. Displayed taller than default for better year-by-year readability.</li>
-                <li><strong>Abstract Keyword Frequency</strong> — Horizontal bar chart of the most frequent terms extracted from paper abstracts. Use the <em>Source</em> dropdown to filter by database and the <em>Top N</em> dropdown to change how many terms are shown.</li>
+                <li><strong>Abstract Keyword Frequency</strong> — Horizontal bar chart of the most frequent terms extracted from paper abstracts. A tag cloud is shown above the bar chart. Use the <em>Source</em> dropdown to choose which text is analysed (all fields, abstracts only, titles only, or author keywords only) and the <em>Top</em> dropdown (30, 50, 75 or 100) to change how many terms are counted; the bar chart shows the top 30.</li>
                 <li><strong>Publications per Venue</strong> — Horizontal bar chart showing the top 20 publishing venues (journals and conferences).</li>
                 <li><strong>Publications per Document Type</strong> — Bar chart breaking down results by article, conference paper, preprint, etc.</li>
             </ol>
@@ -1152,7 +1197,7 @@
             <h2>14. Settings &amp; API Keys</h2>
             <p>The <strong>Settings</strong> page is organised into four collapsible sections — click a section header to expand or collapse it:</p>
             <ul>
-                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/></svg> Database API Keys</strong> — Configure keys for each database that requires one</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/></svg> Database API Keys</strong> — Configure keys for each database that requires one. Cards are grouped into <em>Requires an API key</em>, <em>Optional key</em> and <em>No key needed</em></li>
                 <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Email Notifications (SMTP)</strong> — Configure outgoing mail for scheduled-run alerts and survey/feedback submissions</li>
                 <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Run Retention (Local Storage)</strong> — Set how many saved and ad-hoc run snapshots are kept locally; run cleanup immediately</li>
                 <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI Screening Assistant</strong> — Get Include/Exclude/Unsure suggestions during Title &amp; Abstract screening from a model running on your own computer or an online service. Suggestions are never applied automatically: you review and accept each one, and accepted decisions record the model name so PRISMA item 8 can disclose the automation tool. See <a href="#ai-setup">Setting up the AI Screening Assistant</a> below.</li>
@@ -1236,7 +1281,7 @@
                 <div><span class="step-num">2</span></div>
                 <div class="step-text">Go to <strong>Settings</strong> → expand <em>Database API Keys</em> → find the database card</div>
                 <div><span class="step-num">3</span></div>
-                <div class="step-text">Paste your key into the input field. The <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</strong> button activates as soon as text is detected, and stays active for databases that already have a saved key — testing with an empty field verifies the stored key.</div>
+                <div class="step-text">Paste your key into the input field (Web of Science also asks for the edition; EBSCO asks for User ID, Password and Profile ID, with a <strong>Save Credentials</strong> button). The <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</strong> button activates as soon as text is detected, and stays active for databases that already have a saved key — testing with an empty field verifies the stored key.</div>
                 <div><span class="step-num">4</span></div>
                 <div class="step-text">Click <strong>Save Key</strong>. The key is saved immediately and a connection test runs automatically — the card turns <span style="color:#1e8449;font-weight:600;">green</span> on success or <span style="color:#c0392b;font-weight:600;">red</span> on failure, and a <strong>Last checked</strong> timestamp is displayed. You can also click <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="12" y1="2" x2="12" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><path d="M7 6h6v3a3 3 0 01-6 0V6z"/><line x1="10" y1="9" x2="10" y2="14"/></svg> Test Connection</strong> at any time to re-run the check with the stored key.</div>
             </div>
@@ -1246,7 +1291,7 @@
             </div>
 
             <div class="info">
-                <strong>Automatic connection checks:</strong> When you open the Settings page, databases that do <em>not</em> require a key — <strong>HAL</strong>, <strong>arXiv</strong>, <strong>PubMed</strong> (optional key), and <strong>ACM Digital Library</strong> (optional key) — are tested automatically in the background every time the page loads. Their cards update with a live result and a fresh <strong>Last checked</strong> timestamp without any button click. Key-required databases (IEEE, Scopus, etc.) are also auto-tested on page load when a key is already saved, and again automatically after you click <strong>Save Key</strong> — so you always see the result immediately without a separate click.
+                <strong>Automatic connection checks:</strong> When you open the Settings page, databases that do <em>not</em> require a key — <strong>OpenAlex</strong>, <strong>HAL</strong>, <strong>arXiv</strong>, <strong>PubMed</strong> (optional key), and <strong>ACM Digital Library</strong> (optional key) — are tested automatically in the background every time the page loads. Their cards update with a live result and a fresh <strong>Last checked</strong> timestamp without any button click. Key-required databases (IEEE, Scopus, etc.) are also auto-tested on page load when a key is already saved, and again automatically after you click <strong>Save Key</strong> — so you always see the result immediately without a separate click.
             </div>
 
             <h3>Where to get keys:</h3>
@@ -1259,7 +1304,10 @@
                     <tr><td>Inspec (Engineering Village)</td><td>Register at <code>dev.elsevier.com</code> (same key as Scopus)</td><td>Required</td></tr>
                     <tr><td>ScienceDirect</td><td>Register at <code>dev.elsevier.com</code> (same key as Scopus)</td><td>Required</td></tr>
                     <tr><td>Springer Nature</td><td>Register at <code>dev.springernature.com</code></td><td>Required</td></tr>
+                    <tr><td>Web of Science</td><td>Free <em>Starter</em> key (no abstracts) or paid <em>Expanded</em> key from <code>developer.clarivate.com</code>; choose the edition in Settings</td><td>Required</td></tr>
+                    <tr><td>EBSCO Discovery Service</td><td>Institutional EDS subscription — your library issues a User ID, Password and Profile ID (<code>developer.ebsco.com</code>)</td><td>Required</td></tr>
                     <tr><td>PubMed</td><td>Register at <code>ncbi.nlm.nih.gov/account/</code></td><td>Optional — works without key at lower rate limits</td></tr>
+                    <tr><td>OpenAlex, HAL, arXiv</td><td>No key needed — the Settings card only offers <strong>Test Connection</strong></td><td>Not required</td></tr>
                 </tbody>
             </table>
 
@@ -1268,7 +1316,7 @@
             </div>
 
             <div class="info">
-                <strong>Elsevier Institutional Token (optional):</strong> A card above the Scopus key lets you save an institutional token, shared by Scopus, ScienceDirect and Inspec. It is only needed if RSP's requests run from outside your institution's network (e.g. a home machine or a cloud server) and get rejected despite a valid API key — Elsevier requires the token in that case to recognise your institutional entitlement. Get it from your library or Elsevier representative. Leave it blank if you only ever search from on-campus; the API key alone continues to work as before.
+                <strong>Elsevier Institutional Token (optional):</strong> A card above the Scopus key (<strong>Save Token</strong> / <strong>Clear Token</strong>) lets you save an institutional token, shared by Scopus, ScienceDirect and Inspec. It is only needed if RSP's requests run from outside your institution's network (e.g. a home machine or a cloud server) and get rejected despite a valid API key — Elsevier requires the token in that case to recognise your institutional entitlement. Get it from your library or Elsevier representative. Leave it blank if you only ever search from on-campus; the API key alone continues to work as before.
             </div>
         </div>
 
@@ -1395,7 +1443,7 @@
                 <li><strong>Always validate</strong> — Use validation papers as your ground truth after every change</li>
                 <li><strong>Monitor PRISMA</strong> — Click the stage cards and excluded cards to inspect exactly which papers were removed at each stage</li>
                 <li><strong>Document post-inclusion steps</strong> — Use Manual Review Steps on the PRISMA page to capture full-text review and snowballing in the flow diagram</li>
-                <li><strong>Complete the checklist</strong> — Fill in all 12 MANUAL items on the PRISMA Evidence Checklist before exporting</li>
+                <li><strong>Complete the checklist</strong> — Fill in all 10 MANUAL items on the PRISMA Evidence Checklist before exporting</li>
                 <li><strong>Save early, save often</strong> — Save your search configuration for reproducibility</li>
                 <li><strong>Export everything</strong> — The replication package ensures your review is fully reproducible</li>
             </ul>

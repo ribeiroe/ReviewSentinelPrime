@@ -5,10 +5,11 @@ This folder contains the automated test suite for **Review Sentinel Prime (RSP)*
 
 The suite covers:
 - Page-route smoke tests (all 11 HTML pages)
-- REST API key CRUD (8 endpoints)
+- REST API key CRUD (IEEE, Scopus, Inspec, ScienceDirect, Springer, PubMed, Web of Science) and EBSCO credentials
 - Saved-search CRUD lifecycle
 - POST /search with mocked external APIs + dedup/filter logic
 - ZIP export correctness
+- AI screening provenance, reviewer–AI agreement and assessment templates
 - Helper function unit tests
 - Negative / edge-case / security tests
 
@@ -72,6 +73,7 @@ qa/
 │   ├── test_saved_searches.py   # Saved-search CRUD tests
 │   ├── test_search_endpoint.py  # POST /search tests (mocked APIs)
 │   ├── test_export.py           # ZIP export tests
+│   ├── test_ai_provenance.py    # AI screening provenance / agreement tests
 │   ├── test_helpers.py          # build_query / build_arxiv_query unit tests
 │   └── test_edge_cases.py       # Negative / boundary / security tests
 ├── test_data/

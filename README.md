@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.2.2 · Python 3.12 · Flask 3.1 · Docker ready
+v2.2.3 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
@@ -25,6 +25,7 @@ v2.2.2 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **ALL / ANY match modes** | Each filter card has an inline `ALL (AND)` / `ANY (OR)` toggle — control whether all terms or any term must match |
 | ▸ **Live / Offline filter mode** | Toggle between live network search and offline re-filtering against a local cache — iterate filter changes instantly without re-hitting APIs |
 | ▸ **Validation papers** | Track known-relevant papers to verify search completeness |
+| ▸ **Citation snowballing** | Forward / backward citation search from seed papers (DOI or title) via OpenAlex — free, no API key; new papers are merged into the results and counted in PRISMA identification |
 | ▸ **Saved searches** | Save, schedule (hourly/daily/monthly), and re-run searches automatically |
 | ▸ **Countdown timer** | Live countdown to the next scheduled run, anchored to `lastRun` timestamp — accurate after refreshes |
 | ▸ **Email notifications** | Diff-based alerts showing new/removed papers after each scheduled run |
@@ -36,12 +37,20 @@ v2.2.2 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **PRISMA 2020** | Auto-generated flow diagram; clickable stage cards **and** excluded/removed cards showing the actual papers removed at each stage; Snowballing / Other Sources panel; Review Protocol form (research questions, registration, reviewer team, synthesis/RoB methods); PRISMA 2020 Evidence Checklist (29 of 39 entries auto-assessed from run data + protocol, incl. auto-drafted abstract and process-limitations statements, study characteristics and reviewer–AI agreement) |
 | ▸ **PNG export** | DOM-capture export of the PRISMA diagram and evidence checklist at 2× resolution via html2canvas |
 | ▸ **Replication package** | One-click ZIP export with CSVs, JSON config, protocol, PRISMA data, README |
+| ▸ **Print to PDF** | Print-ready results page (source, title, authors, year, venue, DOI), with a **Print to PDF + Abstracts** variant |
 | ▸ **Import / Export config** | Save and reload the complete search configuration — including filter modes — as a JSON file |
 | ▸ **Cards & List view** | Toggle between rich card and compact list result layouts |
 | ▸ **Persistent UI state** | Filter and validation panel visibility is remembered across refreshes and saved-search restores |
 | ▸ **API key management** | Secure local storage with per-database test connection and last-checked timestamp; optional Elsevier institutional token (Scopus/ScienceDirect/Inspec) for off-network access |
 | ▸ **Built-in manual** | Full 17-section user manual available at `/manual` |
 | ▸ **Docker ready** | One-click Docker Compose deployment with start/stop scripts for Windows and macOS |
+
+---
+
+## What's New in v2.2.3
+
+- **Print to PDF + Abstracts** — the results export bar now offers two buttons: **Print to PDF** (source, title, authors, year, venue, DOI) and **Print to PDF + Abstracts** (adds each paper's abstract; a much longer PDF). The "include abstracts?" prompt for large result sets is gone.
+- **Documentation review** — the Manual now covers Citation Snowballing and the PRISMA *Snowballing / Other Sources* panel; the Results Hub, Screening (reasons, Summary tab), Charts and Settings sections, the key table (Web of Science, EBSCO, OpenAlex) and Figures 7 and 9 were corrected to match the app. README, About page and QA guide updated.
 
 ---
 
@@ -209,13 +218,19 @@ Then right-click the launcher and choose Open once.
 ReviewSentinelPrime/
 ├── app.py                  # Flask application & all API routes
 ├── requirements.txt        # Python dependencies
-├── templates/              # Jinja2 HTML templates
+├── run.sh / run.bat        # Run from a repository checkout (activates .venv or venv)
+├── build-releases.sh/.ps1  # Stamp the version and build the release ZIPs
+├── index.html              # Quick-start launcher page (docs/index.html is the copy for docs/)
+├── templates/              # Jinja2 HTML templates (pages and the built-in manual)
 ├── static/                 # CSS, images
 ├── data/                   # Saved searches, API keys, results (created at runtime)
 │   └── results/            # Per-search result history (JSON)
+├── qa/                     # Automated pytest suite (see qa/docs/README.md)
+├── scripts/dev/            # Developer helpers (e.g. email preview, key diagnostics)
 └── releases/
     ├── docker/             # Docker Compose files + user guide README
-    └── python/             # One-click Python launcher scripts
+    ├── python/             # One-click Python launcher scripts + user guide README
+    └── relay/              # Feedback / survey relay configuration
 ```
 
 ---
@@ -226,8 +241,8 @@ The four filter fields are displayed as color-coded cards on both the **Search**
 
 | Card | Color | Behaviour |
 | --- | --- | --- |
-| **Include Terms** | 🟢 Green | Only papers whose title/abstract contain these terms are kept (case-insensitive, whole-word/phrase matching; quoted terms supported) |
-| **Exclude Terms** | 🔴 Red | Papers whose title/abstract contain these terms are removed (same whole-word matching) |
+| **Include Terms** | 🟢 Green | Only papers whose title, abstract or author keywords contain these terms are kept (case-insensitive, whole-word/phrase matching; quoted terms supported) |
+| **Exclude Terms** | 🔴 Red | Papers whose title, abstract or author keywords contain these terms are removed (same whole-word matching) |
 | **Include Venues** | 🟢 Green | Only papers whose journal/conference name matches are kept (partial match against the venue name only, never the source database; leave empty for all) |
 | **Exclude Venues** | 🔴 Red | Papers whose journal/conference name matches are removed — to exclude an entire database, uncheck it instead |
 
@@ -267,7 +282,7 @@ If RSP helped produce a paper, thesis, or report, please cite it as:
   author  = {Ferreira Ribeiro, J. Eduardo and Pessoa Soares, Nuno},
   title   = {Review Sentinel Prime (RSP)},
   year    = {2026},
-  url.    = {https://github.com/ribeiroe/ReviewSentinelPrime}
+  url     = {https://github.com/ribeiroe/ReviewSentinelPrime}
 }
 ```
 
