@@ -273,6 +273,8 @@
                 <p id="sourceLabel" style="font-size:var(--text-sm); color:var(--c-text-2); margin:0.2rem 0 0;"></p>
             </div>
             <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <a class="btn btn-neutral btn-sm" id="fullTextLink" style="display:none;">Full-text screening</a>
+                <a class="btn btn-neutral btn-sm" id="dualScreeningLink" style="display:none;">Two-reviewer screening</a>
                 <button class="btn btn-neutral btn-sm" id="btnAiBatch" onclick="askAiBatch()" style="display:none;" title="Ask the configured local LLM to suggest a decision for every unscreened paper"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI-suggest unscreened</button>
                 <button class="btn btn-danger btn-sm" onclick="resetDecisions()" title="Clear all screening decisions"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Reset All</button>
                 <button class="btn btn-purple btn-sm" onclick="exportScreeningCSV()" title="Export decisions as CSV"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 8l4 4 4-4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export CSV</button>
@@ -408,18 +410,26 @@
     let _decisions = {};   // { paperId: { decision, reason, ts } }
     let _current   = 0;
     let _pendingDecision = null;  // 'include'|'exclude'|'unsure' before reason confirmed
+    let _decisionSaving = false;
     let _runId     = null;        // null = localStorage mode, string = server mode
+    let _searchId  = null;
     let _runMeta   = {};          // {query, timestamp, databases}
 
     const STORAGE_KEY  = 'screeningDecisions';
     const RESULTS_KEY  = 'lastSearchResults';
+    document.getElementById('fullTextLink').addEventListener('click', event => {
+        if (_decisionSaving) { event.preventDefault(); showToast('Wait for the screening decision to save.', 'warning'); }
+    });
+    window.addEventListener('beforeunload', event => {
+        if (_decisionSaving) { event.preventDefault(); event.returnValue = ''; }
+    });
 
     // ── Init ──────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', async function() {
         const params = new URLSearchParams(window.location.search);
         const runId  = params.get('runId') || null;
         if (runId) {
-            await loadFromServer(runId);
+            await loadFromServer(runId, params.get('searchId') || null);
         } else {
             await showRunPicker();
         }
@@ -432,12 +442,12 @@
         try {
             const resp = await fetch('/api/results/runs?limit=100');
             const runs = resp.ok ? await resp.json() : [];
-            const adhocRuns = runs.filter(r => r.storage === 'adhoc' && r.runId);
-            if (adhocRuns.length === 0) {
+            const availableRuns = runs.filter(r => r.runId);
+            if (availableRuns.length === 0) {
                 sel.innerHTML = '<option value="">— no saved runs found —</option>';
             } else {
                 sel.innerHTML = '<option value="">— select a run —</option>' +
-                    adhocRuns.map(r => {
+                    availableRuns.map(r => {
                         const ts  = r.timestamp ? new Date(r.timestamp).toLocaleString() : '';
                         const sp  = r.screeningProgress || {};
                         const pct = sp.total > 0 ? ` · ${sp.screened}/${sp.total} screened` : '';
@@ -476,16 +486,35 @@
         const runId = sel.value;
         if (!runId) return;
         document.getElementById('runPicker').style.display = 'none';
-        await loadFromServer(runId);
+        const run = JSON.parse(sel.selectedOptions[0].dataset.run);
+        await loadFromServer(runId, run.storage === 'saved' ? run.searchId : null);
     }
 
-    async function loadFromServer(runId) {
+    function screeningBase() {
+        return _searchId
+            ? '/api/results/run/saved/' + encodeURIComponent(_searchId) + '/' + encodeURIComponent(_runId)
+            : '/api/results/run/adhoc/' + encodeURIComponent(_runId);
+    }
+
+    async function loadFromServer(runId, searchId) {
         try {
-            const resp = await fetch('/api/results/run/adhoc/' + encodeURIComponent(runId));
+            const url = searchId
+                ? '/api/results/run/saved/' + encodeURIComponent(searchId) + '/by-id/' + encodeURIComponent(runId)
+                : '/api/results/run/adhoc/' + encodeURIComponent(runId);
+            const resp = await fetch(url);
             if (!resp.ok) throw new Error('Run not found');
             const run = await resp.json();
             if (run.error) throw new Error(run.error);
+            const dualUrl = '/dual-screening?stage=title-abstract&runId=' + encodeURIComponent(runId) +
+                (searchId ? '&searchId=' + encodeURIComponent(searchId) : '');
+            if (run.dualScreening && run.dualScreening['title-abstract']) {
+                location.replace(dualUrl);
+                return;
+            }
+            document.getElementById('dualScreeningLink').href = dualUrl;
+            document.getElementById('dualScreeningLink').style.display = '';
             _runId   = runId;
+            _searchId = searchId;
             _runMeta = { query: run.query || '', timestamp: run.timestamp || '', databases: run.databases || [] };
             _papers    = run.docs || [];
             _decisions = run.screeningDecisions || {};
@@ -504,18 +533,24 @@
                 escapeHtml(dbs + ts);
 
             // Remember this run so PRISMA page can pick it up
-            localStorage.setItem('lastScreeningRunId', runId);
+            if (!searchId) localStorage.setItem('lastScreeningRunId', runId);
+            const link = document.getElementById('fullTextLink');
+            link.href = '/full-text?runId=' + encodeURIComponent(runId) + (searchId ? '&searchId=' + encodeURIComponent(searchId) : '');
+            link.style.display = '';
 
             jumpToFirstUnscreened();
             renderProgress();
         } catch(e) {
-            showToast('Could not load run from server — falling back to local data.', 'warning');
-            loadFromLocalStorage();
+            showToast('Could not load the selected run: ' + e.message, 'error');
+            await showRunPicker();
         }
     }
 
     function loadFromLocalStorage() {
         _runId = null;
+        _searchId = null;
+        document.getElementById('fullTextLink').style.display = 'none';
+        document.getElementById('dualScreeningLink').style.display = 'none';
         document.getElementById('runPicker').style.display = 'none';
         let raw;
         try { raw = localStorage.getItem(RESULTS_KEY); } catch(e) { raw = null; }
@@ -556,22 +591,20 @@
     // A 4xx/5xx response resolves fetch() normally, so resp.ok must be
     // checked — otherwise failed saves are silently acknowledged and the
     // researcher's screening work is lost on reload.
-    function _serverSaveDecision(pId, decision, reason, ai) {
-        if (!_runId) return;
+    async function _serverSaveDecision(pId, decision, reason, ai) {
         const body = {paperId: pId, decision: decision, reason: reason};
         Object.assign(body, _aiProvenance(pId, ai));
-        fetch('/api/results/run/adhoc/' + encodeURIComponent(_runId) + '/screening/decision', {
+        const resp = await fetch(screeningBase() + '/screening/decision', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body)
-        }).then(resp => {
-            if (!resp.ok) showToast(`Warning: decision was NOT saved to server (HTTP ${resp.status}).`, 'error');
-        }).catch(() => showToast('Warning: decision may not have been saved to server.', 'warning'));
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
     }
 
     function _serverDeleteDecision(pId) {
         if (!_runId) return;
-        fetch('/api/results/run/adhoc/' + encodeURIComponent(_runId) + '/screening/decision', {
+        fetch(screeningBase() + '/screening/decision', {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({paperId: pId})
@@ -582,7 +615,7 @@
 
     function _serverResetAll() {
         if (!_runId) return Promise.resolve();
-        return fetch('/api/results/run/adhoc/' + encodeURIComponent(_runId) + '/screening', {
+        return fetch(screeningBase() + '/screening', {
             method: 'DELETE'
         }).then(resp => {
             if (resp && !resp.ok) showToast(`Warning: reset failed on server (HTTP ${resp.status}).`, 'error');
@@ -598,7 +631,7 @@
 
     // ── Render current paper ──────────────────────────────────
     function renderPaper(idx) {
-        if (_papers.length === 0) return;
+        if (_papers.length === 0 || _decisionSaving) return;
         _current = Math.max(0, Math.min(idx, _papers.length - 1));
         const doc = _papers[_current];
         const id  = paperId(doc);
@@ -859,6 +892,7 @@
 
     // ── Decision flow ─────────────────────────────────────────
     function decide(decision) {
+        if (_decisionSaving) return;
         _pendingDecision = decision;
 
         // Highlight the chosen button
@@ -897,14 +931,29 @@
         commitDecision(_pendingDecision, reason);
     }
 
-    function commitDecision(decision, reason, ai) {
+    async function commitDecision(decision, reason, ai) {
+        if (_decisionSaving) return;
         const doc = _papers[_current];
         const id  = paperId(doc);
         const entry = { decision, reason, ts: new Date().toISOString() };
         Object.assign(entry, _aiProvenance(id, ai));
+        if (_runId) {
+            _decisionSaving = true;
+            ['btnInclude', 'btnUnsure', 'btnExclude'].forEach(id => { document.getElementById(id).disabled = true; });
+            document.getElementById('reasonRow').querySelectorAll('select, input, button').forEach(el => { el.disabled = true; });
+            try {
+                await _serverSaveDecision(id, decision, reason, ai);
+            } catch (e) {
+                showToast('Decision was not saved: ' + e.message, 'error');
+                return;
+            } finally {
+                _decisionSaving = false;
+                ['btnInclude', 'btnUnsure', 'btnExclude'].forEach(id => { document.getElementById(id).disabled = false; });
+                document.getElementById('reasonRow').querySelectorAll('select, input, button').forEach(el => { el.disabled = false; });
+            }
+        }
         _decisions[id] = entry;
         saveDecisions();
-        _serverSaveDecision(id, decision, reason, ai);
         renderProgress();
 
         // Show feedback briefly then advance to next unscreened

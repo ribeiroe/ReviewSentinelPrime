@@ -6,6 +6,42 @@
         h1 { text-align: center; margin-bottom: 0.5rem; color: #2c3e50; font-size: 1.8rem; }
         .subtitle { text-align: center; color: #666; margin-bottom: 2rem; font-size: 1.05rem; }
 
+        .cl-notice {
+            border: 1px solid var(--c-border);
+            border-radius: var(--r-sm);
+            padding: 0.85rem 1rem;
+            color: var(--c-text-2);
+            font-size: var(--text-sm);
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+        .cl-consistency {
+            background: #fffbeb;
+            border-color: #fcd34d;
+            margin-bottom: 1rem;
+        }
+        .cl-guide {
+            background: var(--c-primary-lt);
+            border-color: #bfdbfe;
+            margin-bottom: 1.25rem;
+        }
+        .cl-notice-title, .cl-guide summary {
+            color: var(--c-text);
+            font-weight: 600;
+        }
+        .cl-guide summary { cursor: pointer; }
+        .cl-guide[open] summary { margin-bottom: 0.5rem; }
+        .cl-notice-list {
+            padding-left: 1.25rem;
+            margin-top: 0.35rem;
+        }
+        .cl-notice-list li + li { margin-top: 0.3rem; }
+        .cl-guide-list li + li { margin-top: 1rem; }
+        .cl-guide-list strong { color: var(--c-text); }
+        .cl-guide-list p { margin: 0.15rem 0 0.4rem; }
+        @media (max-width: 768px) {
+            .container { width: 100%; min-width: 0; }
+        }
 
         .card {
             background: #fff;
@@ -611,9 +647,15 @@
             <!-- PRISMA Flow Diagram -->
             <div class="card">
                 <h2>PRISMA Flow Diagram</h2>
+                <a id="fullTextLink" class="btn btn-neutral btn-sm" style="display:none;">Full-text screening</a>
                 <div class="prisma-flow" id="prismaFlow"></div>
                 <button class="btn btn-purple" style="margin-top:1rem;" onclick="exportPrisma()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export Diagram as PNG</button>
-
+                <p id="manualEvidenceStatus" role="status" style="font-size:0.82rem;color:#666;">Loading manual evidence for this run...</p>
+                <fieldset id="manualEvidenceControls" disabled style="border:0;padding:0;margin:0;min-width:0;">
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button class="btn btn-neutral btn-sm" id="importRunEvidence" style="display:none;" onclick="importManualEvidence(false)">Import older data for this run</button>
+                    <button class="btn btn-neutral btn-sm" id="importGlobalEvidence" style="display:none;" onclick="importManualEvidence(true)">Import older browser-wide data</button>
+                </div>
                 <div class="manual-steps-panel">
                     <h3>Snowballing / Other Sources <span style="font-weight:400;font-size:0.8rem;color:#888;">(optional)</span></h3>
                     <p style="font-size:0.8rem; color:#888; margin-bottom:0.8rem;">Records identified through backward/forward citation searching, hand-search, or grey literature. These appear as a parallel card at the Identification stage.</p>
@@ -673,9 +715,10 @@
                             <label>Description</label>
                             <input type="text" id="stepDesc" placeholder="e.g. Full-text review by 2 researchers">
                         </div>
-                        <button class="btn btn-success btn-sm" onclick="addManualStep()">&#10133; Add Step</button>
+                        <button class="btn btn-success btn-sm" onclick="addManualStep()"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg> Add Step</button>
                     </div>
                 </div>
+                </fieldset>
             </div><!-- /.card flow diagram -->
 
             <!-- Paper panel (shown when a flow box is clicked) -->
@@ -702,7 +745,7 @@
                     <h2 style="margin:0;border:none;padding:0;">Review Protocol</h2>
                     <button class="btn btn-neutral btn-sm" id="protocolToggle" onclick="toggleProtocolForm()">+ Show</button>
                 </div>
-                <p style="font-size:0.82rem;color:#666;margin:0.5rem 0 0;">Review-level facts no search can infer — research questions, registration, reviewer team, synthesis and risk-of-bias methods, funding. Filling these in auto-completes the corresponding PRISMA checklist items below and is exported with the replication package (<code>03_protocol/review_protocol.json</code>).</p>
+                <p style="font-size:0.82rem;color:#666;margin:0.5rem 0 0;">Review-level facts no search can infer — research questions, registration, reviewer team, synthesis and risk-of-bias methods, funding. These provide evidence for the checklist but do not confirm reporting. They are exported with the replication package (<code>03_protocol/review_protocol.json</code>).</p>
                 <div id="protocolForm" style="display:none;margin-top:1rem;">
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:0.9rem;">
                         <div>
@@ -782,12 +825,23 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
                     <h2 style="margin:0;border:none;padding:0;">PRISMA 2020 Evidence Checklist</h2>
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                        <button class="btn btn-danger btn-sm" onclick="resetManualChecklist()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg> Reset inputs</button>
+                        <button class="btn btn-primary btn-sm" id="clSave" onclick="saveRunChecklist()" disabled><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save checklist</button>
+                        <button class="btn btn-neutral btn-sm" id="clRefresh" onclick="refreshChecklistEvidence()" disabled><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg> Refresh evidence</button>
+                        <button class="btn btn-neutral btn-sm" id="clImport" onclick="importLegacyChecklist()" style="display:none;" disabled><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12l1.5-5.5H13.5L12 12z"/><path d="M1.5 6.5V5a1 1 0 011-1h3.5l1.5 2H2.5"/></svg> Import older browser notes</button>
+                        <button class="btn btn-danger btn-sm" id="clReset" onclick="resetManualChecklist()" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg> Reset inputs</button>
+                        <button class="btn btn-purple btn-sm" id="clExportZip" onclick="exportRunChecklistPackage()" disabled><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="14,5.5 8,9 2,5.5"/><line x1="8" y1="9" x2="8" y2="14"/><path d="M14 5.5L8 2 2 5.5v5L8 14l6-3.5z"/></svg> Export replication ZIP</button>
                         <button class="btn btn-purple btn-sm" onclick="exportChecklist()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export PNG</button>
                     </div>
                 </div>
-                <p style="font-size:0.82rem; color:#666; margin-bottom:1rem;">Based on the <strong>PRISMA 2020 Statement</strong> (Page et al., 2021, <em>BMJ</em> 372:n71). All 27 official items are listed. <span style="background:#eaf5fc;color:#1a5276;font-size:0.7rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;border:1px solid #aed6f1;">AUTO</span> items are assessed from your search data. <span style="background:#fef9e7;color:#7d6608;font-size:0.7rem;font-weight:700;padding:0.1rem 0.35rem;border-radius:3px;border:1px solid #f9e79f;">MANUAL</span> items require your input — check the box and add your notes.</p>
+                <p style="font-size:0.82rem; color:#666; margin-bottom:1rem;">Based on the <strong>PRISMA 2020 Statement</strong> (Page et al., 2021, <em>BMJ</em> 372:n71). <strong>Auto evidence</strong> provides recorded information or drafts, not proof of reporting. Review each item against your report and confirm it. Save notes and confirmations to this run; changes to recorded evidence require review again.</p>
+                <p id="clSaveStatus" role="status" style="font-size:0.82rem;color:#666;">Loading checklist…</p>
                 <div id="clProgress" style="margin-bottom:1.25rem;"></div>
+                <div id="clConsistency" class="cl-notice cl-consistency" aria-live="polite"></div>
+                <details id="clGuide" class="cl-notice cl-guide">
+                    <summary id="clGuideSummary">Guided completion</summary>
+                    <p>Review the questions below, open an item to add your notes, and check its box only when you have verified it against your report. Protocol-related information can also be saved in the Review Protocol above.</p>
+                    <div id="clGuideQuestions"></div>
+                </details>
                 <div id="checklistContent"></div>
                 <table class="checklist-table" id="checklistTable" style="display:none;"></table>
             </div>
@@ -797,26 +851,49 @@
 
 {% block scripts %}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="{{ url_for('static', filename='js/prisma_guidance.js') }}"></script>
     <script>
         const RSP_VERSION = {{ rsp_version | tojson }};
-        let prisma = JSON.parse(localStorage.getItem('lastPrismaData') || 'null');
-        const docs = JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
-        const formState = JSON.parse(localStorage.getItem('searchFormState') || '{}');
-        const excludedDocs = JSON.parse(localStorage.getItem('lastExcludedDocs') || '{}');
-        let manualSteps = JSON.parse(localStorage.getItem('prismaManualSteps') || '[]');
-        let snowballing = JSON.parse(localStorage.getItem('prismaSnowballing') || 'null');
+        const selectedRun = {{ selected_run | tojson }};
+        const selectedSearchId = {{ selected_search_id | tojson }};
+        let prisma = selectedRun ? {...(selectedRun.prisma || {}), runId: selectedRun.runId} : JSON.parse(localStorage.getItem('lastPrismaData') || 'null');
+        const docs = selectedRun ? (selectedRun.docs || []) : JSON.parse(localStorage.getItem('lastSearchResults') || '[]');
+        const formState = selectedRun ? PrismaGuidance.formStateFromRun(selectedRun) : JSON.parse(localStorage.getItem('searchFormState') || '{}');
+        const excludedDocs = selectedRun ? (selectedRun.excluded_docs || {}) : JSON.parse(localStorage.getItem('lastExcludedDocs') || '{}');
+        const stepsKey = prisma && prisma.runId ? PrismaGuidance.runStorageKey('prismaManualSteps', prisma.runId, selectedSearchId) : null;
+        const snowballKey = prisma && prisma.runId ? PrismaGuidance.runStorageKey('prismaSnowballing', prisma.runId, selectedSearchId) : null;
+        let manualSteps = [];
+        let snowballing = null;
+        let manualVersion = null;
+        let manualReady = false;
+        let manualSaving = false;
+        let checklistItems = {};
+        let checklistVersion = null;
+        let checklistRevision = null;
+        let checklistDirty = false;
+        let checklistReady = false;
+        let checklistPending = false;
+        let checklistSaving = false;
+        let checklistEpoch = 0;
+        let checklistExternalChange = false;
+        if (prisma && prisma.runId) {
+            const fullTextLink = document.getElementById('fullTextLink');
+            fullTextLink.href = '/full-text?runId=' + encodeURIComponent(prisma.runId) +
+                (selectedSearchId ? '&searchId=' + encodeURIComponent(selectedSearchId) : '');
+            fullTextLink.style.display = '';
+        }
 
         // ── Try to hydrate taScreening from server if we have a lastScreeningRunId ──
         (async function() {
-            const runId = localStorage.getItem('lastScreeningRunId');
+            const runId = selectedRun ? selectedRun.runId : (prisma && prisma.runId);
             // Only merge screening counts that belong to THIS run — grafting
             // another run's counts onto this flow corrupts published numbers.
             if (runId && prisma && prisma.identification && prisma.runId === runId) {
                 try {
-                    const resp = await fetch('/api/results/run/adhoc/' + encodeURIComponent(runId));
-                    if (resp.ok) {
-                        const run = await resp.json();
-                        if (!run.error) {
+                    const resp = selectedSearchId ? null : await fetch('/api/results/run/adhoc/' + encodeURIComponent(runId));
+                    if (selectedSearchId || resp.ok) {
+                        const run = selectedSearchId ? selectedRun : await resp.json();
+                        if (!run.error && !checklistReady) {
                             const decisions = run.screeningDecisions || {};
                             let inc = 0, exc = 0, uns = 0, aiAssisted = 0;
                             const reasonCounts = {};
@@ -843,11 +920,12 @@
                                 aiAgreement: _aiAgreementStats(Object.values(decisions)),
                                 includedChars: _studyCharacteristics(incDocs) };
                             // Persist so PRISMA page shows up-to-date data without server round-trip next time
-                            localStorage.setItem('lastPrismaData', JSON.stringify(prisma));
+                            if (!selectedRun) localStorage.setItem('lastPrismaData', JSON.stringify(prisma));
                             // Re-render with updated data (checklist too — 16b
                             // shows the exclusion-reason histogram)
                             renderPrismaFlow(prisma);
                             renderChecklist(prisma, formState);
+                            if (!selectedRun) setTimeout(_savePrismaFlowPng, 600);
                         }
                     }
                 } catch(e) { /* ignore — fall back to localStorage.lastPrismaData.taScreening */ }
@@ -953,6 +1031,7 @@
                 reviewProtocol = (await resp.json()).protocol || payload;
                 showToast('Protocol saved — checklist updated.', 'success');
                 if (prisma && prisma.identification) renderChecklist(prisma, formState);
+                refreshChecklistEvidence();
             } catch (e) {
                 showToast('Failed to save protocol: ' + e.message, 'error');
             }
@@ -1538,7 +1617,7 @@
                             &nbsp;|&nbsp; ${taUnsure} unsure
                             ${taPending > 0 ? ` &nbsp;|&nbsp; ${taPending} pending` : ''}
                         </div>
-                        <div class="box-desc">Manual title &amp; abstract screening performed via the Screening page. Each record was independently assessed for relevance.</div>
+                        <div class="box-desc">Title &amp; abstract screening decisions recorded via the Screening page.</div>
                     </div>
                 </div>`;
                 if (taExcluded > 0 || taUnsure > 0 || taPending > 0) {
@@ -1565,19 +1644,35 @@
                 html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
             }
 
+            const fullText = p.fullTextScreening;
+            if (fullText && (fullText.screened > 0 || fullText.dualReview)) {
+                html += `<div class="flow-row"><div class="flow-main"><div class="flow-box screening" style="border-color:#7c3aed;background:#f5f3ff;">
+                    <span class="box-label" style="background:#7c3aed;">Full text</span>
+                    <div class="box-title">Full-text decisions</div>
+                    <div class="box-count">${fullText.included.toLocaleString()}</div>
+                    <div class="box-detail">${fullText.included} included | ${fullText.excluded} excluded | ${fullText.notRetrieved} not retrieved | ${fullText.unsure} unsure | ${fullText.pending} pending</div>
+                    <div class="box-desc">Only title and abstract inclusions are candidates. Other-source counts are not assessed here.</div>
+                </div></div></div>`;
+                html += `<div class="flow-arrow"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="2" x2="8" y2="12"/><polyline points="4,8 8,13 12,8"/></svg></div>`;
+            }
+
             // ─── INCLUDED ───
-            const finalIncluded = (taScreening && taScreening.total > 0 && taScreening.included >= 0)
+            const finalIncluded = fullText && (fullText.screened > 0 || fullText.dualReview) ? fullText.included : (taScreening && taScreening.total > 0 && taScreening.included >= 0)
                 ? taScreening.included
                 : included;
             const sbNetFinal = sb && sbNet > 0 ? sbNet : 0;
             const grandTotal = finalIncluded + sbNetFinal;
-            const includedDetail = (taScreening && taScreening.total > 0)
+            const incompleteScreening = (taScreening && (taScreening.screened < taScreening.total || taScreening.unsure > 0)) ||
+                (fullText && (fullText.screened > 0 || fullText.dualReview) && (fullText.pending > 0 || fullText.unsure > 0));
+            const includedDetail = fullText && (fullText.screened > 0 || fullText.dualReview)
+                ? `After recorded full-text decisions${sbNetFinal > 0 ? ` + ${sbNetFinal} from other sources (not assessed here)` : ''}`
+                : (taScreening && taScreening.total > 0)
                 ? `After manual T&amp;A screening${sbNetFinal > 0 ? ` + ${sbNetFinal} from snowballing` : ''}`
                 : `After all automated screening &amp; eligibility filters${sbNetFinal > 0 ? ` + ${sbNetFinal} from snowballing` : ''}`;
             html += `<div class="flow-row"><div class="flow-main">`;
             html += `<div class="flow-box included">
                 <span class="box-label">Included</span>
-                <div class="box-title">Studies included in review</div>
+                <div class="box-title">${incompleteScreening ? 'Records included so far' : 'Studies included in review'}</div>
                 <div class="box-count">${grandTotal.toLocaleString()}</div>
                 <div class="box-detail">${includedDetail}</div>
                 <div class="box-desc">Final set of papers that passed all screening and eligibility criteria — ready for full-text analysis and data extraction.</div>
@@ -1585,7 +1680,6 @@
             html += `</div></div>`;
 
             // ─── MANUAL STEPS (post-inclusion) ───
-            const manualSteps = JSON.parse(localStorage.getItem('prismaManualSteps') || '[]');
             if (manualSteps.length > 0) {
                 // Chain from the number shown in the Included box directly
                 // above (T&A screening + snowballing), not the automated
@@ -1625,7 +1719,7 @@
                 html += `<div class="flow-row"><div class="flow-main">`;
                 html += `<div class="flow-box final">
                     <span class="box-label">Final</span>
-                    <div class="box-title">Final studies for synthesis</div>
+                    <div class="box-title">${incompleteScreening ? 'Current total after manual steps' : 'Final studies for synthesis'}</div>
                     <div class="box-count">${runningTotal.toLocaleString()}</div>
                     <div class="box-detail">After all manual review steps</div>
                 </div>`;
@@ -1660,25 +1754,16 @@
             updateSbTotal();
         }
 
-        function saveSnowballing() {
+        async function saveSnowballing() {
             const bk = _sbVal('sbBackward'), fw = _sbVal('sbForward'), ot = _sbVal('sbOther');
             const ex = _sbVal('sbExcluded');
             const desc = (document.getElementById('sbDesc').value || '').trim();
-            if (bk + fw + ot === 0) { clearSnowballing(); return; }
-            snowballing = { backward: bk, forward: fw, other: ot, excluded: ex, desc };
-            localStorage.setItem('prismaSnowballing', JSON.stringify(snowballing));
-            if (prisma) renderPrismaFlow(prisma);
-            showToast('Snowballing data saved.', 'success');
+            if (ex > bk + fw + ot) { showToast('Excluded records cannot exceed the total identified.', 'error'); return; }
+            await saveManualEvidence(manualSteps, bk + fw + ot ? {backward: bk, forward: fw, other: ot, excluded: ex, desc} : null, true);
         }
 
-        function clearSnowballing() {
-            snowballing = null;
-            localStorage.removeItem('prismaSnowballing');
-            ['sbBackward','sbForward','sbOther','sbExcluded'].forEach(id => document.getElementById(id).value = 0);
-            document.getElementById('sbDesc').value = '';
-            updateSbTotal();
-            if (prisma) renderPrismaFlow(prisma);
-            showToast('Snowballing data cleared.', 'info');
+        async function clearSnowballing() {
+            await saveManualEvidence(manualSteps, null, true);
         }
 
         function renderManualStepsList() {
@@ -1704,44 +1789,126 @@
             `).join('');
         }
 
-        function addManualStep() {
+        async function addManualStep() {
             const name = document.getElementById('stepName').value.trim();
             const added = parseInt(document.getElementById('stepAdded').value) || 0;
             const removed = parseInt(document.getElementById('stepRemoved').value) || 0;
             const desc = document.getElementById('stepDesc').value.trim();
             if (!name) { showToast('Please enter a step name.', 'warning'); return; }
-            manualSteps.push({ name, added, removed, desc });
-            // Clear form before rendering so UI resets even if a render error occurs
-            document.getElementById('stepName').value = '';
-            document.getElementById('stepAdded').value = '0';
-            document.getElementById('stepRemoved').value = '0';
-            document.getElementById('stepDesc').value = '';
-            saveManualSteps();
+            if (await saveManualEvidence([...manualSteps, {name, added, removed, desc}], snowballing)) {
+                document.getElementById('stepName').value = '';
+                document.getElementById('stepAdded').value = '0';
+                document.getElementById('stepRemoved').value = '0';
+                document.getElementById('stepDesc').value = '';
+            }
         }
 
         function removeManualStep(idx) {
-            manualSteps.splice(idx, 1);
-            saveManualSteps();
+            saveManualEvidence(manualSteps.filter((_, i) => i !== idx), snowballing);
         }
 
         function moveStep(idx, dir) {
             const newIdx = idx + dir;
             if (newIdx < 0 || newIdx >= manualSteps.length) return;
-            [manualSteps[idx], manualSteps[newIdx]] = [manualSteps[newIdx], manualSteps[idx]];
-            saveManualSteps();
+            const steps = [...manualSteps];
+            [steps[idx], steps[newIdx]] = [steps[newIdx], steps[idx]];
+            saveManualEvidence(steps, snowballing);
         }
 
-        function saveManualSteps() {
-            localStorage.setItem('prismaManualSteps', JSON.stringify(manualSteps));
+        function manualEvidenceUrl() {
+            const base = selectedSearchId
+                ? '/api/results/run/saved/' + encodeURIComponent(selectedSearchId) + '/' + encodeURIComponent(prisma.runId)
+                : '/api/results/run/adhoc/' + encodeURIComponent(prisma.runId);
+            return base + '/manual-evidence';
+        }
+
+        function showManualEvidence(evidence, updateSnowInputs) {
+            manualVersion = evidence.version;
+            manualSteps = evidence.manualSteps;
+            snowballing = evidence.snowballing;
             renderManualStepsList();
+            if (updateSnowInputs) _loadSnowballingInputs();
             if (prisma) {
-                try { renderPrismaFlow(prisma); } catch(e) { console.error('PRISMA flow render error:', e); }
-                try { renderChecklist(prisma, formState); } catch(e) { console.error('Checklist render error:', e); }
+                renderPrismaFlow(prisma);
+                renderChecklist(prisma, formState);
             }
         }
 
-        renderManualStepsList();
-        _loadSnowballingInputs();
+        async function loadManualEvidence() {
+            const status = document.getElementById('manualEvidenceStatus');
+            if (!prisma || !prisma.runId) {
+                status.textContent = 'A saved run ID is required for manual evidence.';
+                return;
+            }
+            try {
+                const resp = await fetch(manualEvidenceUrl());
+                const result = await resp.json();
+                if (!resp.ok) throw new Error(result.error || ('HTTP ' + resp.status));
+                showManualEvidence(result, true);
+                manualReady = true;
+                document.getElementById('manualEvidenceControls').disabled = false;
+                status.textContent = 'Manual evidence is saved with this run.';
+                if (!selectedRun) setTimeout(_savePrismaFlowPng, 600);
+                if (stepsKey && (localStorage.getItem(stepsKey) || localStorage.getItem(snowballKey))) {
+                    document.getElementById('importRunEvidence').style.display = '';
+                }
+                if (localStorage.getItem('prismaManualSteps') || localStorage.getItem('prismaSnowballing')) {
+                    document.getElementById('importGlobalEvidence').style.display = '';
+                }
+                refreshChecklistEvidence();
+            } catch (e) {
+                status.textContent = 'Could not load manual evidence: ' + e.message + '. Reload the page to retry.';
+            }
+        }
+
+        async function saveManualEvidence(steps, snow, updateSnowInputs = false) {
+            if (!manualReady || manualSaving || checklistSaving || checklistPending) {
+                showToast('Wait for the current evidence operation to finish.', 'error');
+                return false;
+            }
+            manualSaving = true;
+            document.getElementById('manualEvidenceControls').disabled = true;
+            checklistStatus('Saving manual evidence...');
+            const status = document.getElementById('manualEvidenceStatus');
+            try {
+                const resp = await fetch(manualEvidenceUrl(), {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({version: manualVersion, manualSteps: steps, snowballing: snow})
+                });
+                const result = await resp.json();
+                if (!resp.ok) throw new Error(result.error || ('HTTP ' + resp.status));
+                showManualEvidence(result, updateSnowInputs);
+                status.textContent = 'Manual evidence is saved with this run.';
+                if (!selectedRun) setTimeout(_savePrismaFlowPng, 600);
+                showToast('Manual evidence saved.', 'success');
+                return true;
+            } catch (e) {
+                status.textContent = 'Manual evidence not saved: ' + e.message;
+                showToast('Manual evidence not saved: ' + e.message, 'error');
+                return false;
+            } finally {
+                manualSaving = false;
+                document.getElementById('manualEvidenceControls').disabled = false;
+                refreshChecklistEvidence();
+            }
+        }
+
+        async function importManualEvidence(global) {
+            if (manualSteps.length || snowballing) {
+                showToast('Clear the saved manual evidence before importing older data.', 'error');
+                return;
+            }
+            if (!confirm('Copy older browser data into this run? Verify it belongs to this run. The browser copy will be kept.')) return;
+            try {
+                const steps = JSON.parse(localStorage.getItem(global ? 'prismaManualSteps' : stepsKey) || '[]');
+                const snow = JSON.parse(localStorage.getItem(global ? 'prismaSnowballing' : snowballKey) || 'null');
+                await saveManualEvidence(steps, snow, true);
+            } catch (e) {
+                showToast('Could not read older browser data: ' + e.message, 'error');
+            }
+        }
+
+        if (prisma && prisma.identification) loadManualEvidence();
 
         function renderChecklist(p, state) {
             const _DT = {ART:'Articles',COMM:'Conference',THESE:'Thesis',COUV:'Book chapter',REPORT:'Report',PREPRINT:'Preprint'};
@@ -1769,9 +1936,12 @@
             if (state.dbOpenalex !== false) dbPairs.push(['openalex', 'OpenAlex']);
             if (state.dbEbsco)          dbPairs.push(['ebsco', 'EBSCO Discovery Service']);
             if (state.dbWos)            dbPairs.push(['wos', 'Web of Science']);
-            const dbs = dbPairs.map(p => p[1]);
+            const recordedDbs = p.identification?.databases || {};
+            const dbLabels = Object.fromEntries(dbPairs);
+            const dbs = Object.keys(recordedDbs).map(key => dbLabels[key] || key);
             const sc = p.screening || {}, el = p.eligibility || {};
-            const ta = p.taScreening || null;  // manual T&A screening results
+            const taData = p.taScreening || null;
+            const ta = taData && p.runId && taData.runId && p.runId !== taData.runId ? null : taData;
 
             function limitsStr() {
                 const parts = [];
@@ -1846,20 +2016,20 @@
 
             // Auto-assessed items keyed by item id
             const AUTO = {
-                '1':   {s:'yes',     d:`Report identified as a systematic literature review conducted using Review Sentinel Prime (RSP) ${RSP_VERSION}.`},
+                '1':   {s:'yes',     d:`RSP ${RSP_VERSION} generated this checklist. Confirm that the report title identifies it as a systematic review.`},
                 '2':   {s:'partial', d:(() => {
                     const kw = state.keywords || '';
                     if (!kw || !p.identification) return 'Insufficient data to draft an abstract — run a search first.';
                     const ident = p.identification.total_found ?? 0;
-                    const finalN = (ta && ta.total > 0) ? ta.included : (p.included || 0);
+                    const remaining = (ta && ta.total > 0) ? ta.included : (p.included || 0);
                     return `Draft structured abstract (review and edit before publication) — ` +
-                        `Objective: systematic review addressing the query "${kw}". ` +
+                        `Search query: "${kw}". Confirm the review objective. ` +
                         `Methods: ${dbs.length} databases searched (${dbs.join(', ')})` +
                         `${p.search_date ? ' on ' + p.search_date : ''}; ` +
                         `${hasFilter ? 'eligibility criteria: ' + eligStr() + '; ' : ''}` +
-                        `records deduplicated and screened${ta && ta.total > 0 ? ' with manual title & abstract screening' : ' by automated filters'}. ` +
-                        `Results: ${ident.toLocaleString()} records identified, ${finalN.toLocaleString()} studies included. ` +
-                        `Still needed from the author: interpretation of findings, limitations summary, and funding/registration statements.`;
+                        `records deduplicated and filtered${ta && ta.screened > 0 ? '; title and abstract screening decisions are recorded in RSP' : ''}. ` +
+                        `Results: ${ident.toLocaleString()} records identified, ${remaining.toLocaleString()} records retained ${ta && ta.total > 0 ? 'at the title and abstract screening stage' : 'after automated filters'}. ` +
+                        `Confirm final study inclusion, interpretation, limitations, and funding/registration statements.`;
                 })()},
                 '3':   _protoItem(proto.rationale, 'Rationale (from Review Protocol): ',
                     'State the rationale for the review in the Review Protocol form above — it will be reported here and exported with the replication package.'),
@@ -1874,9 +2044,10 @@
                 })()},
                 '5':   {s: hasFilter?'yes':'partial', d: eligStr()},
                 '6':   {s: dbs.length?'yes':'no',     d: (() => {
-                    if (!dbs.length) return 'No databases selected';
+                    if (!dbs.length) return 'No per-database search records available. Confirm the information sources and search dates.';
                     const dbCounts = p.identification?.databases || {};
-                    const dbLines = dbPairs.map(([key, label]) => {
+                    const sources = Object.keys(dbCounts).map(key => [key, dbLabels[key] || key]);
+                    const dbLines = sources.map(([key, label]) => {
                         const info = dbCounts[key];
                         // Never fall back to today's date — asserting a wrong
                         // search date in an evidence document is worse than
@@ -1893,30 +2064,27 @@
                     });
                     return dbLines.join('; ');
                 })()},
-                '7':   {s: state.keywords?'yes':'no', d: state.keywords ? `Query: "${state.keywords}"${hasFilter?' | Limits: '+limitsStr():''}` : 'No search query defined'},
+                '7':   {s: state.keywords?'yes':'no', d: state.keywords ? `Input query: "${state.keywords}"${hasFilter?' | Limits: '+limitsStr():''}. Verify and report the full strategy used for each source.` : 'No search query recorded; supply the full strategy for each source.'},
                 '8':   {s:'yes', d:(() => {
-                    const nRev = proto.reviewers || 1;
-                    let d = `Automated pipeline by RSP ${RSP_VERSION}: deduplication by DOI/title, year range, document type, language applied at screening; include terms (ANY or ALL match mode), exclude terms, include venues, and exclude venues applied at eligibility.`;
+                    let d = `RSP ${RSP_VERSION} recorded deduplication and the following configured filters: ${eligStr()}.`;
+                    d += ' ' + PrismaGuidance.screeningEvidence(ta);
                     if (ta && ta.total > 0) {
-                        const pct = Math.round((ta.screened / ta.total) * 100);
-                        d += ` Manual Title & Abstract screening was additionally performed via the RSP Screening page by ${nRev} reviewer${nRev > 1 ? 's' : ''}: ${ta.screened.toLocaleString()}/${ta.total.toLocaleString()} records screened (${pct}%) — ${ta.included} included, ${ta.excluded} excluded, ${ta.unsure} unsure/deferred.`;
                         if (ta.aiAssisted > 0) {
                             // PRISMA item 8 explicitly asks for details of
                             // automation tools used in the selection process
-                            const models = (ta.aiModels || []).join(', ') || 'local LLM';
+                            const models = (ta.aiModels || []).join(', ') || 'model not recorded';
                             d += ` Automation tool: ${ta.aiAssisted} of these decisions were accepted from suggestions generated by the RSP AI Screening Assistant (model: ${models}); every suggestion was reviewed and confirmed by the human reviewer.`;
                         }
                         if (ta.aiAgreement) d += ' ' + _agreementText(ta.aiAgreement);
-                    } else {
-                        d += ` No manual screening stage was performed — selection relied on the automated filters above.`;
                     }
+                    d += ' ' + PrismaGuidance.reviewerEvidence(proto);
                     if (proto.screeningProcess) d += ` Process notes (from Review Protocol): ${proto.screeningProcess}`;
                     return d;
                 })()},
-                '9':   {s:'yes', d:`Metadata extracted automatically by RSP ${RSP_VERSION} from ${dbs.length ? dbs.join(', ') : 'configured databases'} via their public APIs. Fields collected per record: title, authors, year, venue/journal, DOI, abstract, keywords, document type, and source database. Single automated data collector — no manual extraction required. ${(p.included||0)} records collected.`},
+                '9':   {s:'yes', d:`RSP ${RSP_VERSION} collects bibliographic metadata from database APIs. This does not establish how study data were extracted from reports. Describe the data collection process, reviewers, independence and any investigator contacts.`},
                 '10a': _protoItem(proto.outcomes, 'Outcomes / data items sought (from Review Protocol): ',
                     'List the outcomes and data items sought in the Review Protocol form above to complete this item.'),
-                '10b': {s:'yes', d:`Variables extracted per record by RSP ${RSP_VERSION}: Title, Authors, Publication Year, Journal/Venue, DOI, URL, Abstract, Keywords, Document Type, Source Database. All fields extracted automatically via database APIs; missing fields default to empty string or empty array.`},
+                '10b': {s:'yes', d:`RSP records bibliographic fields such as title, authors, year, venue, DOI and abstract when available. Specify the other study variables sought and assumptions about missing or unclear information.`},
                 '11':  _protoItem(proto.robTool, 'Risk-of-bias / quality assessment (from Review Protocol): ',
                     'Specify the risk-of-bias or quality tool used (or "None — no formal assessment") in the Review Protocol form above.'),
                 '12':  _protoItem(proto.effectMeasures, 'Effect measures (from Review Protocol): ',
@@ -1946,9 +2114,9 @@
                     if (state.includeVenues) crit.push(`include venues: "${state.includeVenues}"`);
                     if (state.excludeVenues) crit.push(`exclude venues: "${state.excludeVenues}"`);
                     const critStr = crit.length ? crit.join('; ') : 'no post-retrieval filters applied';
-                    return `Eligibility determined through automated multi-criterion filtering by RSP ${RSP_VERSION}. Applied criteria: ${critStr}. All records passing all criteria are included in the final set. No manual screening of individual records was required.`;
+                    return `RSP recorded these automated record filters: ${critStr}. These do not establish eligibility for each synthesis. Describe how studies were assigned to syntheses and verify any manual selection steps.`;
                 })()},
-                '13b': {s:'yes', d:`Data prepared for synthesis by RSP ${RSP_VERSION}: all API-specific field schemas normalised to a common document model (title, authors, year, journal, DOI, URL, abstract, keywords, docType, source). Missing fields set to empty string or empty array. Cross-database deduplication applied: exact DOI match first, then normalised-title comparison as fallback.`},
+                '13b': {s:'yes', d:`RSP ${RSP_VERSION} normalises bibliographic metadata and deduplicates records. Describe any preparation of study results for synthesis, including missing statistics or conversions; metadata normalisation alone does not establish this.`},
                 '13c': {s:(p.included||0)>0?'yes':'partial', d:(() => {
                     let d = (p.included||0)>0
                         ? `Results displayed by RSP ${RSP_VERSION} as: (1) sortable/filterable paper list with source badges; (2) publication-year trend bar chart; (3) top-venue distribution chart; (4) document-type distribution chart; (5) keyword frequency word cloud. All visualisations generated automatically from retrieved metadata.`
@@ -1957,7 +2125,7 @@
                         const pct = Math.round((ta.screened / ta.total) * 100);
                         d += ` Title & Abstract screening decisions are displayed in the RSP Screening page: ${ta.screened}/${ta.total} screened (${pct}%) with include/exclude/unsure classification and optional free-text reasons.`;
                     }
-                    return d;
+                    return d + ' Describe how individual study results and syntheses are displayed in the report.';
                 })()},
                 '16a': {s:'yes', d:(() => {
                     let d = `${(p.identification?.total_found ?? 0).toLocaleString()} records identified \u2192 ${(p.identification?.retrieved ?? 0).toLocaleString()} retrieved`;
@@ -1965,6 +2133,8 @@
                     if (ta && ta.total > 0) {
                         d += ` \u2192 ${ta.included.toLocaleString()} included after manual T&A screening (${ta.excluded} excluded, ${ta.unsure} unsure)`;
                     }
+                    const ft = p.fullTextScreening;
+                    if (ft && (ft.screened > 0 || ft.dualReview)) d += ` \u2192 ${ft.included} included after recorded full-text decisions (${ft.excluded} excluded, ${ft.notRetrieved} not retrieved, ${ft.unsure} unsure, ${ft.pending} pending)`;
                     d += `. PRISMA 2020 flow diagram${ta && ta.total > 0 ? ' (including T&A Screening stage)' : ''} generated on this page.`;
                     return d;
                 })()},
@@ -1981,7 +2151,7 @@
                         cites.push(`${_exclReasonLabels[key] || key} — ${sample}${list.length > 3 ? `; … and ${list.length - 3} more` : ''}`);
                     });
                     if (cites.length) {
-                        d += ` || Excluded studies (sample citations per reason; full lists in excluded_studies.csv): ${cites.join(' | ')}`;
+                        d += ` || Filtered records (sample citations per reason): ${cites.join(' | ')}`;
                     }
                     if (ta && ta.excluded > 0) {
                         d += ` | T&A Screening: ${ta.excluded} records excluded after manual title & abstract assessment`;
@@ -1994,13 +2164,24 @@
                         }
                         d += `. Full decision log (including per-paper reasons) available in screening_decisions.csv.`;
                     }
+                    const ft = p.fullTextScreening;
+                    if (ft && ft.excludedRecords.length) {
+                        d += ` | Full-text exclusions (sample): ${ft.excludedRecords.slice(0, 3).map(row => _fmtCitation(row.paper) + ' — ' + row.reason).join('; ')}. Complete decisions and reasons are in full_text_screening.csv.`;
+                    }
+                    if (ft && (ft.screened > 0 || ft.dualReview)) {
+                        d += ` Full-text decisions: ${ft.included} included, ${ft.excluded} excluded, ${ft.notRetrieved} not retrieved, ${ft.unsure} unsure and ${ft.pending} pending. Verify citations and reasons against the report.`;
+                    } else {
+                        d += ' Identify and cite studies excluded after full-text assessment and explain their exclusions.';
+                    }
                     return d;
                 })()},
                 '17':  {s: (p.included||0)>0?'yes':'no', d: (() => {
-                    const finalCount = (ta && ta.total > 0 && ta.included >= 0) ? ta.included : (p.included || 0);
-                    if (finalCount <= 0) return 'No studies included after filtering.';
-                    let d = `${finalCount} studies included${ta && ta.total > 0 ? ' after manual T&A screening' : ' after automated filters'} with metadata per record: title, authors, year, journal/venue, DOI, URL, abstract, keywords, document type, source database.`;
-                    const ch = (ta && ta.total > 0) ? ta.includedChars : _studyCharacteristics(docs);
+                    const ft = p.fullTextScreening;
+                    const hasFullText = ft && (ft.screened > 0 || ft.dualReview);
+                    const finalCount = hasFullText ? ft.included : (ta && ta.total > 0 && ta.included >= 0) ? ta.included : (p.included || 0);
+                    if (finalCount <= 0) return 'No records retained at this recorded stage. Confirm the final included studies and their characteristics.';
+                    let d = `${finalCount} records retained${hasFullText ? ' after recorded full-text decisions' : ta && ta.total > 0 ? ' at title and abstract screening' : ' after automated filters'} with bibliographic metadata. Confirm the final included studies and report their study characteristics.`;
+                    const ch = hasFullText ? null : (ta && ta.total > 0) ? ta.includedChars : _studyCharacteristics(docs);
                     if (ch) {
                         const fmt = arr => arr.map(([k, c]) => `${k} (${c})`).join(', ');
                         if (ch.yearMin) d += ` Publication years: ${ch.yearMin}–${ch.yearMax}.`;
@@ -2008,13 +2189,15 @@
                         if (ch.venues.length) d += ` Top venues: ${fmt(ch.venues)}.`;
                         if (ch.sources.length) d += ` Sources: ${fmt(ch.sources)}.`;
                     }
-                    return d + ' Full per-study table in included_docs.csv of the replication package.';
+                    return d + ' Check the exported record list and add study-level characteristics as needed.';
                 })()},
                 '23c': {s:'partial', d:(() => {
                     // Draft the process-limitations statement from machine-
                     // known facts about how this review was actually run.
                     const lim = [];
-                    lim.push(`Screening and eligibility decisions were made by a single reviewer${ta && ta.total > 0 ? ' (manual title & abstract screening via RSP)' : ' (automated filters only)'}, without independent duplicate assessment.`);
+                    lim.push(PrismaGuidance.screeningEvidence(ta));
+                    lim.push(PrismaGuidance.reviewerEvidence(proto));
+                    lim.push('Describe any limitations of the screening process actually used.');
                     const dbCounts = p.identification?.databases || {};
                     const truncated = Object.entries(dbCounts).filter(([, v]) => v && v.warning);
                     if (truncated.length) {
@@ -2028,7 +2211,7 @@
                     lim.push('Automated term filters match titles and abstracts only, so records lacking an abstract in the source API metadata may be misclassified.');
                     const noAbs = (docs || []).filter(d => !(d.abstract || '').trim()).length;
                     if (noAbs > 0) {
-                        lim.push(`${noAbs} of ${docs.length} retrieved records had no abstract available and could only be assessed on title and metadata.`);
+                        lim.push(`${noAbs} of ${docs.length} records in the current results have no recorded abstract; verify their screening and any impact.`);
                     }
                     if (ta && ta.aiAssisted > 0) {
                         lim.push(`An AI screening assistant suggested decisions; ${ta.aiAgreement ? _agreementText(ta.aiAgreement) : 'reviewer–AI agreement was not recorded.'} Suggestions may reflect model biases, although every decision was confirmed by the reviewer.`);
@@ -2051,17 +2234,14 @@
                              `${proto.registrationNumber ? ', registration no. ' + proto.registrationNumber : ''}` +
                              `${proto.registrationDate ? ', on ' + proto.registrationDate : ''}.`;
                     } else if (proto.updatedAt) {
-                        d += 'The review was not registered in PROSPERO or an equivalent protocol registry (author-confirmed via the Review Protocol form).';
+                        d += 'The Review Protocol currently shows "Not registered"; confirm that this was deliberately selected and report the registration status.';
                     } else {
                         d += 'Registration status not recorded — confirm it in the Review Protocol form above.';
                     }
                     return d;
                 })()},
                 '27':  {s:'yes', d:(() => {
-                    let d = `RSP ${RSP_VERSION} Replication Package export (ZIP) includes: search_configuration.json, results in CSV (initial, deduplicated, included, excluded), PRISMA flow diagram (SVG), evidence checklist, and README.md.`;
-                    if (ta && ta.screened > 0) d += ` screening_decisions.csv is also included with per-paper include/exclude/unsure decisions and reasons.`;
-                    d += ` Run ZIP (from Results page) includes: run.json, included_docs.csv, raw_docs.csv, excluded_docs.json, summary.json${ta && ta.screened > 0 ? ', screening_decisions.csv' : ''}.`;
-                    return d;
+                    return `RSP ${RSP_VERSION} can generate a replication package. Verify the files actually exported, which materials are publicly available, and where they can be accessed.`;
                 })()},
             };
 
@@ -2114,7 +2294,26 @@
                 {id:'27',  name:'Availability of data, code and other materials', desc:'Report which of the following are publicly available and where they can be found: template data collection forms; data extracted from included studies; data used for all analyses; analytic code; any other materials used in the review.', mode:'auto'},
             ];
 
-            const saved = JSON.parse(localStorage.getItem('prismaManualChecklist') || '{}');
+            const saved = checklistItems;
+            const missing = PrismaGuidance.missingItems(ITEMS, saved, checklistRevision);
+            const guideSummary = document.getElementById('clGuideSummary');
+            const guideQuestions = document.getElementById('clGuideQuestions');
+            if (guideSummary) guideSummary.textContent = `Guided completion — ${missing.length.toLocaleString()} item${missing.length === 1 ? '' : 's'} need${missing.length === 1 ? 's' : ''} attention`;
+            if (guideQuestions) guideQuestions.innerHTML = missing.length
+                ? '<ul class="cl-notice-list cl-guide-list">' + missing.map(it =>
+                    `<li><strong>Item ${escapeXml(it.id)}: ${escapeXml(it.name)}</strong><p>What should be reported? ${escapeXml(it.desc)}</p><button type="button" class="btn btn-neutral btn-sm" onclick="openChecklistItem('${it.id}')">Review item</button></li>`
+                ).join('') + '</ul>'
+                : '<p>All items have been confirmed for this run. Check the report and evidence whenever they change.</p>';
+
+            const warnings = PrismaGuidance.consistencyWarnings(p, snowballing, manualSteps, dbLabels);
+            if (p.fullTextScreening && (p.fullTextScreening.screened > 0 || p.fullTextScreening.dualReview) && manualSteps.length) {
+                warnings.push('Check manual review steps for double counting of full-text decisions.');
+            }
+            const consistency = document.getElementById('clConsistency');
+            if (consistency) consistency.innerHTML = '<strong class="cl-notice-title">Consistency checks</strong>' +
+                (warnings.length
+                    ? '<ul class="cl-notice-list">' + warnings.map(w => `<li>${escapeXml(w)}</li>`).join('') + '</ul>'
+                    : '<p style="margin-top:0.35rem;">No inconsistencies detected in the recorded data. These checks do not verify all PRISMA requirements.</p>');
 
             // Compute progress and section counts
             let total = 0, done = 0;
@@ -2123,69 +2322,51 @@
             ITEMS.forEach(it => {
                 if (it.section) { curSec = it.section; secCounts[curSec] = {t:0,d:0}; return; }
                 secCounts[curSec].t++; total++;
-                const isAuto = it.mode === 'auto';
-                const aStatus = isAuto ? ((AUTO[it.id]||{}).s) : null;
-                const complete = isAuto
-                    ? (aStatus === 'yes' || (aStatus === 'partial' && !!(saved[it.id] && saved[it.id].checked)))
-                    : !!(saved[it.id] && saved[it.id].checked);
+                const complete = PrismaGuidance.isConfirmed(saved, it.id, checklistRevision);
                 if (complete) { done++; secCounts[curSec].d++; }
             });
             const pct = total ? Math.round((done/total)*100) : 0;
             const progEl = document.getElementById('clProgress');
             if (progEl) progEl.innerHTML = `
                 <div class="cl-progress-wrap"><div class="cl-progress-fill" style="width:${pct}%"></div></div>
-                <div class="cl-progress-lbl"><strong>${done}</strong> of <strong>${total}</strong> items addressed &mdash; ${pct}% complete</div>`;
+                <div class="cl-progress-lbl"><strong>${done}</strong> of <strong>${total}</strong> items confirmed by the researcher &mdash; ${pct}%</div>`;
 
             // Build interactive HTML
             let html = '';
             ITEMS.forEach(it => {
                 if (it.section) {
                     const sc2 = secCounts[it.section] || {t:0,d:0};
-                    html += `<div class="cl-section-hdr">${escapeXml(it.section)}<span class="cl-section-cnt">${sc2.d}/${sc2.t} addressed</span></div>`;
+                    html += `<div class="cl-section-hdr">${escapeXml(it.section)}<span class="cl-section-cnt">${sc2.d}/${sc2.t} confirmed</span></div>`;
                     return;
                 }
                 const isAuto = it.mode === 'auto';
                 const aData  = isAuto ? (AUTO[it.id] || {s:'partial', d:'Not auto-assessed for this item.'}) : null;
                 const sv2    = saved[it.id] || {};
-                const complete = isAuto
-                    ? (aData && (aData.s === 'yes' || (aData.s === 'partial' && !!(sv2.checked))))
-                    : !!(sv2.checked);
+                const complete = PrismaGuidance.isConfirmed(saved, it.id, checklistRevision);
+                const stale = !!(sv2.checked && checklistRevision && !complete);
                 let cls = 'cl-item';
-                if (isAuto && aData && aData.s === 'yes') cls += ' is-auto-yes';
-                else if (complete) cls += ' is-complete';
+                if (complete) cls += ' is-complete';
 
                 let body = `<div class="cl-top">
                     <div class="cl-name">${escapeXml(it.name)}</div>
-                    <span class="cl-badge ${isAuto?'cl-badge-auto':'cl-badge-manual'}">${isAuto?'AUTO':'MANUAL'}</span>
+                    <span class="cl-badge ${isAuto?'cl-badge-auto':'cl-badge-manual'}">${isAuto?'AUTO EVIDENCE':'MANUAL'}</span>
                 </div>
                 <div class="cl-desc">${escapeXml(it.desc)}</div>`;
 
                 if (isAuto && aData) {
-                    const _clIcons = { yes: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em;flex-shrink:0"><polyline points="2,9 6,13 14,3"/></svg>', no: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em;flex-shrink:0"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>', partial: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em;flex-shrink:0"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>' };
-                    const _clIcon = _clIcons[aData.s] || '';
-                    body += `<div class="cl-auto-val st-${aData.s}">${_clIcon}${escapeXml(aData.d)}</div>`;
-                    if (aData.s === 'partial') {
-                        const spTxt = sv2.text || '';
-                        const spChk = sv2.checked || false;
-                        body += `<div class="cl-supplement">
-                            <div class="cl-supplement-lbl"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M11 2l3 3-9 9H2v-3z"/><line x1="9" y1="4" x2="12" y2="7"/></svg> Add your notes to complete this item:</div>
-                            <div class="cl-manual-row">
-                                <input type="checkbox" class="cl-check" id="clchk-${it.id}" ${spChk?'checked':''} onchange="saveClCheck('${it.id}')">
-                                <textarea class="cl-txt${spTxt?' has-val':''}" id="cltxt-${it.id}" placeholder="Enter your notes or response here…" oninput="saveClText('${it.id}')">${escapeXml(spTxt)}</textarea>
-                            </div>
-                        </div>`;
-                    }
-                } else {
-                    const sv  = saved[it.id] || {};
-                    const txt = sv.text || '';
-                    const chk = sv.checked || false;
-                    body += `<div class="cl-manual-row">
-                        <input type="checkbox" class="cl-check" id="clchk-${it.id}" ${chk?'checked':''} onchange="saveClCheck('${it.id}')">
-                        <textarea class="cl-txt${txt?' has-val':''}" id="cltxt-${it.id}" placeholder="Enter your notes or response here…" oninput="saveClText('${it.id}')">${escapeXml(txt)}</textarea>
-                    </div>`;
+                    body += `<div class="cl-auto-val ${aData.s === 'no' ? 'st-no' : 'st-partial'}" style="display:block;"><strong>Recorded evidence / draft (review required):</strong> ${escapeXml(aData.d)}</div>`;
                 }
+                const txt = sv2.text || '';
+                if (stale) body += '<p style="color:#a16207;font-size:0.8rem;">Evidence changed since confirmation. Review this item, then uncheck and check it again.</p>';
+                body += `<div class="cl-supplement">
+                    <div class="cl-manual-row">
+                        <input type="checkbox" class="cl-check" id="clchk-${it.id}" ${sv2.checked?'checked':''} ${!checklistReady || checklistPending || checklistSaving || checklistExternalChange ? 'disabled' : ''} onchange="saveClCheck('${it.id}')" aria-label="Confirm item ${escapeXml(it.id)} is reported">
+                        <label for="clchk-${it.id}">I verified this item in the report</label>
+                    </div>
+                    <textarea class="cl-txt${txt?' has-val':''}" id="cltxt-${it.id}" aria-label="Notes for item ${escapeXml(it.id)}" placeholder="Enter notes or supporting details…" ${!checklistReady || checklistPending || checklistSaving || checklistExternalChange ? 'disabled' : ''} oninput="saveClText('${it.id}')" style="width:100%;box-sizing:border-box;margin-top:0.4rem;">${escapeXml(txt)}</textarea>
+                </div>`;
 
-                html += `<div class="${cls}"><div class="cl-num">${escapeXml(it.id)}</div><div class="cl-body">${body}</div></div>`;
+                html += `<div class="${cls}" id="clitem-${escapeXml(it.id)}"><div class="cl-num">${escapeXml(it.id)}</div><div class="cl-body">${body}</div></div>`;
             });
 
             const contentEl = document.getElementById('checklistContent');
@@ -2198,10 +2379,10 @@
                 const isAuto = it.mode === 'auto';
                 const aData  = isAuto ? (AUTO[it.id]||{s:'partial',d:''}) : null;
                 const sv     = saved[it.id] || {};
-                const partialComplete = isAuto && aData && aData.s === 'partial' && !!(sv.checked);
-                const stHtml = isAuto
-                    ? (aData.s==='yes' ? '<span class="check-yes">Yes <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg></span>' : aData.s==='no' ? '<span class="check-no">No <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></span>' : partialComplete ? '<span class="check-yes">Yes <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg></span>' : '<span class="check-na">Partial</span>')
-                    : (sv && sv.checked ? '<span class="check-yes">Yes <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg></span>' : '<span class="check-no">Incomplete</span>');
+                const stHtml = PrismaGuidance.isConfirmed(saved, it.id, checklistRevision)
+                    ? '<span class="check-yes">Verified</span>'
+                    : sv.checked && checklistRevision ? '<span class="check-no">Stale</span>'
+                    : '<span class="check-na">Review</span>';
                 const detail = isAuto ? ((aData.d||'') + (sv.text ? ' | Researcher notes: ' + sv.text : '')) : (sv.text||'');
                 tHtml += `<tr><td>${escapeXml(it.id)}</td><td><strong>${escapeXml(it.name)}</strong></td><td>${escapeXml(it.desc)}</td><td>${stHtml}</td><td>${escapeXml(detail)}</td></tr>`;
             });
@@ -2210,33 +2391,256 @@
             if (tableEl) tableEl.innerHTML = tHtml;
         }
 
+        function openChecklistItem(id) {
+            const item = document.getElementById('clitem-' + id);
+            const input = document.getElementById('cltxt-' + id);
+            if (item) item.scrollIntoView({behavior: 'smooth', block: 'center'});
+            if (input) input.focus({preventScroll: true});
+        }
+
+        function checklistContext() {
+            return PrismaGuidance.evidenceContext(prisma, formState, docs, excludedDocs, manualSteps, snowballing);
+        }
+
+        function checklistUrl() {
+            return selectedSearchId
+                ? '/api/results/run/saved/' + encodeURIComponent(selectedSearchId) + '/' + encodeURIComponent(prisma.runId) + '/checklist'
+                : '/api/results/run/adhoc/' + encodeURIComponent(prisma.runId) + '/checklist';
+        }
+
+        function checklistStatus(message) {
+            document.getElementById('clSaveStatus').textContent = message;
+            const available = checklistReady && !checklistPending && !checklistSaving && manualReady && !manualSaving;
+            document.getElementById('clSave').disabled = !available || !checklistDirty;
+            document.getElementById('clRefresh').disabled = !prisma || !prisma.runId || !manualReady || manualSaving || checklistPending || checklistSaving || checklistExternalChange;
+            document.getElementById('clReset').disabled = !available || checklistExternalChange;
+            document.getElementById('clExportZip').disabled = !available || checklistDirty || checklistExternalChange;
+            const legacy = document.getElementById('clImport');
+            legacy.style.display = localStorage.getItem('prismaManualChecklist') ? '' : 'none';
+            legacy.disabled = !available || checklistExternalChange;
+        }
+
+        async function refreshChecklistEvidence() {
+            if (!manualReady || manualSaving) return;
+            if (!prisma || !prisma.runId) {
+                checklistReady = false;
+                checklistRevision = null;
+                checklistStatus('No saved run ID is available. Run a search to save a run-specific checklist; older browser notes are unchanged.');
+                if (prisma && prisma.identification) renderChecklist(prisma, formState);
+                return;
+            }
+            if (checklistExternalChange || checklistSaving) return;
+            const epoch = ++checklistEpoch;
+            checklistPending = true;
+            checklistRevision = null;
+            checklistStatus('Checking run evidence…');
+            renderChecklist(prisma, formState);
+            try {
+                const resp = await fetch(checklistUrl() + '/evaluate', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({context: checklistContext()})
+                });
+                const result = await resp.json();
+                if (!resp.ok) throw new Error(result.error || ('HTTP ' + resp.status));
+                if (epoch !== checklistEpoch) return;
+                const decisions = result.screeningDecisions || {};
+                const screenedDocs = result.screeningDocs || [];
+                const counts = {include: 0, exclude: 0, unsure: 0}, reasons = {}, models = {};
+                let aiAssisted = 0;
+                Object.values(decisions).forEach(d => {
+                    if (!d || !(d.decision in counts)) return;
+                    counts[d.decision]++;
+                    if (d.decision === 'exclude') {
+                        const reason = (d.reason || '').trim() || 'No reason given';
+                        reasons[reason] = (reasons[reason] || 0) + 1;
+                    }
+                    if (d.aiAssisted) { aiAssisted++; if (d.aiModel) models[d.aiModel] = true; }
+                });
+                const pid = d => d.doi ? 'doi:' + d.doi.toLowerCase().trim() : 'title:' + (d.title || '').toLowerCase().trim();
+                prisma.taScreening = {runId: prisma.runId, total: screenedDocs.length,
+                    screened: counts.include + counts.exclude + counts.unsure, included: counts.include,
+                    excluded: counts.exclude, unsure: counts.unsure, reasonCounts: reasons, aiAssisted,
+                    aiModels: Object.keys(models), aiAgreement: _aiAgreementStats(Object.values(decisions)),
+                    includedChars: _studyCharacteristics(screenedDocs.filter(d => (decisions[pid(d)] || {}).decision === 'include'))};
+                prisma.fullTextScreening = result.fullText;
+                if (!checklistDirty) {
+                    checklistItems = result.items;
+                    checklistVersion = result.version;
+                }
+                checklistReady = true;
+                checklistRevision = result.revision;
+                checklistPending = false;
+                checklistStatus(checklistDirty ? 'Unsaved changes — select Save checklist.' : 'Checklist saved with this run. Reconfirm items marked stale.');
+                renderPrismaFlow(prisma);
+                renderChecklist(prisma, formState);
+                if (!selectedRun) setTimeout(_savePrismaFlowPng, 600);
+            } catch (e) {
+                if (epoch !== checklistEpoch) return;
+                checklistPending = false;
+                checklistReady = false;
+                checklistStatus('Could not load or check this run: ' + e.message + '. Use Refresh evidence to retry.');
+                renderChecklist(prisma, formState);
+            }
+        }
+
+        async function saveRunChecklist() {
+            if (!checklistReady || checklistPending || checklistSaving || manualSaving || !checklistDirty) return;
+            checklistSaving = true;
+            let saveError = '';
+            let needsRefresh = false;
+            checklistStatus('Saving checklist…');
+            renderChecklist(prisma, formState);
+            try {
+                const resp = await fetch(checklistUrl(), {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({context: checklistContext(), version: checklistVersion, items: checklistItems})
+                });
+                const result = await resp.json();
+                if (!resp.ok) throw new Error(result.error || ('HTTP ' + resp.status));
+                checklistItems = result.items;
+                checklistVersion = result.version;
+                checklistRevision = null;
+                checklistReady = false;
+                checklistDirty = false;
+                needsRefresh = true;
+                checklistStatus('Checklist saved with this run. Reconfirm items marked stale.');
+            } catch (e) {
+                saveError = e.message;
+                showToast('Checklist not saved: ' + e.message, 'error');
+            } finally {
+                checklistSaving = false;
+                if (checklistExternalChange) checklistStatus('Evidence changed in another tab. Save any edits, then reload this page.');
+                else if (saveError) checklistStatus('Checklist not saved: ' + saveError + ' Your edits remain on this page.');
+                else if (checklistDirty) checklistStatus('Unsaved changes — select Save checklist, or refresh evidence if it changed.');
+                else checklistStatus('Checklist saved with this run. Reconfirm items marked stale.');
+                renderChecklist(prisma, formState);
+                document.getElementById('clSave').disabled = !checklistReady || checklistPending || !checklistDirty;
+                document.getElementById('clRefresh').disabled = checklistExternalChange || checklistPending || !prisma.runId;
+                document.getElementById('clReset').disabled = !checklistReady || checklistPending || checklistExternalChange;
+                document.getElementById('clExportZip').disabled = !checklistReady || checklistPending || checklistDirty || checklistExternalChange;
+                document.getElementById('clImport').disabled = !checklistReady || checklistPending || checklistExternalChange;
+                if (needsRefresh) refreshChecklistEvidence();
+            }
+        }
+
         function saveClCheck(id) {
             const chk = document.getElementById('clchk-' + id);
             const txt = document.getElementById('cltxt-' + id);
-            const sv = JSON.parse(localStorage.getItem('prismaManualChecklist') || '{}');
-            if (!sv[id]) sv[id] = {checked: false, text: ''};
-            if (chk) sv[id].checked = chk.checked;
-            if (txt) sv[id].text = txt.value;
-            localStorage.setItem('prismaManualChecklist', JSON.stringify(sv));
+            if (!checklistItems[id]) checklistItems[id] = {checked: false, text: '', confirmedRevision: null};
+            checklistItems[id].checked = chk.checked;
+            checklistItems[id].confirmedRevision = chk.checked ? checklistRevision : null;
+            if (txt) checklistItems[id].text = txt.value;
+            checklistDirty = true;
+            checklistStatus('Unsaved changes — select Save checklist.');
             if (prisma) renderChecklist(prisma, formState);
         }
 
         function saveClText(id) {
             const txt = document.getElementById('cltxt-' + id);
-            const chk = document.getElementById('clchk-' + id);
             if (!txt) return;
-            const sv = JSON.parse(localStorage.getItem('prismaManualChecklist') || '{}');
-            if (!sv[id]) sv[id] = {checked: chk ? chk.checked : false, text: ''};
-            sv[id].text = txt.value;
-            localStorage.setItem('prismaManualChecklist', JSON.stringify(sv));
+            if (!checklistItems[id]) checklistItems[id] = {checked: false, text: '', confirmedRevision: null};
+            checklistItems[id].text = txt.value;
+            checklistDirty = true;
+            checklistStatus('Unsaved changes — select Save checklist.');
             txt.className = 'cl-txt' + (txt.value ? ' has-val' : '');
         }
 
+        function importLegacyChecklist() {
+            if (!confirm('Copy older browser notes into empty items for this run? Previous checkmarks will not be imported.')) return;
+            let legacy;
+            try {
+                legacy = JSON.parse(localStorage.getItem('prismaManualChecklist') || '{}');
+            } catch (e) {
+                showToast('Could not read older browser notes: ' + e.message, 'error');
+                return;
+            }
+            let imported = 0;
+            Object.entries(legacy).forEach(([id, value]) => {
+                if (document.getElementById('clitem-' + id) && !(checklistItems[id] && checklistItems[id].text) && value && typeof value.text === 'string' && value.text) {
+                    if (!checklistItems[id]) checklistItems[id] = {checked: false, text: '', confirmedRevision: null};
+                    checklistItems[id].text = value.text;
+                    imported++;
+                }
+            });
+            if (!imported) { showToast('No older notes to import into empty items.', 'info'); return; }
+            checklistDirty = true;
+            checklistStatus('Older notes copied; existing confirmations unchanged — select Save checklist.');
+            renderChecklist(prisma, formState);
+        }
+
         function resetManualChecklist() {
-            if (!confirm('Reset all manual checklist inputs? This cannot be undone.')) return;
-            localStorage.removeItem('prismaManualChecklist');
+            if (!confirm('Clear checklist notes and confirmations for this run? Save the checklist to apply this change.')) return;
+            checklistItems = {};
+            checklistDirty = true;
+            checklistStatus('Checklist cleared locally — select Save checklist to apply.');
             if (prisma) renderChecklist(prisma, formState);
         }
+
+        async function exportRunChecklistPackage() {
+            if (!checklistReady || checklistDirty || checklistPending || checklistSaving || checklistExternalChange) return;
+            const button = document.getElementById('clExportZip');
+            button.disabled = true;
+            try {
+                let run = selectedRun;
+                if (!selectedSearchId) {
+                    const resp = await fetch('/api/results/run/adhoc/' + encodeURIComponent(prisma.runId));
+                    if (!resp.ok) throw new Error('Could not load the saved run (HTTP ' + resp.status + ')');
+                    run = await resp.json();
+                }
+                const decisions = run.screeningDecisions || {};
+                const included = docs.filter(d => {
+                    const id = d.doi ? 'doi:' + d.doi.toLowerCase().trim() : 'title:' + (d.title || '').toLowerCase().trim();
+                    return decisions[id] && decisions[id].decision === 'include';
+                });
+                const payload = {
+                    searchName: 'Review_' + prisma.runId,
+                    keywords: run.query || '',
+                    databases: run.databases || [],
+                    filters: run.filters || {},
+                    runId: prisma.runId,
+                    searchId: selectedSearchId || '',
+                    prisma: prisma,
+                    docs: selectedSearchId ? (run.rawDocs && run.rawDocs.length ? run.rawDocs : docs) : docs,
+                    includedDocs: selectedSearchId ? docs : (Object.keys(decisions).length ? included : docs),
+                    dedupDocs: docs,
+                    checklistContext: checklistContext()
+                };
+                const resp = await fetch('/api/export-replication-package', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                if (!resp.ok) throw new Error('Export failed (HTTP ' + resp.status + ')');
+                const url = URL.createObjectURL(await resp.blob());
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'replication_package_' + prisma.runId + '.zip';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                showToast('Could not export the replication package: ' + e.message, 'error');
+            } finally {
+                button.disabled = !checklistReady || checklistDirty || checklistPending || checklistSaving || checklistExternalChange;
+            }
+        }
+
+        window.addEventListener('beforeunload', event => {
+            if (checklistDirty || checklistSaving) { event.preventDefault(); event.returnValue = ''; }
+        });
+        window.addEventListener('storage', event => {
+            const keys = selectedRun ? [] : ['lastPrismaData', 'lastSearchResults', 'searchFormState', 'lastExcludedDocs'];
+            if (keys.includes(event.key)) {
+                checklistExternalChange = true;
+                checklistEpoch++;
+                checklistPending = false;
+                checklistRevision = null;
+                checklistStatus('Evidence changed in another tab. Save any edits, then reload this page.');
+                if (prisma && prisma.identification) renderChecklist(prisma, formState);
+            }
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && checklistReady && !checklistExternalChange) refreshChecklistEvidence();
+        });
 
         async function exportPrisma() {
             const flowEl = document.getElementById('prismaFlow');
@@ -2257,7 +2661,7 @@
                     windowHeight: document.documentElement.scrollHeight
                 });
                 const dataUrl = canvas.toDataURL('image/png');
-                try { localStorage.setItem('rsp_prisma_flow_png', dataUrl); } catch(e) {}
+                if (!selectedRun) { try { localStorage.setItem('rsp_prisma_flow_png', dataUrl); } catch(e) {} }
                 await saveImageAs(dataUrl, 'prisma_flow_diagram.png');
             } catch(e) {
                 showToast('Failed to export diagram.', 'error');
@@ -2282,9 +2686,9 @@
                 try { localStorage.setItem('rsp_prisma_flow_png', canvas.toDataURL('image/png')); } catch(e) {}
             }).catch(e => console.warn('Auto-save PRISMA PNG failed:', e));
         }
-        if (prisma) { setTimeout(_savePrismaFlowPng, 600); }
 
         async function exportChecklist() {
+            if (prisma && prisma.identification) renderChecklist(prisma, formState);
             const table = document.getElementById('checklistTable');
             const rows = table.querySelectorAll('tr');
             const colWidths = [40, 160, 220, 60, 280];
@@ -2342,9 +2746,8 @@
                         let text = escapeXml(cell.textContent.trim());
                         let cls = '';
                         if (i === 3) {
-                            if (text.includes('Yes')) cls = 'yes';
-                            else if (text.includes('No')) cls = 'no';
-                            else if (text.includes('N/A')) cls = 'na';
+                            if (text === 'Verified') cls = 'yes';
+                            else if (text === 'Review') cls = 'na';
                         }
                         // Truncate long text
                         const maxChars = Math.floor(colWidths[i] / 6.5);
@@ -2386,10 +2789,10 @@
         }
 
         function flowToSVG() {
-            const p = JSON.parse(localStorage.getItem('lastPrismaData'));
+            const p = prisma;
             if (!p) return '';
-            const state = JSON.parse(localStorage.getItem('searchFormState') || '{}');
-            const steps = JSON.parse(localStorage.getItem('prismaManualSteps') || '[]');
+            const state = formState;
+            const steps = manualSteps;
 
             const screening    = p.screening    || {};
             const eligibility  = p.eligibility  || {};

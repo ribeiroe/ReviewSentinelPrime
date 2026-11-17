@@ -17,7 +17,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 DIST="$ROOT/dist"
 
 # ── Current version (single source of truth in this file) ────────────────────
-VERSION="v2.2.4"
+VERSION="v2.3.0"
 
 APP_ITEMS=("app.py" "requirements.txt" "templates" "static" "LICENSE")
 
@@ -177,6 +177,7 @@ add_data_skeleton "$DOCKER_STAGE"
 for item in "$ROOT/releases/docker/"*; do
     cp -r "$item" "$DOCKER_STAGE/"
 done
+sed 's|\.\./\.\./static/images/logo\.png|static/images/logo.png|g' "$ROOT/releases/docker/README.md" > "$DOCKER_STAGE/README.md"
 chmod +x "$DOCKER_STAGE/start-app.command" "$DOCKER_STAGE/stop-app.command"
 
 DOCKER_ZIP="$DIST/ReviewSentinel-${VERSION}-Docker.zip"
@@ -199,6 +200,7 @@ add_data_skeleton "$PYTHON_STAGE"
 for item in "$ROOT/releases/python/"*; do
     cp -r "$item" "$PYTHON_STAGE/"
 done
+sed 's|\.\./\.\./static/images/logo\.png|static/images/logo.png|g' "$ROOT/releases/python/README.md" > "$PYTHON_STAGE/README.md"
 chmod +x "$PYTHON_STAGE/start.command" "$PYTHON_STAGE/stop.command"
 
 PYTHON_ZIP="$DIST/ReviewSentinel-${VERSION}-Python.zip"

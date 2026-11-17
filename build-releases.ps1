@@ -23,7 +23,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $Root        = $PSScriptRoot
 $Dist        = Join-Path $Root "dist"
-$CurrentVersion = "v2.2.4" # single source of truth
+$CurrentVersion = "v2.3.0" # single source of truth
 
 # -- Validate version format --------------------------------------------------
 if ($Version -ne "" -and $Version -notmatch '^v\d+\.\d+\.\d+$') {
@@ -72,8 +72,8 @@ function Invoke-VersionStamp {
     # README.md  (<code>vX.Y.Z</code>)
     Update-VersionInFile `
         -FilePath (Join-Path $Root "README.md") `
-        -Pattern  ('^v\d+\.\d+\.\d+ · Python 3\.12 · Flask 3\.1 · Docker ready') `
-        -Replacement ($NewVer + ' · Python 3.12 · Flask 3.1 · Docker ready')
+        -Pattern  ('(?m)^v\d+\.\d+\.\d+(?=\s+\S+\s+Python 3\.12\b)') `
+        -Replacement $NewVer
 
     # app.py  (RSP_VERSION = "vX.Y.Z") — the runtime source of truth rendered
     # in the footer and About page via the rsp_version context processor
@@ -222,6 +222,13 @@ function Add-DataSkeleton ($StageDir) {
     }
 }
 
+function Set-ReleaseReadmeImagePath ($StageDir) {
+    $path = Join-Path $StageDir "README.md"
+    $content = [System.IO.File]::ReadAllText($path)
+    $content = $content.Replace("../../static/images/logo.png", "static/images/logo.png")
+    [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))
+}
+
 # ════════════════════════════════════════════════════════════════════════════
 #  RELEASE 1 - Docker
 # ════════════════════════════════════════════════════════════════════════════
@@ -242,6 +249,7 @@ $DockerSrc = Join-Path $Root "releases\docker"
 foreach ($item in Get-ChildItem $DockerSrc -Force) {
     Copy-Item $item.FullName (Join-Path $DockerStage $item.Name) -Recurse -Force
 }
+Set-ReleaseReadmeImagePath $DockerStage
 
 $DockerZip = Join-Path $Dist "ReviewSentinel-$BuildVersion-Docker.zip"
 New-ReleaseZip $DockerStage $DockerZip
@@ -267,6 +275,7 @@ $PythonSrc = Join-Path $Root "releases\python"
 foreach ($item in Get-ChildItem $PythonSrc -Force) {
     Copy-Item $item.FullName (Join-Path $PythonStage $item.Name) -Recurse -Force
 }
+Set-ReleaseReadmeImagePath $PythonStage
 
 $PythonZip = Join-Path $Dist "ReviewSentinel-$BuildVersion-Python.zip"
 New-ReleaseZip $PythonStage $PythonZip

@@ -141,7 +141,7 @@
             width: 100%;
             box-sizing: border-box;
         }
-        .db-group-body.open { display: flex; flex-direction: column; gap: 1rem; }
+        .db-group-body.open { display: flex; flex-direction: column; gap: 1rem; padding-top: 1rem; }
         .db-tier {
             font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
             text-transform: uppercase; color: #6b7280;
@@ -277,7 +277,7 @@
         </div>
         <div class="db-group-body" id="dbGroupBody">
 
-        <div class="db-tier">Requires an API key</div>
+        <div class="db-tier">Databases requiring credentials to search &mdash; Elsevier token is optional</div>
 
         <!-- Elsevier Institutional Token (shared by Scopus, ScienceDirect & Inspec) -->
         <div class="card">
@@ -573,89 +573,6 @@
 
         </div><!-- /.db-group-body -->
 
-        <!-- Email (SMTP) Configuration -->
-        <div id="smtp" class="db-group-header" onclick="toggleGroup('smtpGroup')">
-            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Email Notifications (SMTP)</h2>
-            <span class="db-group-chevron" id="smtpGroupChevron">&#9660;</span>
-        </div>
-        <div class="db-group-body" id="smtpGroup">
-        <div class="card">
-            <p class="desc" style="margin-top:0.25rem;">Configure an outgoing mail server to receive scheduled-run summaries and failure alerts.</p>
-            <div class="status-row">
-                <span class="status-badge" id="smtpStatus">Checking...</span>
-            </div>
-            <div class="smtp-form">
-                <div class="smtp-field">
-                    <label class="smtp-label" for="smtpHost">SMTP Host</label>
-                    <input type="text" id="smtpHost" placeholder="e.g. smtp.gmail.com">
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="smtpPort">Port</label>
-                    <input type="number" id="smtpPort" value="587" min="1" max="65535">
-                    <span class="smtp-hint">587 (TLS) &middot; 465 (SSL) &middot; 25 (plain)</span>
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="smtpUser">Username</label>
-                    <input type="text" id="smtpUser" placeholder="e.g. you@gmail.com" autocomplete="username">
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="smtpPass">Password</label>
-                    <input type="password" id="smtpPass" placeholder="Leave blank to keep existing" autocomplete="current-password">
-                    <span class="smtp-hint">Gmail: use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a> (2FA required)</span>
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="smtpFrom">From address <span class="smtp-optional">optional</span></label>
-                    <input type="email" id="smtpFrom" placeholder="e.g. you@gmail.com">
-                    <span class="smtp-hint">Defaults to Username if left blank</span>
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="smtpTestTo">Test recipient</label>
-                    <input type="email" id="smtpTestTo" placeholder="Send a test email to this address">
-                </div>
-            </div>
-            <div class="btn-group">
-                <button class="btn btn-success" onclick="saveSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save</button>
-                <button class="btn btn-primary" onclick="testSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Send Test Email</button>
-                <button class="btn btn-danger" onclick="confirmClearSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear</button>
-            </div>
-            <div class="alert alert-success" id="smtpSuccess"></div>
-            <div class="alert alert-error" id="smtpError"></div>
-        </div>
-        </div><!-- /.smtpGroup -->
-
-        <!-- Run Retention Settings (collapsible group) -->
-        <div id="runRetention" class="db-group-header" onclick="toggleGroup('retentionGroup')">
-            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Run Retention (Local Storage)</h2>
-            <span class="db-group-chevron" id="retentionGroupChevron">&#9660;</span>
-        </div>
-        <div class="db-group-body" id="retentionGroup">
-        <div class="card">
-            <p class="desc" style="margin-top:0.25rem;">Control how many run snapshots are kept locally for saved searches and ad-hoc searches.</p>
-            <div class="retention-form">
-                <div class="smtp-field">
-                    <label class="smtp-label" for="savedKeepLast">Saved Search Runs</label>
-                    <input type="number" id="savedKeepLast" min="1" max="100" value="10">
-                    <span class="smtp-hint">Keep latest N runs per saved search</span>
-                </div>
-                <div class="smtp-field">
-                    <label class="smtp-label" for="adhocKeepLast">Ad-hoc Runs</label>
-                    <input type="number" id="adhocKeepLast" min="1" max="100" value="10">
-                    <span class="smtp-hint">Keep latest N ad-hoc run files</span>
-                </div>
-            </div>
-            <div class="btn-group">
-                <button class="btn btn-success" onclick="saveRunRetentionSettings()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Retention</button>
-                <button class="btn btn-danger" onclick="confirmRunRetentionCleanup()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/><path d="M5 10.5l.35 1.15L6.5 12l-1.15.35L5 13.5l-.35-1.15L3.5 12l1.15-.35z"/><line x1="6.5" y1="10" x2="10.5" y2="6"/></svg> Cleanup Now</button>
-            </div>
-            <div class="retention-stats" id="retentionStats">
-                <span class="retention-stat-pill"><strong>Loading...</strong></span>
-            </div>
-            <p class="retention-last-cleanup" id="retentionLastCleanup">Last cleanup: never</p>
-            <div class="alert alert-success" id="retentionSuccess"></div>
-            <div class="alert alert-error" id="retentionError"></div>
-        </div>
-        </div><!-- /.retentionGroup -->
-
         <!-- Retrieval (collapsible group) -->
         <div id="retrieval" class="db-group-header" onclick="toggleGroup('retrievalGroup')">
             <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10 11.5,6.5"/><path d="M2.5 11v2.5h11V11"/></svg> Retrieval</h2>
@@ -673,7 +590,7 @@
         </div>
         <div class="card">
             <h2>Maximum records per database</h2>
-            <p class="desc">These databases return few records per request and have request quotas, so RSP limits how many records it downloads from each. A database that reaches its limit is shown as <em>Partial</em>, never as complete. The other databases are limited only by their APIs (e.g. arXiv 30,000; OpenAlex 10,000 without an API key).</p>
+            <p class="desc">Set the maximum records RSP downloads from each database per search. API quotas, access restrictions and connector paging safeguards can stop retrieval earlier. When records are missing, the database coverage table reports <em>Partial</em>. Higher limits can require many requests and take longer. Request estimates exclude retries and date-count requests.</p>
             <div class="retention-form" id="capForm"></div>
             <div class="btn-group">
                 <button class="btn btn-success" onclick="saveRetrievalSettings()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Retrieval Settings</button>
@@ -808,6 +725,90 @@
         </div>
         </div><!-- /.aiGroup -->
 
+
+        <!-- Email (SMTP) Configuration -->
+        <div id="smtp" class="db-group-header" onclick="toggleGroup('smtpGroup')">
+            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Email Notifications (SMTP)</h2>
+            <span class="db-group-chevron" id="smtpGroupChevron">&#9660;</span>
+        </div>
+        <div class="db-group-body" id="smtpGroup">
+        <div class="card">
+            <p class="desc" style="margin-top:0.25rem;">Configure an outgoing mail server to receive scheduled-run summaries and failure alerts.</p>
+            <div class="status-row">
+                <span class="status-badge" id="smtpStatus">Checking...</span>
+            </div>
+            <div class="smtp-form">
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpHost">SMTP Host</label>
+                    <input type="text" id="smtpHost" placeholder="e.g. smtp.gmail.com">
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpPort">Port</label>
+                    <input type="number" id="smtpPort" value="587" min="1" max="65535">
+                    <span class="smtp-hint">587 (TLS) &middot; 465 (SSL) &middot; 25 (plain)</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpUser">Username</label>
+                    <input type="text" id="smtpUser" placeholder="e.g. you@gmail.com" autocomplete="username">
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpPass">Password</label>
+                    <input type="password" id="smtpPass" placeholder="Leave blank to keep existing" autocomplete="current-password">
+                    <span class="smtp-hint">Gmail: use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a> (2FA required)</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpFrom">From address <span class="smtp-optional">optional</span></label>
+                    <input type="email" id="smtpFrom" placeholder="e.g. you@gmail.com">
+                    <span class="smtp-hint">Defaults to Username if left blank</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="smtpTestTo">Test recipient</label>
+                    <input type="email" id="smtpTestTo" placeholder="Send a test email to this address">
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save</button>
+                <button class="btn btn-primary" onclick="testSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Send Test Email</button>
+                <button class="btn btn-danger" onclick="confirmClearSmtpConfig()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Clear</button>
+            </div>
+            <div class="alert alert-success" id="smtpSuccess"></div>
+            <div class="alert alert-error" id="smtpError"></div>
+        </div>
+        </div><!-- /.smtpGroup -->
+
+        <!-- Run Retention Settings (collapsible group) -->
+        <div id="runRetention" class="db-group-header" onclick="toggleGroup('retentionGroup')">
+            <h2><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4em"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Run Retention (Local Storage)</h2>
+            <span class="db-group-chevron" id="retentionGroupChevron">&#9660;</span>
+        </div>
+        <div class="db-group-body" id="retentionGroup">
+        <div class="card">
+            <p class="desc" style="margin-top:0.25rem;">Control how many run snapshots are kept locally for saved searches and ad-hoc searches.</p>
+            <div class="retention-form">
+                <div class="smtp-field">
+                    <label class="smtp-label" for="savedKeepLast">Saved Search Runs</label>
+                    <input type="number" id="savedKeepLast" min="1" max="100" value="10">
+                    <span class="smtp-hint">Keep latest N runs per saved search</span>
+                </div>
+                <div class="smtp-field">
+                    <label class="smtp-label" for="adhocKeepLast">Ad-hoc Runs</label>
+                    <input type="number" id="adhocKeepLast" min="1" max="100" value="10">
+                    <span class="smtp-hint">Keep latest N ad-hoc run files</span>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="saveRunRetentionSettings()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Save Retention</button>
+                <button class="btn btn-danger" onclick="confirmRunRetentionCleanup()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/><path d="M5 10.5l.35 1.15L6.5 12l-1.15.35L5 13.5l-.35-1.15L3.5 12l1.15-.35z"/><line x1="6.5" y1="10" x2="10.5" y2="6"/></svg> Cleanup Now</button>
+            </div>
+            <div class="retention-stats" id="retentionStats">
+                <span class="retention-stat-pill"><strong>Loading...</strong></span>
+            </div>
+            <p class="retention-last-cleanup" id="retentionLastCleanup">Last cleanup: never</p>
+            <div class="alert alert-success" id="retentionSuccess"></div>
+            <div class="alert alert-error" id="retentionError"></div>
+        </div>
+        </div><!-- /.retentionGroup -->
+
     </div>
 {% endblock %}
 
@@ -897,25 +898,35 @@
         }
 
         // ── Retrieval settings ─────────────────────────────────
-        // Records per request and the quota that matters, per capped database.
+        // Request estimates are approximate and exclude retries and count requests.
         const RETRIEVAL_DBS = [
+            { id: 'hal',      label: 'HAL',             perPage: 1000 },
+            { id: 'arxiv',    label: 'arXiv',           perPage: 200, note: 'at least 3 seconds between requests; API limit 30,000 per query' },
             { id: 'ieee',     label: 'IEEE Xplore',     perPage: 200, quota: 'free key: reportedly ~200 requests/day (unconfirmed)', daily: 200 },
             { id: 'scopus',   label: 'Scopus',          perPage: 25,  quota: 'quota: 20,000 requests/week', weekly: 20000 },
+            { id: 'inspec',   label: 'Inspec',          perPage: 25 },
+            { id: 'sciencedirect', label: 'ScienceDirect', perPage: 25, note: 'connector paging stops at 5,000' },
             { id: 'springer', label: 'Springer Nature', perPage: 25,  quota: 'basic plan: 500 requests/day', daily: 500 },
+            { id: 'pubmed',   label: 'PubMed',          perPage: 200, note: 'plus one search request; ESearch returns at most 10,000 IDs' },
+            { id: 'acm',      label: 'ACM Digital Library', perPage: 50, note: 'server-side access may be blocked' },
+            { id: 'openalex', label: 'OpenAlex',        perPage: 100, note: 'keyless paging stops at 10,000; API quota applies' },
+            { id: 'ebsco',    label: 'EBSCO',           perPage: 100, note: 'connector stops after 50 pages; authentication requests are additional' },
+            { id: 'wos',      label: 'Web of Science',  note: 'connector stops after 20 pages (Starter, 50 per page) or 50 pages (Expanded, 100 per page)' },
         ];
         const CAP_CHOICES = [500, 1000, 2000, 5000, 10000];
 
         function _capHint(db, cap) {
-            const req = Math.ceil(cap / db.perPage);
+            const req = db.perPage ? Math.ceil(cap / db.perPage) : null;
             let warn = '';
             if (db.daily && req > db.daily * 0.25) warn = ` ⚠ ${Math.round(100 * req / db.daily)}% of the daily quota per run`;
             if (db.id === 'scopus' && cap > 5000) warn = ' ⚠ above 5,000 needs cursor paging enabled on your Scopus key';
-            return `${req.toLocaleString()} requests per run (${db.quota})${warn}`;
+            const details = [db.quota, db.note].filter(Boolean).join('; ');
+            return `${req === null ? '' : `Up to ${req.toLocaleString()} page requests per run`}${details ? `${req === null ? '' : ' — '}${details}` : ''}${warn}`;
         }
 
         function renderCapForm(caps) {
             document.getElementById('capForm').innerHTML = RETRIEVAL_DBS.map(db => {
-                const cur = caps[db.id] || 1000;
+                const cur = caps[db.id] || (['hal', 'arxiv', 'openalex', 'ebsco', 'wos'].includes(db.id) ? 10000 : 1000);
                 const choices = CAP_CHOICES.includes(cur) ? CAP_CHOICES : CAP_CHOICES.concat([cur]).sort((a, b) => a - b);
                 return `<div class="smtp-field">
                     <label class="smtp-label" for="cap-${db.id}">${db.label}</label>
@@ -1214,7 +1225,7 @@
             const count = document.querySelectorAll('#dbGroupBody .card.card--error').length;
             const badge = document.getElementById('dbWarningBadge');
             if (count > 0) {
-                badge.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> ' + count + ' issue' + (count > 1 ? 's' : '');
+                badge.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.2em"><path d="M8 2L1.5 13.5h13L8 2z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg> ' + count + ' connection issue' + (count > 1 ? 's' : '');
                 badge.style.display = 'inline-block';
             } else {
                 badge.style.display = 'none';

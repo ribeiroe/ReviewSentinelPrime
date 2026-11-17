@@ -4,12 +4,14 @@
 This folder contains the automated test suite for **Review Sentinel Prime (RSP)**, a locally-run Flask web app for systematic literature reviews.
 
 The suite covers:
-- Page-route smoke tests (all 11 HTML pages)
+- Page-route smoke tests
 - REST API key CRUD (IEEE, Scopus, Inspec, ScienceDirect, Springer, PubMed, Web of Science) and EBSCO credentials
 - Saved-search CRUD lifecycle
 - POST /search with mocked external APIs + dedup/filter logic
 - ZIP export correctness
 - AI screening provenance, reviewer–AI agreement and assessment templates
+- Run-scoped full-text and two-reviewer screening, adjudication and exports
+- PRISMA guidance and consistency checks (Node.js tests)
 - Connector paging, retries (429/5xx/timeouts), truncation and the per-database coverage log for IEEE, Scopus, Springer, arXiv and OpenAlex (mocked APIs); exclude-term matching; year range at the database
 - Helper function unit tests
 - Negative / edge-case / security tests
@@ -21,9 +23,9 @@ The suite covers:
 | Requirement | Version |
 |-------------|---------|
 | Python      | ≥ 3.12  |
-| pip         | latest  |
+| Node.js     | Required for the JavaScript guidance tests |
 
-The application's **`venv/`** virtualenv must already be created in the repo root (it is created by the application setup).
+Install the application dependencies and the test dependencies in your chosen Python environment. The PowerShell runner uses `venv/` if present, otherwise the available system Python.
 
 ---
 
@@ -33,7 +35,7 @@ The application's **`venv/`** virtualenv must already be created in the repo roo
 # From the repo root
 .\venv\Scripts\Activate.ps1
 
-pip install pytest pytest-html
+pip install -r qa\requirements-test.txt
 ```
 
 ---
@@ -61,6 +63,14 @@ cd C:\...\ReviewSentinel\qa
 pytest --html=results/reports/report.html --self-contained-html --junit-xml=results/reports/junit.xml -v
 ```
 
+### PRISMA guidance tests
+
+The PowerShell runner invokes pytest only. Run the JavaScript tests separately from the repository root:
+
+```powershell
+node --test qa\tests\test_prisma_guidance.cjs
+```
+
 ---
 
 ## Project Structure
@@ -76,6 +86,8 @@ qa/
 │   ├── test_export.py           # ZIP export tests
 │   ├── test_ai_provenance.py    # AI screening provenance / agreement tests
 │   ├── test_connector_coverage.py # Connector paging/retry/coverage + date-limit tests
+│   ├── test_full_text.py        # Full-text and two-reviewer screening tests
+│   ├── test_prisma_guidance.cjs # PRISMA guidance and consistency checks
 │   ├── test_helpers.py          # build_query / build_arxiv_query unit tests
 │   └── test_edge_cases.py       # Negative / boundary / security tests
 ├── test_data/
@@ -126,7 +138,7 @@ Copy `bugs/BUG_TEMPLATE.md`, rename to `bugs/BUG-NNN-short-title.md`, and fill i
 
 ## Design Decisions
 
-- **No real API calls**: All external HTTP calls are intercepted with `unittest.mock.patch("requests.get", ...)` — tests are hermetic and fast.
-- **Isolated data dir**: The `client` fixture redirects all file I/O to a `tmp_path` directory, so tests never mutate the real `data/` folder.
+- **Mocked provider responses**: Search and connector tests mock external HTTP calls where needed.
+- **Isolated data dir**: The `client` fixture redirects the application's main run and configuration paths to a temporary directory.
 - **Session-scoped client**: The Flask test client is session-scoped (created once per pytest run) for speed; the temp directory is also session-scoped.
-- **Given/When/Then docstrings**: Every test function has a three-part docstring for readability and traceability.
+- **Given/When/Then docstrings**: Many tests use this format for readability and traceability.

@@ -313,9 +313,10 @@
                 <div class="step-content">
                     <h4>Run the launcher script</h4>
                     <p>
-                        Double-click the launcher for your operating system.
-                        It automatically sets up the Python environment, installs all
-                        dependencies, and starts the local server.
+                        In an extracted Python release, run the launcher below; it sets up
+                        the environment and starts the server. In a repository checkout,
+                        install the requirements first, then use <code>run.bat</code>
+                        (Windows) or <code>./run.sh</code> (macOS/Linux).
                     </p>
                     <div class="cmd-row">
                         <span class="cmd"><span class="os-tag">Win</span>START.bat</span>
@@ -329,8 +330,8 @@
                 <div class="step-content">
                     <h4>Wait for the server to start</h4>
                     <p>
-                        The first launch installs Python packages (~30–60 seconds depending
-                        on your connection). Subsequent launches start in under 3 seconds.
+                        The release launcher's first run installs Python packages; the time
+                        depends on your connection.
                         This page auto-redirects the moment the server is detected.
                     </p>
                 </div>
@@ -342,9 +343,9 @@
                     <p>
                         Review Sentinel Prime runs at
                         <strong>http://127.0.0.1:5001</strong> — entirely on your local
-                        machine. The launcher runs the app in the background;
-                        stop it with <code>STOP.bat</code> (Windows) or <code>stop.command</code>
-                        (macOS/Linux).
+                        machine. For an extracted Python release, use <code>STOP.bat</code>
+                        (Windows) or <code>stop.command</code> (macOS/Linux). For a
+                        repository checkout, stop the running command in its terminal.
                     </p>
                 </div>
             </li>
@@ -420,8 +421,8 @@
             statusDot.className  = 'status-dot stopped';
             statusText.innerHTML =
                 '<strong>Server not running.</strong> ' +
-                'Run <code>START.bat</code> (Windows), <code>start.command</code> (macOS), or <code>./start.command</code> (Linux) ' +
-                'to start it, then this page will redirect automatically.';
+                'Start the extracted Python release launcher, or use <code>run.bat</code> / <code>./run.sh</code> in a configured repository checkout. ' +
+                'This page will redirect automatically.';
         }
     }
 

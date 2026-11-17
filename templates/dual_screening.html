@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Review Sentinel Prime - Two-reviewer screening{% endblock %}
+{% block head_extra %}
+<style>
+    .dual-container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+    .dual-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .dual-form label { display: block; font-weight: 600; margin-top: .8rem; }
+    .dual-form input, .dual-form select, .dual-form textarea { width: 100%; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="dual-container">
+    <h1 id="heading">Two-reviewer screening</h1>
+    <p>Two self-declared reviewer labels are recorded. This app does not verify identities or enforce blinding: reviewers can see each other's decisions. Researchers must arrange independent assessment themselves.</p>
+    <p>Editing either review invalidates any adjudication and may change the final decision.</p>
+    <div class="dual-actions">
+        <a id="stageLink" class="btn btn-neutral">Single-reviewer screening</a>
+        <a id="otherLink" class="btn btn-neutral">Other screening stage</a>
+        <a id="prismaLink" class="btn btn-neutral">PRISMA checklist</a>
+        <a href="/results" class="btn btn-neutral">Results</a>
+    </div>
+    <p id="status" role="status">Loading run...</p>
+    <p id="error" role="alert"></p>
+    <section id="setup" class="card dual-form" style="display:none;">
+        <h2>Enable two reviewers for this stage</h2>
+        <p>Available only before this stage has decisions. Labels cannot be changed after enabling. Matching definite decisions become final; disagreements and unsure decisions require adjudication. This setting cannot be disabled.</p>
+        <label for="reviewer1">First reviewer label</label>
+        <input id="reviewer1" maxlength="100">
+        <label for="reviewer2">Second reviewer label</label>
+        <input id="reviewer2" maxlength="100">
+        <button id="enable" class="btn btn-primary" type="button">Enable two-reviewer screening</button>
+    </section>
+    <section id="screen" class="card dual-form" style="display:none;">
+        <div class="dual-actions">
+            <button type="button" class="btn btn-neutral" id="prev">Previous</button>
+            <span id="position"></span>
+            <button type="button" class="btn btn-neutral" id="next">Next</button>
+            <button type="button" class="btn btn-neutral" id="nextAction">Next needing action</button>
+        </div>
+        <h2 id="title"></h2>
+        <p id="metadata"></p>
+        <p id="abstract"></p>
+        <p><a id="paperLink" target="_blank" rel="noopener noreferrer" style="display:none;">Open report</a></p>
+        <p id="state"></p>
+        <p id="reviews"></p>
+        <form id="form">
+            <label for="role">Act as</label>
+            <select id="role"></select>
+            <label for="decision">Decision</label>
+            <select id="decision"></select>
+            <label for="reason">Reason (required for exclusions, non-retrieval and adjudication)</label>
+            <textarea id="reason" rows="3" maxlength="5000"></textarea>
+            <div id="adjudicatorGroup" style="display:none;">
+                <label for="adjudicator">Adjudicator label</label>
+                <input id="adjudicator" maxlength="100">
+            </div>
+            <p id="identityWarning" role="alert"></p>
+            <button id="save" class="btn btn-primary" type="submit">Save decision</button>
+        </form>
+    </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    const params = new URLSearchParams(location.search);
+    const runId = params.get('runId'), searchId = params.get('searchId'), stage = params.get('stage');
+    const el = id => document.getElementById(id);
+    const validStage = stage === 'title-abstract' || stage === 'full-text';
+    const query = '?runId=' + encodeURIComponent(runId || '') + (searchId ? '&searchId=' + encodeURIComponent(searchId) : '');
+    const base = searchId
+        ? '/api/results/run/saved/' + encodeURIComponent(searchId) + '/' + encodeURIComponent(runId || '')
+        : '/api/results/run/adhoc/' + encodeURIComponent(runId || '');
+    const endpoint = base + '/dual-screening/' + encodeURIComponent(stage || '');
+    el('heading').textContent = stage === 'full-text' ? 'Two-reviewer full-text screening' : 'Two-reviewer title & abstract screening';
+    el('stageLink').href = (stage === 'full-text' ? '/full-text' : '/screening') + query;
+    el('otherLink').href = (stage === 'full-text' ? '/screening' : '/full-text') + query;
+    el('prismaLink').href = '/prisma' + query;
+    let data = null, current = 0, dirty = false, saving = false, currentRole = '0';
+
+    function recordFor(row) {
+        return data.stage.records[row.paperId] || {reviews: {}, adjudication: null};
+    }
+    function stateFor(record) {
+        const a = record.reviews['0'], b = record.reviews['1'];
+        if (record.adjudication) return 'Adjudicated: ' + record.adjudication.decision;
+        if (!a || !b) return 'Awaiting both reviewers';
+        if (a.decision === b.decision && a.decision !== 'unsure') return 'Agreed: ' + a.decision;
+        return 'Needs adjudication';
+    }
+    function setForm() {
+        const row = data.candidates[current], record = recordFor(row), role = el('role').value;
+        el('role').disabled = saving;
+        const adjudicating = role === 'adjudicate';
+        const saved = adjudicating ? record.adjudication : record.reviews[role];
+        el('decision').value = saved ? saved.decision : 'include';
+        el('reason').value = saved ? saved.reason : '';
+        el('adjudicator').value = adjudicating && saved ? saved.adjudicator : '';
+        el('adjudicatorGroup').style.display = adjudicating ? '' : 'none';
+        const needsAdjudication = stateFor(record) === 'Needs adjudication' || !!record.adjudication;
+        const disabled = row.ambiguous || saving || (adjudicating && !needsAdjudication);
+        el('decision').disabled = disabled;
+        el('reason').disabled = disabled;
+        el('adjudicator').disabled = disabled;
+        el('save').disabled = disabled;
+        el('identityWarning').textContent = row.ambiguous
+            ? 'This paper has a missing or duplicate DOI/title identity and cannot be screened.'
+            : adjudicating && !needsAdjudication ? 'Adjudication is available after two conflicting or unsure decisions.' : '';
+        dirty = false;
+    }
+    function render() {
+        el('setup').style.display = data.stage ? 'none' : '';
+        el('screen').style.display = data.stage && data.candidates.length ? '' : 'none';
+        if (!data.stage) {
+            el('status').textContent = 'Two-reviewer screening is not enabled for this stage.';
+            return;
+        }
+        el('stageLink').style.display = 'none';
+        const records = data.candidates.map(recordFor);
+        const finalCount = records.filter(r => /^(Agreed|Adjudicated):/.test(stateFor(r))).length;
+        const conflicts = records.filter(r => stateFor(r) === 'Needs adjudication').length;
+        el('status').textContent = `${data.candidates.length} candidates; ${finalCount} resolved, ${conflicts} need adjudication, ${data.candidates.length - finalCount - conflicts} awaiting reviews.`;
+        if (data.inactive) el('status').textContent += ` ${data.inactive} earlier record(s) are retained but no longer eligible or uniquely identifiable.`;
+        if (!data.candidates.length) {
+            el('status').textContent += ' Include papers at title and abstract screening first.';
+            return;
+        }
+        current = Math.max(0, Math.min(current, data.candidates.length - 1));
+        const row = data.candidates[current], paper = row.paper, record = recordFor(row);
+        el('position').textContent = `${current + 1} / ${data.candidates.length}`;
+        el('prev').disabled = saving || current === 0;
+        el('next').disabled = saving || current === data.candidates.length - 1;
+        el('title').textContent = paper.title || 'Untitled record';
+        el('metadata').textContent = [Array.isArray(paper.authors) ? paper.authors.join(', ') : paper.authors, paper.year, paper.source, paper.doi].filter(Boolean).join(' | ');
+        el('abstract').textContent = stage === 'title-abstract' ? (paper.abstract || 'Abstract not available.') : '';
+        const link = el('paperLink');
+        link.style.display = 'none';
+        try {
+            const url = new URL(paper.url || (paper.doi ? 'https://doi.org/' + paper.doi : ''));
+            if (url.protocol === 'https:' || url.protocol === 'http:') { link.href = url.href; link.style.display = ''; }
+        } catch (e) { /* No usable link was recorded. */ }
+        el('state').textContent = stateFor(record);
+        el('reviews').textContent = data.stage.reviewers.map((name, i) => {
+            const review = record.reviews[String(i)];
+            return name + ': ' + (review ? review.decision + (review.reason ? ' - ' + review.reason : '') : 'pending');
+        }).join(' | ') + (record.adjudication ? ' | Adjudicator: ' + record.adjudication.adjudicator + ' - ' + record.adjudication.reason : '');
+        el('role').replaceChildren(...data.stage.reviewers.map((name, i) => new Option(name, String(i))), new Option('Adjudicator', 'adjudicate'));
+        el('role').value = currentRole;
+        el('decision').replaceChildren(new Option('Include', 'include'), new Option('Exclude', 'exclude'),
+            ...(stage === 'full-text' ? [new Option('Not retrieved', 'not_retrieved')] : []), new Option('Unsure / deferred', 'unsure'));
+        setForm();
+    }
+    async function request(method, body) {
+        const response = await fetch(endpoint, {method, headers: {'Content-Type': 'application/json'}, body: body ? JSON.stringify(body) : undefined});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || ('HTTP ' + response.status));
+        return result;
+    }
+    async function load() {
+        if (!runId || !validStage) { el('status').textContent = 'Select a saved run and screening stage.'; return; }
+        try { data = await request('GET'); render(); }
+        catch (e) { el('status').textContent = 'Could not load screening: ' + e.message; }
+    }
+    el('enable').onclick = async () => {
+        if (saving || !confirm('Enable two-reviewer screening for this stage? This cannot be undone.')) return;
+        saving = true; el('enable').disabled = true; el('error').textContent = '';
+        try { data = await request('POST', {reviewers: [el('reviewer1').value, el('reviewer2').value]}); render(); }
+        catch (e) { el('error').textContent = 'Could not enable screening: ' + e.message; }
+        finally { saving = false; el('enable').disabled = false; if (data && data.stage) render(); }
+    };
+    function navigate(delta) {
+        if (saving || (dirty && !confirm('Discard unsaved changes for this paper?'))) return;
+        current += delta; render();
+    }
+    el('prev').onclick = () => navigate(-1);
+    el('next').onclick = () => navigate(1);
+    el('nextAction').onclick = () => {
+        if (saving || (dirty && !confirm('Discard unsaved changes for this paper?'))) return;
+        const needsAction = row => {
+            if (row.ambiguous) return false;
+            const record = recordFor(row);
+            return currentRole === 'adjudicate' ? stateFor(record) === 'Needs adjudication'
+                : !record.reviews[currentRole];
+        };
+        let next = data.candidates.findIndex((row, i) => i > current && needsAction(row));
+        if (next < 0) next = data.candidates.findIndex(needsAction);
+        if (next < 0) { el('error').textContent = 'No papers need action for the selected role.'; return; }
+        current = next; el('error').textContent = ''; render();
+    };
+    el('role').onchange = () => {
+        if (dirty && !confirm('Discard unsaved changes for this paper?')) { el('role').value = currentRole; return; }
+        currentRole = el('role').value;
+        setForm();
+    };
+    ['decision', 'reason', 'adjudicator'].forEach(id => el(id).addEventListener('input', () => { dirty = true; }));
+    window.addEventListener('beforeunload', event => { if (dirty || saving) { event.preventDefault(); event.returnValue = ''; } });
+    el('form').onsubmit = async event => {
+        event.preventDefault();
+        if (saving) return;
+        const role = el('role').value, choice = el('decision').value, reason = el('reason').value.trim();
+        if ((role === 'adjudicate' || choice === 'exclude' || choice === 'not_retrieved') && !reason) {
+            el('error').textContent = 'Enter a reason or adjudication explanation.'; return;
+        }
+        const payload = {version: data.stage.version, paperId: data.candidates[current].paperId,
+            action: role === 'adjudicate' ? 'adjudicate' : 'review', decision: choice, reason};
+        if (role === 'adjudicate') payload.adjudicator = el('adjudicator').value;
+        else payload.reviewer = Number(role);
+        saving = true; el('form').querySelectorAll('input, select, textarea, button').forEach(node => { node.disabled = true; });
+        el('error').textContent = '';
+        try { data = await request('PUT', payload); saving = false; render(); }
+        catch (e) {
+            saving = false;
+            el('form').querySelectorAll('input, select, textarea, button').forEach(node => { node.disabled = false; });
+            el('error').textContent = 'Decision not saved: ' + e.message + ' Your input remains on this page.';
+        }
+    };
+    load();
+</script>
+{% endblock %}

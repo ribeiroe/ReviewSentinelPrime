@@ -1,10 +1,10 @@
-# Review Sentinel Prime v2.2.4 — User Guide
+# Review Sentinel Prime v2.3.0 — User Guide
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
 > **You do not need to be a developer to use this app.**
 > Follow this guide step by step and you will have everything running in minutes.
-> You cannot break anything — every step can be undone.
+> Back up your `data/` folder before removing the application.
 
 ---
 
@@ -29,7 +29,7 @@
 
 Instead of visiting Google Scholar, IEEE, PubMed, arXiv, and others one by one, this app lets you search up to **twelve databases at the same time** from a single screen — and automatically removes duplicate results.
 
-**Everything runs on your own computer.** Your search history, API keys, and results never leave your machine.
+**The application and its saved data are local.** Searches send queries and any required credentials to database providers. Optional online AI sends paper details and protocol context to the selected service; email, feedback and survey submissions also use external services. Browser fonts and some libraries load from external hosts. Credentials are stored in plain text in `data/`; protect that folder and do not share or commit it.
 
 ---
 
@@ -242,8 +242,7 @@ This is normal. Docker needs to download and prepare components the first time.
 ### Port 8090 is already in use
 
 Another program on your computer is using port 8090.
-→ Close other local apps or servers, then try starting the app again.
-→ On macOS/Linux you can free the port with: `kill -9 $(lsof -ti :8090)`
+→ Identify the application using port 8090 and stop it using its normal shutdown procedure, then try again. Do not terminate an unrelated process.
 
 ---
 
@@ -284,4 +283,4 @@ Please contact the support team and include:
 
 ---
 
-Review Sentinel Prime v2.2.4 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.3.0 — Systematic Literature Review Automation Platform

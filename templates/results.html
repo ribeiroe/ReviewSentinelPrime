@@ -288,8 +288,8 @@
             ? `<span class="stat-pill" style="background:#f0fdf4; border-color:#a5d6a7; color:#15803d;" title="${sp.included} included · ${sp.excluded} excluded · ${sp.unsure} unsure"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg> ${sp.screened}/${sp.total} screened</span>`
             : `<span class="stat-pill" style="color:var(--c-text-3);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg> unscreened</span>`)
         : '';
-      const screenBtn = run.storage === 'adhoc' && run.runId
-        ? `<a class="btn btn-neutral btn-sm" href="/screening?runId=${encodeURIComponent(run.runId)}" title="Open T&amp;A Screening for this run"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg> Screen</a>`
+      const screenBtn = run.runId
+        ? `<a class="btn btn-neutral btn-sm" href="/screening?runId=${encodeURIComponent(run.runId)}${run.storage === 'saved' ? '&amp;searchId=' + encodeURIComponent(run.searchId) : ''}" title="Open T&amp;A Screening for this run"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h4M6 2v5L3 13h10L10 7V2"/><line x1="4.5" y1="10" x2="11.5" y2="10"/></svg> Screen</a>`
         : '';
       return `
         <article class="run-item">
@@ -301,6 +301,8 @@
             <div class="run-actions">
               <button type="button" class="btn btn-ghost btn-sm" data-detail-idx="${idx}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.5" y1="9.5" x2="14" y2="14"/></svg> View Details</button>
               ${screenBtn}
+              ${run.runId ? `<a class="btn btn-neutral btn-sm" href="/full-text?runId=${encodeURIComponent(run.runId)}${run.storage === 'saved' ? '&amp;searchId=' + encodeURIComponent(run.searchId) : ''}">Full-text screening</a>` : ''}
+              ${run.runId ? `<a class="btn btn-neutral btn-sm" href="/prisma?runId=${encodeURIComponent(run.runId)}${run.storage === 'saved' ? '&amp;searchId=' + encodeURIComponent(run.searchId) : ''}">PRISMA checklist</a>` : ''}
               <a class="btn btn-neutral btn-sm" href="${esc(run.downloadUrl)}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M4 8l4 4 4-4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Download JSON</a>
               <a class="btn btn-purple btn-sm" href="${esc(run.zipDownloadUrl)}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="14,5.5 8,9 2,5.5"/><line x1="8" y1="9" x2="8" y2="14"/><path d="M14 5.5L8 2 2 5.5v5L8 14l6-3.5z"/></svg> Download ZIP</a>
               <button type="button" class="btn btn-danger btn-sm" data-delete-idx="${idx}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4.5" x2="14" y2="4.5"/><path d="M5.5 4.5V3a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1.5"/><path d="M3.5 4.5l.8 8a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-8"/></svg> Delete</button>

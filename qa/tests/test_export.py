@@ -182,6 +182,231 @@ def test_checklist_marks_present_artefacts_as_ok(client):
     assert line.strip().startswith("[OK]"), f"present artefact not marked: {line}"
 
 
+def test_checklist_does_not_treat_artifacts_as_reporting_confirmation(client):
+    _, text = _checklist_from(client, {
+        "searchName": "Evidence", "docs": [], "excludedDocs": [], "query": "test",
+    })
+
+    assert "File presence does not establish that an item is reported" in text
+    assert "6: Information sources" in text
+    assert "7: Search strategies" in text
+    assert "8: Selection process" in text
+    assert "16c:" not in text
+    assert "16b: verify citations and reasons" in text
+    assert "verify reporting in the manuscript" in text
+    assert "PRISMA recommends >= 2" not in text
+
+
+@pytest.fixture
+def checklist_runs(tmp_path, monkeypatch):
+    import app as rsp_app
+
+    monkeypatch.setattr(rsp_app, "ADHOC_RESULTS_DIR", str(tmp_path / "adhoc"))
+    monkeypatch.setattr(rsp_app, "PROTOCOL_FILE", str(tmp_path / "protocol.json"))
+    run = {"query": "test", "databases": ["hal"], "filters": {}, "docs": [{"title": "A"}],
+           "prisma": {"identification": {"total_found": 1, "retrieved": 1, "databases": {}},
+                      "screening": {}, "eligibility": {}, "included": 1}}
+    first = rsp_app.save_ad_hoc_run(run)
+    second = rsp_app.save_ad_hoc_run(run)
+
+    def context(run_id):
+        return {"prisma": {**run["prisma"], "runId": run_id}, "formState": {"keywords": "test"},
+                "docs": run["docs"], "excludedDocs": {}, "manualSteps": [], "snowballing": None}
+
+    return first, second, context
+
+
+def _checklist_eval(client, run_id, context):
+    return client.post(f"/api/results/run/adhoc/{run_id}/checklist/evaluate", json={"context": context})
+
+
+def _checklist_save(client, run_id, context, version, items):
+    return client.put(f"/api/results/run/adhoc/{run_id}/checklist",
+                      json={"context": context, "version": version, "items": items})
+
+
+def test_run_checklist_is_isolated_and_exported_with_notes(client, checklist_runs):
+    first, second, make_context = checklist_runs
+    context = make_context(first)
+    loaded = _checklist_eval(client, first, context).get_json()
+    items = {"9": {"checked": True, "text": "Verified data extraction", "confirmedRevision": loaded["revision"]}}
+    saved = _checklist_save(client, first, context, loaded["version"], items)
+    assert saved.status_code == 200
+    assert _checklist_eval(client, second, make_context(second)).get_json()["items"] == {}
+    assert _checklist_eval(client, first, context).get_json()["items"] == items
+
+    zf, text = _checklist_from(client, {
+        "searchName": "Run", "keywords": "test", "databases": ["hal"], "filters": {},
+        "runId": first, "docs": context["docs"], "prisma": context["prisma"],
+        "checklistContext": context,
+    })
+    name = next(n for n in zf.namelist() if n.endswith("researcher_checklist.json"))
+    record = json.loads(zf.read(name))
+    entry = next(item for item in record["items"] if item["id"] == "9")
+    assert entry["status"] == "confirmed" and entry["note"] == "Verified data extraction"
+    assert "Verified data extraction" in text
+    assert len(record["items"]) == 39
+
+
+def test_checklist_confirmation_becomes_stale_when_evidence_changes(client, checklist_runs):
+    first, _, make_context = checklist_runs
+    context = make_context(first)
+    initial = _checklist_eval(client, first, context).get_json()
+    item = {"checked": True, "text": "Review", "confirmedRevision": initial["revision"]}
+    assert _checklist_save(client, first, context, 0, {"8": item}).status_code == 200
+
+    assert client.post(f"/api/results/run/adhoc/{first}/screening/decision",
+                       json={"paperId": "title:a", "decision": "include"}).status_code == 200
+    changed = _checklist_eval(client, first, context).get_json()
+    assert changed["revision"] != initial["revision"]
+    assert changed["items"]["8"] == item
+    steps = [{"name": "Full text", "added": 0, "removed": 1, "desc": ""}]
+    assert client.put(f"/api/results/run/adhoc/{first}/manual-evidence",
+                      json={"version": 0, "manualSteps": steps, "snowballing": None}).status_code == 200
+    changed_context = {**context, "manualSteps": steps}
+    assert _checklist_eval(client, first, changed_context).get_json()["revision"] != changed["revision"]
+    assert client.post("/api/protocol", json={"researchQuestions": "New question"}).status_code == 200
+    assert _checklist_eval(client, first, changed_context).get_json()["revision"] != changed["revision"]
+
+    zf, _ = _checklist_from(client, {
+        "searchName": "Stale", "keywords": "test", "databases": ["hal"], "filters": {},
+        "runId": first, "docs": context["docs"], "prisma": context["prisma"],
+        "checklistContext": changed_context,
+    })
+    record = json.loads(zf.read(next(n for n in zf.namelist() if n.endswith("researcher_checklist.json"))))
+    assert next(item for item in record["items"] if item["id"] == "8")["status"] == "stale"
+
+
+def test_checklist_rejects_cross_run_and_concurrent_writes(client, checklist_runs):
+    first, second, make_context = checklist_runs
+    context = make_context(first)
+    initial = _checklist_eval(client, first, context).get_json()
+    assert _checklist_eval(client, second, context).status_code == 400
+    assert _checklist_save(client, first, context, 0, {}).status_code == 200
+    assert _checklist_save(client, first, context, 0, {}).status_code == 409
+    invalid = {"9": {"checked": True, "text": "", "confirmedRevision": initial["revision"]}}
+    context["manualSteps"].append({"name": "Changed", "added": 0, "removed": 0})
+    assert _checklist_save(client, first, context, 1, invalid).status_code == 409
+
+
+def test_manual_evidence_is_run_scoped_versioned_and_exported(client, checklist_runs):
+    first, second, make_context = checklist_runs
+    endpoint = f"/api/results/run/adhoc/{first}/manual-evidence"
+    first_context = make_context(first)
+    original = _checklist_eval(client, first, first_context).get_json()
+    item = {"checked": True, "text": "Reviewed", "confirmedRevision": original["revision"]}
+    assert _checklist_save(client, first, first_context, 0, {"9": item}).status_code == 200
+    steps = [{"name": "Full text", "added": 0, "removed": 1, "desc": "Reviewed"}]
+    snow = {"backward": 3, "forward": 0, "other": 0, "excluded": 1, "desc": "Sources"}
+    body = {"version": 0, "manualSteps": steps, "snowballing": snow}
+    saved = client.put(endpoint, json=body)
+    assert saved.status_code == 200 and saved.get_json()["version"] == 1
+    assert client.get(endpoint).get_json()["manualSteps"] == steps
+    assert client.get(f"/api/results/run/adhoc/{second}/manual-evidence").get_json()["manualSteps"] == []
+    assert client.put(endpoint, json=body).status_code == 409
+    assert _checklist_eval(client, first, first_context).status_code == 409
+    assert _checklist_save(client, first, first_context, 1, {"9": item}).status_code == 409
+    context = {**first_context, "manualSteps": steps, "snowballing": snow}
+    assert _checklist_eval(client, first, context).get_json()["revision"] != original["revision"]
+    zf, _ = _checklist_from(client, {
+        "keywords": "test", "databases": ["hal"], "filters": {}, "runId": first,
+        "docs": context["docs"], "prisma": context["prisma"], "checklistContext": context,
+    })
+    evidence = json.loads(zf.read(next(n for n in zf.namelist() if n.endswith("prisma_manual_evidence.json"))))
+    assert evidence["manualSteps"] == steps and evidence["snowballing"] == snow
+    svg = zf.read(next(n for n in zf.namelist() if n.endswith("prisma_flow_diagram.svg"))).decode()
+    assert "Other-source records: 3" in svg and "Full text" in svg
+    assert "Final studies for synthesis: 2" in svg
+    record = json.loads(zf.read(next(n for n in zf.namelist() if n.endswith("researcher_checklist.json"))))
+    assert next(item for item in record["items"] if item["id"] == "9")["status"] == "stale"
+
+
+def test_manual_evidence_rejects_invalid_counts_without_writing(client, checklist_runs):
+    first, _, _ = checklist_runs
+    endpoint = f"/api/results/run/adhoc/{first}/manual-evidence"
+    snow = {"backward": 1, "forward": 0, "other": 0, "excluded": 2, "desc": ""}
+    assert client.put(endpoint, json={"version": 0, "manualSteps": [], "snowballing": snow}).status_code == 400
+    assert client.get(endpoint).get_json()["version"] == 0
+
+
+def test_export_without_matching_evidence_never_claims_confirmation(client, checklist_runs):
+    first, _, make_context = checklist_runs
+    context = make_context(first)
+    revision = _checklist_eval(client, first, context).get_json()["revision"]
+    item = {"checked": True, "text": "Saved note", "confirmedRevision": revision}
+    assert _checklist_save(client, first, context, 0, {"9": item}).status_code == 200
+    zf, text = _checklist_from(client, {
+        "searchName": "Mismatched", "keywords": "different", "databases": ["hal"], "filters": {},
+        "runId": first, "docs": context["docs"], "prisma": context["prisma"],
+        "checklistContext": context,
+    })
+    record = json.loads(zf.read(next(n for n in zf.namelist() if n.endswith("researcher_checklist.json"))))
+    assert next(item for item in record["items"] if item["id"] == "9")["status"] == "unverified"
+    assert "confirmations cannot be verified" in text
+
+
+def test_export_uses_one_protocol_snapshot_if_protocol_changes_mid_export(client, checklist_runs, monkeypatch):
+    import app as rsp_app
+
+    first, _, make_context = checklist_runs
+    context = make_context(first)
+    assert client.post("/api/protocol", json={"researchQuestions": "Original"}).status_code == 200
+    revision = _checklist_eval(client, first, context).get_json()["revision"]
+    item = {"checked": True, "text": "Reviewed", "confirmedRevision": revision}
+    assert _checklist_save(client, first, context, 0, {"9": item}).status_code == 200
+    original = rsp_app._assessment_templates
+
+    def update_during_export(studies, protocol):
+        rsp_app._write_json_atomic(rsp_app.PROTOCOL_FILE, {"researchQuestions": "Changed"})
+        return original(studies, protocol)
+
+    monkeypatch.setattr(rsp_app, "_assessment_templates", update_during_export)
+    zf, _ = _checklist_from(client, {
+        "keywords": "test", "databases": ["hal"], "filters": {}, "runId": first,
+        "docs": context["docs"], "prisma": context["prisma"], "checklistContext": context,
+    })
+    protocol = json.loads(zf.read(next(n for n in zf.namelist() if n.endswith("review_protocol.json"))))
+    record = json.loads(zf.read(next(n for n in zf.namelist() if n.endswith("researcher_checklist.json"))))
+    assert protocol["researchQuestions"] == "Original"
+    assert next(item for item in record["items"] if item["id"] == "9")["status"] == "confirmed"
+    assert _checklist_eval(client, first, context).get_json()["revision"] != revision
+
+
+def test_saved_search_run_checklist_is_accessible_and_exported(client, tmp_path, monkeypatch):
+    import app as rsp_app
+    import uuid
+
+    monkeypatch.setattr(rsp_app, "RESULTS_DIR", str(tmp_path))
+    monkeypatch.setattr(rsp_app, "PROTOCOL_FILE", str(tmp_path / "protocol.json"))
+    search_id = str(uuid.uuid4())
+    run = rsp_app.save_search_run(search_id, {
+        "query": "test", "databases": ["hal"], "filters": {}, "docs": [{"title": "A"}],
+        "prisma": {"identification": {"total_found": 1, "retrieved": 1, "databases": {}},
+                   "screening": {}, "eligibility": {}, "included": 1},
+    })
+    run_id = run["runId"]
+    manual_endpoint = f"/api/results/run/saved/{search_id}/{run_id}/manual-evidence"
+    steps = [{"name": "Full text", "added": 0, "removed": 0, "desc": "Checked"}]
+    assert client.put(manual_endpoint, json={"version": 0, "manualSteps": steps, "snowballing": None}).status_code == 200
+    assert client.get(manual_endpoint).get_json()["manualSteps"] == steps
+    context = {"prisma": {**run["prisma"], "runId": run_id}, "formState": {"keywords": "test"},
+               "docs": run["docs"], "excludedDocs": {}, "manualSteps": steps, "snowballing": None}
+    endpoint = f"/api/results/run/saved/{search_id}/{run_id}/checklist"
+    loaded = client.post(endpoint + "/evaluate", json={"context": context}).get_json()
+    item = {"checked": True, "text": "Saved search note", "confirmedRevision": loaded["revision"]}
+    assert client.put(endpoint, json={"context": context, "version": 0, "items": {"9": item}}).status_code == 200
+    assert client.get(f"/prisma?runId={run_id}&searchId={search_id}").status_code == 200
+    zf, _ = _checklist_from(client, {
+        "searchName": "Saved", "keywords": "test", "databases": ["hal"], "filters": {},
+        "runId": run_id, "searchId": search_id, "docs": run["docs"], "includedDocs": run["docs"],
+        "prisma": context["prisma"], "checklistContext": context,
+    })
+    record = json.loads(zf.read(next(n for n in zf.namelist() if n.endswith("researcher_checklist.json"))))
+    assert next(item for item in record["items"] if item["id"] == "9")["status"] == "confirmed"
+    evidence = json.loads(zf.read(next(n for n in zf.namelist() if n.endswith("prisma_manual_evidence.json"))))
+    assert evidence["manualSteps"] == steps
+
+
 def test_checklist_reports_every_exclusion_reason(client):
     """PRISMA 16b needs per-reason counts, not just the duplicate total."""
     _, text = _checklist_from(client, {

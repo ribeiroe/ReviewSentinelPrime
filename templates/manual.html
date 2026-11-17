@@ -195,7 +195,7 @@
         <!-- 1. Overview -->
         <div class="manual-section" id="overview">
             <h2>1. Overview &amp; Getting Started</h2>
-            <p><strong>Review Sentinel Prime (RSP)</strong> is a locally-run web application for systematic literature reviews (SLR). It helps researchers search, filter, monitor, and export scientific publications across 12 databases in a reproducible, PRISMA-compliant workflow.</p>
+            <p><strong>Review Sentinel Prime (RSP)</strong> is a locally-run web application for systematic literature reviews (SLR). It helps researchers search, filter, screen and export publications across 12 databases. The researcher remains responsible for verifying coverage, evidence and PRISMA reporting.</p>
 
             <div class="illustration">
                 <svg width="700" height="100" viewBox="0 0 700 100">
@@ -206,16 +206,16 @@
                     <text x="220" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Filter</text>
                     <line x1="280" y1="50" x2="310" y2="50" stroke="#555" stroke-width="2" marker-end="url(#arrowM)"/>
                     <rect x="310" y="25" width="120" height="50" rx="6" fill="#fdebd0" stroke="#e67e22" stroke-width="2"/>
-                    <text x="370" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Validate</text>
+                    <text x="370" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Screen</text>
                     <line x1="430" y1="50" x2="460" y2="50" stroke="#555" stroke-width="2" marker-end="url(#arrowM)"/>
                     <rect x="460" y="25" width="120" height="50" rx="6" fill="#d4efdf" stroke="#27ae60" stroke-width="2"/>
-                    <text x="520" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Export</text>
+                    <text x="520" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Review PRISMA</text>
                     <line x1="580" y1="50" x2="610" y2="50" stroke="#555" stroke-width="2" marker-end="url(#arrowM)"/>
                     <rect x="610" y="25" width="80" height="50" rx="6" fill="#f4ecf7" stroke="#8e44ad" stroke-width="2"/>
-                    <text x="650" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Publish</text>
+                    <text x="650" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#2c3e50">Export</text>
                     <defs><marker id="arrowM" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#555"/></marker></defs>
                 </svg>
-                <div class="caption">Figure 1: RSP workflow — Search → Filter → Validate → Export → Publish</div>
+                <div class="caption">Figure 1: Example workflow — Search → Filter → Screen → Review PRISMA → Export. Validate the search and review evidence throughout.</div>
             </div>
 
             <h3>Key Features:</h3>
@@ -225,7 +225,8 @@
                 <li>Validate completeness using known reference papers</li>
                 <li>Extend the result set with forward/backward citation snowballing (OpenAlex)</li>
                 <li>Screen titles &amp; abstracts manually — with optional AI suggestions from a local or online model (human-in-the-loop)</li>
-                <li>Capture a Review Protocol (research questions, registration, methods) that auto-completes PRISMA items</li>
+                <li>Record full-text decisions and reasons per run, with optional two-reviewer screening and adjudication in either stage</li>
+                <li>Capture a Review Protocol (research questions, registration, methods) that supplies evidence for PRISMA items</li>
                 <li>Auto-generate PRISMA 2020 flow diagrams and evidence checklists</li>
                 <li>See per database whether retrieval was complete, partial or failed — never a silent 0 — with a per-database search log exported alongside the results</li>
                 <li>Export PRISMA-aligned replication packages (ZIP)</li>
@@ -239,10 +240,10 @@
                 <li><strong>Search</strong> — Run searches and view results</li>
                 <li><strong>Saved Searches</strong> — Create, manage, and schedule searches</li>
                 <li><strong>Results</strong> — Browse and download all local run snapshots</li>
-                <li><strong>Screening</strong> — Title &amp; Abstract (T&amp;A) paper screening with Include / Exclude / Unsure decisions</li>
+                <li><strong>Screening</strong> — Title &amp; Abstract (T&amp;A) decisions, with links to full-text and optional two-reviewer screening for a run</li>
                 <li><strong>Charts</strong> — Visualize search results</li>
                 <li><strong>PRISMA</strong> — View the flow diagram and checklist</li>
-                <li><strong>Settings</strong> — Configure API keys, SMTP email, run retention limits, and the AI Screening Assistant</li>
+                <li><strong>Settings</strong> — Configure API keys, retrieval limits, the AI Screening Assistant, SMTP email and run retention</li>
                 <li><strong>Manual</strong> — This page</li>
                 <li><strong>Feedback</strong> — Submit bug reports or feature requests</li>
                 <li><strong>Research Survey</strong> — Research evaluation questionnaire</li>
@@ -335,7 +336,7 @@
                 <div><span class="step-num">1</span></div>
                 <div class="step-text">Type your query in the keywords box using Boolean operators (<strong>OR</strong>, <strong>AND</strong>, parentheses). Click <strong>Query tips</strong> below the field for a quick guide.</div>
                 <div><span class="step-num">2</span></div>
-                <div class="step-text">Set <strong>Results per Page</strong> (default 25). This controls only how many papers are shown per page — RSP always retrieves up to <strong>10,000 records per database</strong> regardless of this setting.</div>
+                <div class="step-text">Set <strong>Results per Page</strong> (default 25). This controls only how many papers are displayed per page. The separate per-database retrieval limits are configured in <strong>Settings → Retrieval</strong>; provider and connector limits can stop retrieval earlier.</div>
                 <div><span class="step-num">3</span></div>
                 <div class="step-text">Select which <strong>databases</strong> to search. They are grouped by whether they need credentials: <strong>Ready to use — no API key</strong> (OpenAlex, HAL, arXiv, PubMed, ACM DL) and <strong>Requires an API key</strong> (Scopus, Web of Science, IEEE, ScienceDirect, Springer, Inspec, EBSCO). <strong>HAL</strong>, <strong>arXiv</strong>, <strong>ACM DL</strong>, and <strong>OpenAlex</strong> are checked by default; enable the others once their keys are configured in Settings. Saved-search state also restores previous database selections automatically.</div>
                 <div><span class="step-num">4</span></div>
@@ -351,7 +352,7 @@
             <p>Each database row shows <strong>X found, Y retrieved</strong> once it completes:</p>
             <ul>
                 <li><strong>Found</strong> — total matching records reported by the API for your query</li>
-                <li><strong>Retrieved</strong> — records actually downloaded. Retrieved will always be ≤ found. Each database has a maximum: 1,000 by default for IEEE Xplore, Scopus and Springer Nature (adjustable in <strong>Settings → Retrieval</strong>), and the API's own limit for the others (e.g. arXiv 30,000; OpenAlex 10,000 without an API key)</li>
+                <li><strong>Retrieved</strong> — records actually downloaded. Retrieved will always be ≤ found. Each database has an adjustable maximum in <strong>Settings → Retrieval</strong>; provider limits and connector safeguards can stop retrieval earlier.</li>
                 <li><strong>Partial retrieval warning</strong> — if a database found more records than RSP could download (a maximum reached, an API paging limit or an error part-way), the row shows an amber warning such as <em>"RSP retrieval cap of 1,000 records reached; the API reported 12,340"</em>. For a systematic review, treat this as a signal to act: apply the year range at the database or raise the maximum (Settings → Retrieval), or narrow the query — the identification count is otherwise incomplete.</li>
             </ul>
             <p>When the search finishes, a <strong>Database coverage</strong> table stays under the result count (and is restored when you come back to the page). Each database is marked:</p>
@@ -499,7 +500,7 @@
                     <tr><td><strong>PubMed</strong></td><td>Biomedical, life sciences</td><td>Optional</td><td>Works without key; key improves rate limits</td></tr>
                     <tr><td><strong>arXiv</strong></td><td>Physics, Math, CS, Biology, Finance</td><td>Not required</td><td>Preprints; has rate limiting</td></tr>
                     <tr><td><strong>HAL Open Science</strong></td><td>Multi-disciplinary (French national archive)</td><td>Not required</td><td>Supports language/type filters server-side</td></tr>
-                    <tr><td><strong>OpenAlex</strong></td><td>Multi-disciplinary open catalogue (250M+ works)</td><td>Optional</td><td>Works without a key, but the keyless budget is about 100 search requests per day and each request returns at most 100 records, so one large search can use it up until midnight UTC. A free key (Settings) raises it 10&times; and lets RSP page past 10,000 results. Also powers the Snowballing feature</td></tr>
+                    <tr><td><strong>OpenAlex</strong></td><td>Multi-disciplinary open catalogue (250M+ works)</td><td>Optional</td><td>Works without a key, but the keyless budget is about 100 search requests per day and each request returns at most 100 records, so one large search can use it up until midnight UTC. A free key (Settings) raises it 10&times; and supports cursor paging; RSP's current per-database maximum is 10,000. Also powers the Snowballing feature</td></tr>
                     <tr><td><strong>EBSCO Discovery Service</strong></td><td>Multi-disciplinary aggregator (institutional collections)</td><td><strong>Required</strong></td><td>Needs an institutional EDS subscription: User ID, Password <em>and</em> Profile ID. EBSCO's licence restricts caching and redistribution of retrieved metadata</td></tr>
                     <tr><td><strong>Web of Science</strong></td><td>Multi-disciplinary citation index (Core Collection)</td><td><strong>Required</strong></td><td>Two editions share one key, selectable in Settings. <em>Starter</em> is free from developer.clarivate.com but returns no abstracts (T&amp;A screening is limited) and allows as few as 50 requests/day; <em>Expanded</em> needs a paid subscription and returns full records with abstracts</td></tr>
                 </tbody>
@@ -919,7 +920,7 @@
                 <div><span class="step-num">1</span></div>
                 <div class="step-text">Each paper is shown with its title, authors, year, venue, and abstract. Review each paper's title and abstract carefully.</div>
                 <div><span class="step-num">2</span></div>
-                <div class="step-text">Click one of the three decision buttons: <strong class="lbl lbl-green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg> Include</strong>, <strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> Exclude</strong>, or <strong class="lbl lbl-orange">? Unsure</strong>. The active decision is highlighted with a deeper colour. Include and Unsure are recorded immediately; <strong>Exclude</strong> opens a <em>Reason</em> row — pick a preset (or <em>Custom reason…</em>) and click <strong>Confirm</strong>. Exclusion reasons feed PRISMA item 16b.</div>
+                <div class="step-text">Click one of the three decision buttons: <strong class="lbl lbl-green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><polyline points="5,8 7,10 11,6"/></svg> Include</strong>, <strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg> Exclude</strong>, or <strong class="lbl lbl-orange">? Unsure</strong>. The active decision is highlighted with a deeper colour. Include and Unsure are recorded immediately; <strong>Exclude</strong> opens a <em>Reason</em> row — pick a preset (or <em>Custom reason…</em>) and click <strong>Confirm</strong>. Full-text exclusions and their reasons are recorded separately for PRISMA item 16b.</div>
                 <div><span class="step-num">3</span></div>
                 <div class="step-text">Navigate with the <strong>← Prev</strong> / <strong>Next →</strong> buttons, jump to the next undecided paper with <strong>Next Unscreened</strong>, or type a number in <strong>Go to</strong>. A progress bar with included / excluded / unsure / unscreened counts tracks where you are.</div>
                 <div><span class="step-num">4</span></div>
@@ -938,6 +939,36 @@
             <div class="tip">
                 <strong>Tip:</strong> Use the <strong>Unsure</strong> category for borderline papers — you can review them separately or in a second pass. The Export CSV will include all decisions so you can filter and audit later.
             </div>
+
+            <h3>Full-text screening:</h3>
+            <p>Open <strong>Full-text screening</strong> from a run in Results, its T&amp;A screen, or its PRISMA page. Only papers included in that run's server-saved title and abstract screening are candidates; browser-memory screening alone cannot supply candidates. Open each report, select Include, Exclude, Not retrieved or Unsure, and save. Exclusions and non-retrieval require a reason. Pending and unsure reports remain distinct from included reports.</p>
+            <div class="illustration">
+                <svg width="660" height="250" viewBox="0 0 660 250" role="img" aria-labelledby="fullTextFigureTitle">
+                    <title id="fullTextFigureTitle">Example full-text screening page</title>
+                    <rect x="10" y="8" width="640" height="234" rx="8" fill="#f1f5f9" stroke="#e2e8f0"/>
+                    <text x="30" y="32" font-size="14" font-weight="700" fill="#1e293b">Full-text screening</text>
+                    <text x="30" y="51" font-size="10" fill="#475569">Candidates: included at title and abstract screening in this run</text>
+                    <text x="30" y="72" font-size="10" fill="#475569">Previous</text>
+                    <text x="84" y="72" font-size="10" fill="#475569">1 / 3</text>
+                    <text x="120" y="72" font-size="10" fill="#475569">Next</text>
+                    <text x="155" y="72" font-size="10" fill="#475569">Next pending</text>
+                    <rect x="30" y="83" width="600" height="54" rx="7" fill="#fff" stroke="#e2e8f0"/>
+                    <text x="45" y="104" font-size="11" font-weight="700" fill="#1e293b">Example report</text>
+                    <text x="45" y="123" font-size="10" fill="#2563eb">Open report</text>
+                    <rect x="30" y="146" width="600" height="84" rx="7" fill="#fff" stroke="#e2e8f0"/>
+                    <text x="45" y="165" font-size="10" font-weight="600" fill="#475569">Decision: Include / Exclude / Not retrieved / Unsure / Pending</text>
+                    <text x="45" y="184" font-size="10" fill="#475569">Reason: required for exclusion or non-retrieval</text>
+                    <rect x="45" y="196" width="100" height="23" rx="5" fill="#2563eb"/>
+                    <text x="95" y="212" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">Save decision</text>
+                </svg>
+                <div class="caption">Figure 9b: Simplified full-text screening page. Save each decision; the reason field is required for exclusions and reports not retrieved.</div>
+            </div>
+            <p>If a T&amp;A decision changes, a no-longer-eligible full-text decision is retained but excluded from current counts. Duplicate or missing DOI/title identities must be resolved before screening that record. Changes make previous checklist confirmations stale; review and reconfirm them. The workflow does not screen manually entered other-source counts. If manual review steps already represent full-text screening, adjust them to avoid double counting.</p>
+
+            <h3>Two-reviewer screening (optional):</h3>
+            <p>From either screening page of a saved or ad-hoc run, select <strong>Two-reviewer screening</strong> before recording any decisions in that stage. Enter two distinct reviewer labels and enable the mode separately for title and abstract and for full text. The labels and mode cannot be changed afterwards. Existing single-reviewer decisions are not converted; use a new run if the stage already has decisions.</p>
+            <p>Each reviewer selects their label and records a decision. Matching definite decisions are resolved automatically; disagreements or any unsure decision require an adjudicator to enter a final decision and explanation. Exclusions and non-retrieval require reasons. Editing a review invalidates any adjudication, and unresolved papers do not count as included. A paper must have a resolved title and abstract inclusion to be eligible for full-text screening. Previous decisions remain in the run's audit history and replication ZIP as <code>02_data/two_reviewer_screening.json</code>.</p>
+            <p><strong>Important:</strong> Reviewer labels are self-declared; the app does not authenticate reviewers or enforce blinding. Both decisions are visible, so researchers must arrange independent assessment themselves and accurately describe their actual process. AI suggestions are not available in two-reviewer mode.</p>
 
             <h3>AI Screening Assistant (optional):</h3>
             <p>When enabled in <a href="/settings#aiAssistant">Settings → AI Screening Assistant</a>, two extra controls appear:</p>
@@ -968,14 +999,18 @@
                     <rect x="36" y="68" width="56" height="16" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1"/>
                     <text x="62" y="80" text-anchor="middle" font-size="6.5" font-weight="700" fill="#1d4ed8">Saved Search</text>
                     <text x="100" y="79" font-size="8" fill="#6b7280">23 May 2026, 09:14</text>
-                    <rect x="285" y="68" width="62" height="18" rx="5" fill="#f1f5f9"/>
-                    <text x="316" y="80.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">View Details</text>
-                    <rect x="353" y="68" width="62" height="18" rx="5" fill="#e2e8f0"/>
-                    <text x="384" y="80.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">Download JSON</text>
-                    <rect x="421" y="68" width="70" height="18" rx="5" fill="#7c3aed"/>
-                    <text x="456" y="80.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Download ZIP</text>
-                    <rect x="497" y="68" width="44" height="18" rx="5" fill="#dc2626"/>
-                    <text x="519" y="80.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Delete</text>
+                    <rect x="215" y="68" width="62" height="18" rx="5" fill="#f1f5f9"/>
+                    <text x="246" y="80.5" text-anchor="middle" font-size="7" font-weight="600" fill="#475569">View Details</text>
+                    <rect x="283" y="68" width="44" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="305" y="80.5" text-anchor="middle" font-size="7" font-weight="600" fill="#475569">Screen</text>
+                    <rect x="333" y="68" width="80" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="373" y="80.5" text-anchor="middle" font-size="7" font-weight="600" fill="#475569">Full-text screening</text>
+                    <rect x="419" y="68" width="62" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="450" y="80.5" text-anchor="middle" font-size="7" font-weight="600" fill="#475569">Download JSON</text>
+                    <rect x="487" y="68" width="70" height="18" rx="5" fill="#7c3aed"/>
+                    <text x="522" y="80.5" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Download ZIP</text>
+                    <rect x="563" y="68" width="44" height="18" rx="5" fill="#dc2626"/>
+                    <text x="585" y="80.5" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Delete</text>
                     <text x="40" y="100" font-size="9.5" font-weight="600" fill="#1e293b">machine learning AND software testing</text>
                     <text x="40" y="112" font-size="7.5" fill="#6b7280">Found: 160 · Included: 142 · DBs: arXiv, HAL · Search ID: 3f9a…</text>
                     <line x1="30" y1="120" x2="630" y2="120" stroke="#f1f5f9" stroke-width="1"/>
@@ -988,15 +1023,17 @@
                     <text x="246" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">View Details</text>
                     <rect x="283" y="128" width="44" height="18" rx="5" fill="#e2e8f0"/>
                     <text x="305" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">Screen</text>
-                    <rect x="333" y="128" width="62" height="18" rx="5" fill="#e2e8f0"/>
-                    <text x="364" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#475569">Download JSON</text>
-                    <rect x="401" y="128" width="70" height="18" rx="5" fill="#7c3aed"/>
-                    <text x="436" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Download ZIP</text>
-                    <rect x="477" y="128" width="44" height="18" rx="5" fill="#dc2626"/>
-                    <text x="499" y="140.5" text-anchor="middle" font-size="7.5" font-weight="600" fill="#fff">Delete</text>
+                    <rect x="333" y="128" width="80" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="373" y="140.5" text-anchor="middle" font-size="7" font-weight="600" fill="#475569">Full-text screening</text>
+                    <rect x="419" y="128" width="62" height="18" rx="5" fill="#e2e8f0"/>
+                    <text x="450" y="140.5" text-anchor="middle" font-size="7" font-weight="600" fill="#475569">Download JSON</text>
+                    <rect x="487" y="128" width="70" height="18" rx="5" fill="#7c3aed"/>
+                    <text x="522" y="140.5" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Download ZIP</text>
+                    <rect x="563" y="128" width="44" height="18" rx="5" fill="#dc2626"/>
+                    <text x="585" y="140.5" text-anchor="middle" font-size="7" font-weight="600" fill="#fff">Delete</text>
                     <text x="40" y="160" font-size="7.5" fill="#6b7280">deep learning OR neural network  ·  Found: 95 · Included: 89 · DBs: arXiv · 12/89 screened</text>
                 </svg>
-                <div class="caption">Figure 10: Results Hub — each run shows its type badge, timestamp, action buttons (View Details, Screen, Download JSON, Download ZIP, Delete), query and summary counts</div>
+                <div class="caption">Figure 10: Results Hub — saved and ad-hoc runs offer screening, full-text screening, download and deletion actions when available.</div>
             </div>
 
             <h3>Run types:</h3>
@@ -1012,7 +1049,7 @@
                 <li>Counts — <em>Found</em> (reported by the databases), <em>Included</em> (after filters), the databases searched, the saved-search ID, and a <em>screened</em> badge showing T&amp;A screening progress</li>
                 <li><strong class="lbl lbl-purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 2v8"/><polyline points="4.5,6.5 8,10.5 11.5,6.5"/><path d="M2 12v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></svg> Download ZIP</strong> — Download a snapshot of that run: <code>run.json</code>, <code>included_docs.csv</code>, <code>raw_docs.csv</code>, <code>excluded_docs.json</code>, <code>summary.json</code>, <code>search_log.csv</code>/<code>search_log.json</code> (the per-database retrieval log) and, if screening was done, <code>screening_decisions.csv</code></li>
                 <li><strong class="lbl lbl-grey">View Details</strong> — Expand the run to see its settings and eligibility summary</li>
-                <li><strong class="lbl lbl-grey">Screen</strong> (ad-hoc runs) — Open this run in T&amp;A Screening</li>
+                <li><strong class="lbl lbl-grey">Screen</strong> — Open an ad-hoc or saved run in T&amp;A Screening; <strong>Full-text screening</strong> opens its full-text decisions</li>
                 <li><strong class="lbl lbl-grey">Download JSON</strong> — Download the raw run record</li>
                 <li><strong class="lbl lbl-red">Delete</strong> — Remove the run after confirmation</li>
             </ul>
@@ -1030,64 +1067,39 @@
         <!-- 11. PRISMA -->
         <div class="manual-section" id="prisma">
             <h2>11. PRISMA Flow Diagram</h2>
-            <p>The <strong>PRISMA</strong> page automatically generates a PRISMA 2020-compliant flow diagram and interactive evidence checklist based on your last search results.</p>
+            <p>The <strong>PRISMA</strong> page generates a flow diagram and interactive PRISMA 2020 evidence checklist from the selected run or latest search. Researchers must verify the counts and confirm reporting in their manuscript.</p>
 
             <div class="illustration">
-                <svg width="560" height="360" viewBox="0 0 560 360">
-                    <rect x="5" y="5" width="550" height="350" rx="6" fill="#fafcfe" stroke="#eee" stroke-width="1"/>
-                    <!-- DB chips row -->
-                    <rect x="30" y="15" width="80" height="40" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
-                    <text x="70" y="32" text-anchor="middle" font-size="8" font-weight="600" fill="#2c3e50">arXiv</text>
-                    <text x="70" y="46" text-anchor="middle" font-size="11" font-weight="700" fill="#3498db">142</text>
-                    <rect x="120" y="15" width="80" height="40" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
-                    <text x="160" y="32" text-anchor="middle" font-size="8" font-weight="600" fill="#2c3e50">HAL</text>
-                    <text x="160" y="46" text-anchor="middle" font-size="11" font-weight="700" fill="#3498db">89</text>
-                    <rect x="210" y="15" width="80" height="40" rx="4" fill="#eaf5fc" stroke="#3498db" stroke-width="1.5"/>
-                    <text x="250" y="32" text-anchor="middle" font-size="8" font-weight="600" fill="#2c3e50">IEEE</text>
-                    <text x="250" y="46" text-anchor="middle" font-size="11" font-weight="700" fill="#3498db">210</text>
-                    <text x="330" y="37" font-size="9" fill="#888">↑ click to see papers</text>
-                    <!-- Identification -->
-                    <rect x="110" y="70" width="200" height="50" rx="6" fill="#eaf5fc" stroke="#3498db" stroke-width="2.5"/>
-                    <rect x="120" y="61" width="76" height="17" rx="3" fill="#3498db"/>
-                    <text x="158" y="73" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">IDENTIFICATION</text>
-                    <text x="210" y="91" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">Records identified</text>
-                    <text x="210" y="107" text-anchor="middle" font-size="15" font-weight="700" fill="#2c3e50">441</text>
-                    <line x1="210" y1="120" x2="210" y2="135" stroke="#555" stroke-width="1.5" marker-end="url(#am)"/>
-                    <!-- Deduplication -->
-                    <rect x="110" y="135" width="200" height="50" rx="6" fill="#fef9e7" stroke="#f39c12" stroke-width="2.5"/>
-                    <rect x="120" y="126" width="82" height="17" rx="3" fill="#f39c12"/>
-                    <text x="161" y="138" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">DEDUPLICATION</text>
-                    <text x="210" y="156" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">After duplicates removed</text>
-                    <text x="210" y="172" text-anchor="middle" font-size="15" font-weight="700" fill="#2c3e50">386</text>
-                    <!-- Removed card (right side) -->
-                    <line x1="310" y1="160" x2="336" y2="160" stroke="#e74c3c" stroke-width="1.5" marker-end="url(#amr)"/>
-                    <rect x="337" y="140" width="130" height="55" rx="6" fill="#fdedec" stroke="#e74c3c" stroke-width="2"/>
-                    <rect x="347" y="131" width="52" height="16" rx="3" fill="#e74c3c"/>
-                    <text x="373" y="143" text-anchor="middle" font-size="7" font-weight="700" fill="#fff">REMOVED</text>
-                    <text x="402" y="161" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">55</text>
-                    <text x="402" y="176" text-anchor="middle" font-size="8" fill="#922b21">Duplicate records</text>
-                    <text x="402" y="188" text-anchor="middle" font-size="7" fill="#888">↑ click for list</text>
-                    <line x1="210" y1="185" x2="210" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#am)"/>
-                    <!-- Screening -->
-                    <rect x="110" y="200" width="200" height="50" rx="6" fill="#fef9e7" stroke="#f39c12" stroke-width="2.5"/>
-                    <rect x="120" y="191" width="64" height="17" rx="3" fill="#f39c12"/>
-                    <text x="152" y="203" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">SCREENING</text>
-                    <text x="210" y="221" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">After screening</text>
-                    <text x="210" y="237" text-anchor="middle" font-size="15" font-weight="700" fill="#2c3e50">350</text>
-                    <line x1="210" y1="250" x2="210" y2="265" stroke="#555" stroke-width="1.5" marker-end="url(#am)"/>
-                    <!-- Included -->
-                    <rect x="110" y="265" width="200" height="50" rx="6" fill="#d4efdf" stroke="#27ae60" stroke-width="2.5"/>
-                    <rect x="120" y="256" width="60" height="17" rx="3" fill="#27ae60"/>
-                    <text x="150" y="268" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">INCLUDED</text>
-                    <text x="210" y="286" text-anchor="middle" font-size="9" font-weight="600" fill="#2c3e50">Studies included</text>
-                    <text x="210" y="302" text-anchor="middle" font-size="15" font-weight="700" fill="#2c3e50">350</text>
-                    <text x="210" y="318" text-anchor="middle" font-size="7.5" fill="#888" font-style="italic">↑ click any card for paper list</text>
-                    <defs>
-                        <marker id="am" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#555"/></marker>
-                        <marker id="amr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#e74c3c"/></marker>
-                    </defs>
+                <svg width="560" height="385" viewBox="0 0 560 385" role="img" aria-labelledby="prismaFigureTitle">
+                    <title id="prismaFigureTitle">Simplified PRISMA flow including optional screening stages</title>
+                    <rect x="5" y="5" width="550" height="375" rx="6" fill="#fafcfe" stroke="#eee"/>
+                    <g font-size="10" font-weight="600" fill="#2c3e50" text-anchor="middle">
+                        <rect x="120" y="20" width="220" height="34" rx="6" fill="#eaf5fc" stroke="#3498db"/>
+                        <text x="230" y="41">Records identified</text>
+                        <rect x="120" y="68" width="220" height="34" rx="6" fill="#eaf5fc" stroke="#3498db"/>
+                        <text x="230" y="89">Records retrieved (if applicable)</text>
+                        <rect x="360" y="68" width="170" height="34" rx="6" fill="#fdedec" stroke="#e74c3c"/>
+                        <text x="445" y="89">Removed before retrieval</text>
+                        <rect x="120" y="116" width="220" height="34" rx="6" fill="#fef9e7" stroke="#f39c12"/>
+                        <text x="230" y="137">After duplicates removed</text>
+                        <rect x="120" y="164" width="220" height="34" rx="6" fill="#fef9e7" stroke="#f39c12"/>
+                        <text x="230" y="185">Screening and eligibility filters</text>
+                        <rect x="120" y="212" width="220" height="34" rx="6" fill="#f5f3ff" stroke="#7c3aed"/>
+                        <text x="230" y="233">Title &amp; abstract decisions</text>
+                        <rect x="120" y="260" width="220" height="34" rx="6" fill="#f5f3ff" stroke="#7c3aed"/>
+                        <text x="230" y="281">Full-text decisions</text>
+                        <rect x="120" y="308" width="220" height="34" rx="6" fill="#d4efdf" stroke="#27ae60"/>
+                        <text x="230" y="329">Included / included so far</text>
+                    </g>
+                    <g stroke="#64748b" stroke-width="1.5">
+                        <line x1="230" y1="54" x2="230" y2="68"/><line x1="230" y1="102" x2="230" y2="116"/>
+                        <line x1="230" y1="150" x2="230" y2="164"/><line x1="230" y1="198" x2="230" y2="212"/>
+                        <line x1="230" y1="246" x2="230" y2="260"/><line x1="230" y1="294" x2="230" y2="308"/>
+                        <line x1="340" y1="85" x2="360" y2="85"/>
+                    </g>
+                    <text x="280" y="363" text-anchor="middle" font-size="9" fill="#64748b">Screening, retrieval and other-source cards depend on the recorded run.</text>
                 </svg>
-                <div class="caption">Figure 11: PRISMA flow diagram — all stage cards and excluded side cards are clickable to show the paper list</div>
+                <div class="caption">Figure 11: Simplified flow. T&amp;A and full-text stages appear when recorded; not-retrieved records do not have a downloaded paper list.</div>
             </div>
 
             <h3>Features:</h3>
@@ -1096,17 +1108,18 @@
                 <li><strong>Removed before retrieval</strong> — appears below Identification when some records were counted by the databases but not downloaded: <em>outside the date range</em> (when the year range is applied at the database, see Settings → Retrieval) or <em>not retrieved</em> (retrieval cap or API error — the run is incomplete). A <em>Records retrieved</em> box follows, so identified − removed before retrieval = retrieved</li>
                 <li><strong>Per-database chips</strong> at the top — click any database chip to see its retrieved papers in the panel below</li>
                 <li><strong>Clickable stage cards</strong> — click any main flow box (Identification, Deduplication, Screening, Eligibility, Included) to open the paper list panel with Cards / List view toggle</li>
-                <li><strong>Clickable removed/excluded cards</strong> — the red side boxes (Duplicates removed, Screening excluded, Eligibility excluded) are also clickable and show the actual papers that were removed at that stage</li>
+                <li><strong>Clickable removed/excluded cards</strong> — the Duplicates, Screening and Eligibility side boxes show available removed papers. Records removed before retrieval were not downloaded, so there is no paper list for them.</li>
                 <li><strong>Sub-criteria pills</strong> below each stage show which filters were active and how many papers each removed</li>
                 <li><strong>Snowballing / Other Sources</strong> — record backward and forward snowballing, other sources (hand-search, grey literature) and the number excluded after T&amp;A screening; these appear as a parallel card at the Identification stage</li>
-                <li><strong>Manual Review Steps</strong> — add post-inclusion steps (full-text review, etc.) that appear as new boxes in the flow and can also remove papers</li>
+                <li><strong>Manual Review Steps</strong> — add other post-filter steps as flow boxes. Do not duplicate decisions already recorded in full-text screening.</li>
                 <li><strong>Export Diagram as PNG</strong> — captures the full rendered diagram exactly as it appears on screen</li>
-                <li><strong>Review Protocol form</strong> — capture review-level facts no search can infer (research questions, rationale, outcomes, registration record, reviewer team, synthesis and risk-of-bias methods, funding, competing interests). Saved server-side, exported as <code>03_protocol/review_protocol.json</code> in the replication package, and used to auto-complete the corresponding checklist items</li>
-                <li><strong>PRISMA 2020 Evidence Checklist</strong> — interactive 27-item checklist (39 entries including sub-items) with AUTO (up to 29 entries auto-assessed from your search data and Review Protocol, including a drafted structured abstract and process-limitations statement) and MANUAL (10 entries requiring study-content analysis) modes, with progress bar and localStorage persistence</li>
+                <li><strong>Review Protocol form</strong> — capture review-level facts no search can infer (research questions, rationale, outcomes, registration record, reviewer team, synthesis and risk-of-bias methods, funding, competing interests). Saved server-side, exported as <code>03_protocol/review_protocol.json</code> in the replication package, and used as checklist evidence</li>
+                <li><strong>PRISMA 2020 Evidence Checklist</strong> — interactive 27-item checklist (39 entries including sub-items). AUTO EVIDENCE entries show recorded data or drafts; all entries require researcher confirmation. Save notes and confirmations with the corresponding search run.</li>
+                <li><strong>Guided completion and consistency checks</strong> — expand Guided completion to see questions for unconfirmed items; open an item to add notes and explicitly confirm it. Checks flag incomplete database retrieval, inconsistent recorded flow counts, pending or unsure screening decisions, missing recorded exclusion reasons, and invalid other-source or manual-step counts. They use the data available on this page and do not verify manuscript reporting or replace researcher review.</li>
             </ul>
 
             <h3>Clickable cards — paper list panel:</h3>
-            <p>Clicking any flow card opens a <strong>Paper Panel</strong> below the diagram showing all papers at that stage. The panel supports:</p>
+            <p>Click a stage or supported exclusion card to open the <strong>Paper Panel</strong> below the diagram. Availability depends on the recorded run; not every summary has individual paper details. The panel supports:</p>
             <ul>
                 <li><strong>▌▌ Cards</strong> — Full card layout with title, authors, year, abstract preview, DOI and a "<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M7 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9"/><polyline points="10,2 14,2 14,6"/><line x1="14" y1="2" x2="7" y2="9"/></svg> View Paper" button</li>
                 <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg> List</strong> — Compact table with expandable rows</li>
@@ -1120,7 +1133,7 @@
             <p>Below the diagram, enter the number of records found by <strong>backward snowballing</strong>, <strong>forward snowballing</strong> and <strong>other sources</strong>, plus those <strong>excluded after T&amp;A screening</strong>, add an optional note, and click <strong>+ Save</strong>. Use this for citation searching or hand-searching done outside RSP; snowballing run from the Search page (section 6) is already counted automatically.</p>
 
             <h3>Adding manual review steps:</h3>
-            <p>Below the diagram, the <strong>Manual Review Steps</strong> panel lets you add steps that occur after automated filtering (e.g., manual full-text review by two researchers, backward snowballing). Each step specifies:</p>
+            <p>Below the diagram, the <strong>Manual Review Steps</strong> panel lets you add steps after automated filtering. Avoid duplicating decisions or other-source counts already recorded elsewhere. Each step specifies:</p>
             <ul>
                 <li><strong>Step name</strong> — e.g. "Manual Full-Text Review"</li>
                 <li><strong>Added</strong> — papers added at this step (e.g. from snowballing)</li>
@@ -1128,14 +1141,16 @@
                 <li><strong>Description</strong> — optional note (e.g. "Reviewed by 2 independent researchers")</li>
             </ul>
             <p>Steps appear as new purple cards in the flow diagram, with a red side card if any papers were removed. Use the ↑ ↓ arrows to reorder steps, and <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg> to remove them.</p>
+            <p>Manual steps and other-source counts are saved with the selected run on the server. If older browser data exists, use the appropriate <strong>Import older data</strong> button after checking that it belongs to this run. Import is available when the run's manual evidence is empty and does not delete the browser copy. If another tab changes the evidence first, reload before saving again. A saved run ID is required.</p>
 
             <h3>PRISMA 2020 Evidence Checklist:</h3>
             <p>All 27 official PRISMA 2020 items (39 entries including sub-items) are listed with two modes:</p>
             <ul>
-                <li><span style="background:#eaf5fc;color:#1a5276;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #aed6f1;">AUTO</span> — up to 29 entries assessed from your search data and Review Protocol: eligibility criteria, per-database sources with search dates and retrieval warnings, search strategy, selection process (including AI-assistance disclosure and reviewer–AI agreement with Cohen's κ), heterogeneity and sensitivity methods, included-study characteristics (years, document types, venues, sources), excluded studies with sample citations per reason, plus auto-drafted structured-abstract and process-limitations statements. Items marked <em>partial</em> show your draft with a notes box — review, edit, and check off.</li>
-                <li><span style="background:#fef9e7;color:#7d6608;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #f9e79f;">MANUAL</span> — the remaining entries require reading study content (risk-of-bias results, per-study outcomes, synthesis results, interpretation) — check the box and type your response in the text area</li>
+                <li><span style="background:#eaf5fc;color:#1a5276;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #aed6f1;">AUTO EVIDENCE</span> — up to 29 entries show information or drafts from search data and the Review Protocol. These do not establish that the corresponding item has been reported; verify the report, add notes and explicitly confirm each item.</li>
+                <li><span style="background:#fef9e7;color:#7d6608;font-size:0.75rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:3px;border:1px solid #f9e79f;">MANUAL</span> — the remaining entries require researcher input, such as study-content analysis. Add notes and confirm after verifying the report.</li>
             </ul>
-            <p>A progress bar shows how many items have been addressed. Notes are saved automatically to your browser (localStorage) and persist across page refreshes. Use <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 11-1 5"/></svg> Reset inputs</strong> to clear all manual entries, or <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 10V2M4 6l4-4 4 4"/><line x1="2" y1="14" x2="14" y2="14"/></svg> Export PNG</strong> to download the checklist as an image.</p>
+            <p>Open a run's checklist from Results, or use the latest run on the PRISMA page. Add notes, confirm items after checking the report, and select <strong>Save checklist</strong>; unsaved edits are not included in exports. A run ID is required for saving. The progress bar counts current confirmations only. Use <strong>Refresh evidence</strong> to check for changes: a changed search, screening decisions, protocol, or local context may mark confirmations stale. Review and reconfirm those items, then save. <strong>Import older notes</strong> copies browser-wide notes into empty items without importing checkmarks. <strong>Reset inputs</strong> clears the current inputs after saving; <strong>Export PNG</strong> downloads an image.</p>
+            <p>Saved checklists and manual evidence belong to individual runs and are deleted when their run is deleted or pruned. The Review Protocol is shared across runs, so changing it can make confirmations stale in multiple runs. Changes to a run's manual evidence can also make confirmations stale. The replication ZIP includes saved notes and statuses; when the matching evidence context is unavailable, confirmations are marked unverified rather than assumed current.</p>
         </div>
 
         <!-- 12. Charts -->
@@ -1171,8 +1186,9 @@
             <p>After running a search, an <strong class="lbl lbl-purple">Export Replication Package (ZIP)</strong> button appears. The ZIP is named <code>&lt;search_name&gt;_&lt;date&gt;.zip</code> and contains the following structure:</p>
 
             <div class="illustration">
-                <svg width="500" height="462" viewBox="0 0 500 462">
-                    <rect x="10" y="5" width="480" height="450" rx="6" fill="#f8f9fa" stroke="#eee" stroke-width="1"/>
+                <svg width="500" height="520" viewBox="0 0 500 520" role="img" aria-labelledby="packageFigureTitle">
+                    <title id="packageFigureTitle">Example replication package contents</title>
+                    <rect x="10" y="5" width="480" height="510" rx="6" fill="#f8f9fa" stroke="#eee" stroke-width="1"/>
                     <text x="30" y="28" font-size="11" font-weight="600" fill="#2c3e50">&lt;search_name&gt;_&lt;date&gt;/</text>
                     <!-- 01_search_strategy -->
                     <text x="30" y="50" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">01_search_strategy/</text>
@@ -1190,24 +1206,28 @@
                     <text x="50" y="201" font-size="9" fill="#555" font-family="monospace">├── included_studies.csv</text>
                     <text x="50" y="214" font-size="9" fill="#555" font-family="monospace">├── excluded_studies.csv</text>
                     <text x="50" y="227" font-size="9" fill="#555" font-family="monospace">├── screening_decisions.csv (if T&amp;A screening performed)</text>
-                    <text x="50" y="240" font-size="9" fill="#555" font-family="monospace">├── risk_of_bias_template.csv (fill in)</text>
-                    <text x="50" y="253" font-size="9" fill="#555" font-family="monospace">├── grade_certainty_template.csv (fill in)</text>
-                    <text x="50" y="266" font-size="9" fill="#555" font-family="monospace">└── prisma_data.json</text>
+                    <text x="50" y="240" font-size="9" fill="#555" font-family="monospace">├── full_text_screening.csv (if records exist)</text>
+                    <text x="50" y="253" font-size="9" fill="#555" font-family="monospace">├── two_reviewer_screening.json (if enabled)</text>
+                    <text x="50" y="266" font-size="9" fill="#555" font-family="monospace">├── risk_of_bias_template.csv (fill in)</text>
+                    <text x="50" y="279" font-size="9" fill="#555" font-family="monospace">├── grade_certainty_template.csv (fill in)</text>
+                    <text x="50" y="292" font-size="9" fill="#555" font-family="monospace">├── prisma_data.json</text>
+                    <text x="50" y="305" font-size="9" fill="#555" font-family="monospace">└── prisma_manual_evidence.json (if run available)</text>
                     <!-- 03_protocol -->
-                    <text x="30" y="285" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">03_protocol/</text>
-                    <text x="50" y="299" font-size="9" fill="#555" font-family="monospace">├── protocol.md</text>
-                    <text x="50" y="312" font-size="9" fill="#555" font-family="monospace">└── review_protocol.json (if Review Protocol filled in)</text>
+                    <text x="30" y="324" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">03_protocol/</text>
+                    <text x="50" y="338" font-size="9" fill="#555" font-family="monospace">├── protocol.md</text>
+                    <text x="50" y="351" font-size="9" fill="#555" font-family="monospace">└── review_protocol.json (if Review Protocol filled in)</text>
                     <!-- 04_images -->
-                    <text x="30" y="331" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">04_images/</text>
-                    <text x="50" y="345" font-size="9" fill="#555" font-family="monospace">└── prisma_flow_diagram.svg (+ chart/PRISMA PNGs if captured)</text>
+                    <text x="30" y="370" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">04_images/</text>
+                    <text x="50" y="384" font-size="9" fill="#555" font-family="monospace">└── prisma_flow_diagram.svg (+ PNGs if captured)</text>
                     <!-- 05_evidence_checklist -->
-                    <text x="30" y="364" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">05_evidence_checklist/</text>
-                    <text x="50" y="378" font-size="9" fill="#555" font-family="monospace">└── PRISMA_evidence_checklist.txt</text>
+                    <text x="30" y="403" font-size="10" fill="#2563eb" font-family="monospace" font-weight="600">05_evidence_checklist/</text>
+                    <text x="50" y="417" font-size="9" fill="#555" font-family="monospace">├── PRISMA_evidence_checklist.txt</text>
+                    <text x="50" y="430" font-size="9" fill="#555" font-family="monospace">└── researcher_checklist.json (if run available)</text>
                     <!-- root files -->
-                    <text x="30" y="398" font-size="9" fill="#555" font-family="monospace">README.md</text>
-                    <text x="30" y="413" font-size="9" fill="#27ae60" font-family="monospace" font-weight="600">search_configuration.json  ← import directly into RSP</text>
+                    <text x="30" y="450" font-size="9" fill="#555" font-family="monospace">README.md</text>
+                    <text x="30" y="465" font-size="9" fill="#27ae60" font-family="monospace" font-weight="600">search_configuration.json  ← import directly into RSP</text>
                 </svg>
-                <div class="caption">Figure 12: Replication package folder structure</div>
+                <div class="caption">Figure 12: Example replication package structure. Conditional files depend on the run and its recorded evidence.</div>
             </div>
 
             <h3>Key files explained:</h3>
@@ -1216,17 +1236,21 @@
                 <li><strong>search_configuration.json</strong> (root) — Identical importable copy. Drag this directly onto the <strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M1 4h5l1.5 2H15v8H1z"/></svg> Import Config (JSON)</strong> button on the Search page to replay the exact search.</li>
                 <li><strong>02_data/initial_search_results.csv</strong> — All papers retrieved before deduplication and filtering.</li>
                 <li><strong>02_data/deduplicated_records.csv</strong> — Papers after duplicate removal.</li>
-                <li><strong>02_data/included_studies.csv</strong> — Final included papers after all filters.</li>
+                <li><strong>02_data/included_studies.csv</strong> — Included papers after filters; once full-text decisions have been recorded, only full-text inclusions from the T&amp;A candidates are listed. Pending, unsure and not-retrieved papers are not final inclusions, and manual other-source counts are not individual records in this file.</li>
                 <li><strong>02_data/excluded_studies.csv</strong> — Papers removed by filters, with exclusion reasons.</li>
                 <li><strong>02_data/screening_decisions.csv</strong> — Per-paper Title &amp; Abstract screening decisions with reasons, plus <code>ai_assisted</code>, <code>ai_model</code>, <code>ai_vendor</code>, <code>ai_suggested</code> and <code>ai_confidence</code> columns recording where the AI assistant was involved and what it suggested (even when you overrode it) (included when screening was performed; pulled from the server run record even if your browser copy is missing).</li>
+                <li><strong>02_data/full_text_screening.csv</strong> — Full-text candidates and decisions, including per-paper reasons, pending records and retained decisions that are no longer eligible. Included when candidates or retained decisions exist.</li>
+                <li><strong>02_data/two_reviewer_screening.json</strong> — Reviewer decisions and adjudication history when two-reviewer screening is enabled for a stage.</li>
                 <li><strong>02_data/risk_of_bias_template.csv</strong> — Blank risk-of-bias table, one row per included study, with domain columns for the protocol's tool (RoB 2, ROBINS-I, CASP, otherwise generic). Fill in for PRISMA items 18 and 21.</li>
                 <li><strong>02_data/grade_certainty_template.csv</strong> — Blank GRADE certainty table, one row per outcome listed in the protocol. Fill in for PRISMA items 21 and 22.</li>
                 <li><strong>02_data/prisma_data.json</strong> — PRISMA stage counts in JSON for programmatic use.</li>
+                <li><strong>02_data/prisma_manual_evidence.json</strong> — Saved manual steps and other-source counts for the matching run; these also appear in the generated flow diagram.</li>
                 <li><strong>01_search_strategy/search_log.csv</strong> (and <code>.json</code>) — One row per database: query as sent to that API, total reported by the API, records retrieved, whether the date limit was applied at the database (with the in-range count, records outside the range and records not retrieved), records removed by each filter (duplicates, year, document type, language, exclude/include terms, venues), records included, pages, page size, retrieval cap, retries, errors, truncation reason and a <em>complete / partial / failed</em> status. The Results Hub ZIP contains the same <code>search_log.csv</code>.</li>
                 <li><strong>03_protocol/protocol.md</strong> — Prose description of the search protocol (IC/EC criteria).</li>
                 <li><strong>03_protocol/review_protocol.json</strong> — Machine-readable Review Protocol (research questions, registration, reviewer team, synthesis/RoB methods) when filled in on the PRISMA page.</li>
                 <li><strong>04_images/</strong> — Server-generated <code>prisma_flow_diagram.svg</code> (always included, T&amp;A screening stage included when performed) plus chart and PRISMA PNG exports if captured before export.</li>
                 <li><strong>05_evidence_checklist/PRISMA_evidence_checklist.txt</strong> — Auto-assessed PRISMA 2020 checklist. It is generated last, so every artefact row is marked <code>[OK]</code> or <code>[--]</code> according to what the ZIP actually contains, and it reports per-reason exclusion counts, title &amp; abstract screening totals, identification split between databases and citation searching, validation seed-paper recall, any AI automation used, and a list of items still needing manual attention.</li>
+                <li><strong>05_evidence_checklist/researcher_checklist.json</strong> — Saved notes and confirmation statuses for the matching run, when a checklist exists. The text checklist also summarizes these items. Statuses distinguish confirmed, stale, unconfirmed and unverified evidence.</li>
                 <li><strong>README.md</strong> — Human-readable summary of the package for open science repositories.</li>
             </ul>
 
@@ -1251,11 +1275,11 @@
             <h2>14. Settings &amp; API Keys</h2>
             <p>The <strong>Settings</strong> page is organised into five collapsible sections — click a section header to expand or collapse it:</p>
             <ul>
-                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/></svg> Database API Keys</strong> — Configure keys for each database that requires one. Cards are grouped into <em>Requires an API key</em>, <em>Optional key</em> and <em>No key needed</em></li>
-                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Email Notifications (SMTP)</strong> — Configure outgoing mail for scheduled-run alerts and survey/feedback submissions</li>
-                <li><strong>Retrieval</strong> — Apply the year range at the database, and set the maximum records downloaded from IEEE Xplore, Scopus and Springer Nature (see <a href="#retrieval-settings">Retrieval settings</a> below)</li>
-                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Run Retention (Local Storage)</strong> — Set how many saved and ad-hoc run snapshots are kept locally; run cleanup immediately</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="5" cy="8" r="3"/><line x1="7.5" y1="8" x2="14.5" y2="8"/><line x1="11.5" y1="8" x2="11.5" y2="10.5"/><line x1="14" y1="8" x2="14" y2="10"/></svg> Database API Keys</strong> — Configure database credentials. Cards are grouped by required credentials, optional keys and no-key connections; the Elsevier institutional token is optional. A connection issues badge counts cards with failed connection checks.</li>
+                <li><strong>Retrieval</strong> — Apply the year range at the database, and set the maximum records downloaded from each database (see <a href="#retrieval-settings">Retrieval settings</a> below)</li>
                 <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M8 1.5l1.4 3.4 3.6.3-2.7 2.4.8 3.5L8 9.2l-3.1 1.9.8-3.5L3 5.2l3.6-.3z"/></svg> AI Screening Assistant</strong> — Get Include/Exclude/Unsure suggestions during Title &amp; Abstract screening from a model running on your own computer or an online service. Suggestions are never applied automatically: you review and accept each one, and accepted decisions record the model name so PRISMA item 8 can disclose the automation tool. See <a href="#ai-setup">Setting up the AI Screening Assistant</a> below.</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Email Notifications (SMTP)</strong> — Configure outgoing mail for scheduled-run alerts and survey/feedback submissions</li>
+                <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><rect x="5" y="2" width="5" height="4" rx="0.5"/><rect x="4" y="9" width="8" height="5" rx="0.5"/></svg> Run Retention (Local Storage)</strong> — Set how many saved and ad-hoc run snapshots are kept locally; run cleanup immediately</li>
             </ul>
 
             <div class="info">
@@ -1267,7 +1291,7 @@
                 <li>Open <a href="/settings#aiAssistant">Settings → AI Screening Assistant</a> and set <em>Assistant</em> to <strong>Enabled</strong>.</li>
                 <li>Under <strong>Where should the AI run?</strong> pick an option. The page shows step-by-step instructions for it:
                     <ul>
-                        <li><strong>Ollama</strong> or <strong>LM Studio</strong> — runs on a computer you control, so titles and abstracts never leave it. Install the app, download a model, and (LM Studio) start its server in the <em>Developer</em> tab. No API key needed.</li>
+                        <li><strong>Ollama</strong> or <strong>LM Studio</strong> — runs on a computer you control; titles and abstracts are sent to the configured model server, which may be on another computer in your network. Install the app, download a model, and (LM Studio) start its server in the <em>Developer</em> tab. No API key needed.</li>
                         <li><strong>OpenAI, Anthropic, Google Gemini, Groq, OpenRouter</strong> — online services. Paste your API key (the page links to where to create one). Titles and abstracts are sent to that provider, and usage is billed to your account.</li>
                         <li><strong>Other / custom server</strong> — any OpenAI-compatible or Ollama-compatible server; enter its address and, if needed, an API key.</li>
                     </ul>
@@ -1292,7 +1316,7 @@
 
             <h4 id="ai-models">Choosing between local and online, and which model</h4>
             <ul>
-                <li><strong>Local (Ollama / LM Studio):</strong> private (papers never leave your computers) and free, but speed depends on your hardware.</li>
+                <li><strong>Local (Ollama / LM Studio):</strong> sends paper details to the configured server on a computer you control; speed depends on its hardware.</li>
                 <li><strong>Online (OpenAI, Gemini, Anthropic, Groq, OpenRouter):</strong> fast and needs no special hardware, but titles and abstracts are sent to the provider and you pay per paper.</li>
                 <li><strong>Local models by graphics memory:</strong> none or 8&nbsp;GB: Qwen&nbsp;2.5&nbsp;7B / Llama&nbsp;3.1&nbsp;8B; 12–16&nbsp;GB: Gemma&nbsp;3&nbsp;12B / Qwen&nbsp;2.5&nbsp;14B / Phi-4; 24&nbsp;GB+: Gemma&nbsp;3&nbsp;27B / Qwen&nbsp;2.5&nbsp;32B / Mistral&nbsp;Small&nbsp;24B.</li>
                 <li><strong>Online models:</strong> the small, fast tiers — OpenAI “mini”, Gemini “Flash”, Claude “Haiku”, Groq Llama&nbsp;70B.</li>
@@ -1326,7 +1350,7 @@
             </div>
 
             <h3 id="retrieval-settings">Retrieval settings</h3>
-            <p><strong>Apply the year range at the database</strong> (off by default). Normally RSP downloads every year and removes records outside your Year range afterwards, so the PRISMA diagram lists each removed paper. But IEEE Xplore, Scopus and Springer Nature stop at a maximum number of records, which can fill up with years you later discard. With this option on:</p>
+            <p><strong>Apply the year range at the database</strong> (off by default). Normally RSP downloads every year and removes records outside your Year range afterwards, so the PRISMA diagram lists each removed paper. Retrieval limits can fill up with years you later discard. With this option on:</p>
             <ul>
                 <li>The Year range is sent to each database, so only records inside it are downloaded.</li>
                 <li>One extra count-only request per database records the all-years total, so <em>Records identified</em> keeps the same meaning.</li>
@@ -1334,7 +1358,7 @@
                 <li>RSP still checks years locally. If a database returns many records outside the range, the coverage table warns that it may have ignored the limit. Databases define "year" differently (arXiv uses the submission date), so a few records may still be removed locally.</li>
             </ul>
             <p>Use it when the Database coverage table shows <em>Partial — retrieval cap reached</em>. If every database shows <em>Complete</em>, leaving it off gives the same numbers plus the list of removed papers.</p>
-            <p><strong>Maximum records per database.</strong> Choose 500–10,000 records for IEEE Xplore, Scopus and Springer Nature (default 1,000). The page shows how many requests a run will use and the provider's quota (Springer's free plan allows 500 requests a day). A database that reaches its maximum is reported as <em>Partial</em>, and its missing records appear in PRISMA as <em>Not retrieved</em>.</p>
+            <p><strong>Maximum records per database.</strong> Choose 500–10,000 records for each database. The default is 1,000 for IEEE Xplore, Scopus, Inspec, ScienceDirect, Springer Nature, PubMed and ACM, and 10,000 for the others. The page shows approximate request counts and known restrictions. Provider quotas and connector paging safeguards can stop retrieval below the selected maximum: for example, ScienceDirect stops at 5,000, EBSCO at 50 pages, and Web of Science at 20 Starter or 50 Expanded pages. Increasing a maximum does not guarantee complete retrieval. Missing records are reported as <em>Partial</em> and appear in PRISMA as <em>Not retrieved</em>.</p>
 
             <div class="info">
                 <strong>Run retention quick access:</strong> Open <a href="/settings#runRetention">Settings → Run Retention</a> to set how many saved and ad-hoc run snapshots are kept locally and to run cleanup immediately.
@@ -1462,8 +1486,8 @@
             <p>Follow this recommended workflow for a systematic literature review using RSP:</p>
 
             <div class="illustration">
-                <svg width="660" height="315" viewBox="0 0 660 315">
-                    <rect x="5" y="5" width="650" height="305" rx="6" fill="#fafcfe" stroke="#eee" stroke-width="1"/>
+                <svg width="660" height="350" viewBox="0 0 660 350">
+                    <rect x="5" y="5" width="650" height="340" rx="6" fill="#fafcfe" stroke="#eee" stroke-width="1"/>
                     <!-- Step 1 -->
                     <circle cx="50" cy="35" r="16" fill="#3498db"/>
                     <text x="50" y="40" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">1</text>
@@ -1495,7 +1519,11 @@
                     <!-- Step 8 -->
                     <circle cx="50" cy="280" r="16" fill="#27ae60"/>
                     <text x="50" y="285" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">8</text>
-                    <text x="80" y="285" font-size="10" font-weight="600" fill="#2c3e50">Save search → Review PRISMA &amp; checklist → Add manual steps → Export package</text>
+                    <text x="80" y="285" font-size="10" font-weight="600" fill="#2c3e50">Screen title &amp; abstract, then review full texts and record reasons</text>
+                    <!-- Step 9 -->
+                    <circle cx="50" cy="315" r="16" fill="#27ae60"/>
+                    <text x="50" y="320" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">9</text>
+                    <text x="80" y="320" font-size="10" font-weight="600" fill="#2c3e50">Review PRISMA &amp; checklist → Save evidence → Export package</text>
                     <!-- Phase labels -->
                     <text x="590" y="40" font-size="9" fill="#3498db" font-weight="600">PLAN</text>
                     <text x="590" y="75" font-size="9" fill="#3498db" font-weight="600">PLAN</text>
@@ -1504,7 +1532,8 @@
                     <text x="590" y="180" font-size="9" fill="#f39c12" font-weight="600">REFINE</text>
                     <text x="590" y="215" font-size="9" fill="#f39c12" font-weight="600">REFINE</text>
                     <text x="590" y="250" font-size="9" fill="#27ae60" font-weight="600">VERIFY</text>
-                    <text x="590" y="285" font-size="9" fill="#27ae60" font-weight="600">PUBLISH</text>
+                    <text x="590" y="285" font-size="9" fill="#27ae60" font-weight="600">SCREEN</text>
+                    <text x="590" y="320" font-size="9" fill="#27ae60" font-weight="600">EXPORT</text>
                 </svg>
                 <div class="caption">Figure 13: Recommended SLR workflow with RSP</div>
             </div>
@@ -1514,16 +1543,16 @@
                 <li><strong>Start broad, then narrow</strong> — Begin with no filters, add criteria progressively</li>
                 <li><strong>Always validate</strong> — Use validation papers as your ground truth after every change</li>
                 <li><strong>Monitor PRISMA</strong> — Click the stage cards and excluded cards to inspect exactly which papers were removed at each stage</li>
-                <li><strong>Document post-inclusion steps</strong> — Use Manual Review Steps on the PRISMA page to capture full-text review and snowballing in the flow diagram</li>
-                <li><strong>Complete the checklist</strong> — Fill in all 10 MANUAL items on the PRISMA Evidence Checklist before exporting</li>
+                <li><strong>Document post-inclusion steps</strong> — Record full-text decisions per paper; use Manual Review Steps for additional steps, taking care not to count full-text exclusions twice.</li>
+                <li><strong>Review the checklist</strong> — Verify all items against the report, add notes, and confirm those addressed before exporting</li>
                 <li><strong>Check coverage before reporting</strong> — Use PRISMA numbers only from a run in which the Database coverage table shows every database <em>Complete</em>; re-run all databases together after fixing a failed or partial one, so every count has the same search date</li>
                 <li><strong>Save early, save often</strong> — Save your search configuration for reproducibility</li>
-                <li><strong>Export everything</strong> — The replication package ensures your review is fully reproducible</li>
+                <li><strong>Export and verify</strong> — The replication package helps document your review; check its contents, evidence and any provider restrictions before sharing.</li>
             </ul>
 
             <h3>Performance notes:</h3>
             <ul>
-                <li>Retrieval is capped at 10,000 records per database (1,000 by default for IEEE Xplore, Scopus and Springer Nature, to keep a run to a few dozen requests — adjustable in Settings → Retrieval), and some APIs impose lower pagination ceilings — RSP shows an amber partial-retrieval warning in the progress panel when a database could not deliver everything it found. Narrow the query for that database if completeness matters</li>
+                <li>Retrieval limits are adjustable per database in Settings → Retrieval. Some APIs and connectors have additional pagination or quota limits — RSP shows an amber partial-retrieval warning when a database could not deliver everything it found. Narrow the query for that database if completeness matters</li>
                 <li>arXiv has rate limiting — a 3-second delay between result pages is applied automatically; avoid rapid consecutive searches</li>
                 <li>HAL supports more server-side filters (language, doc type, year) which are faster than post-filtering</li>
                 <li>Searches stream results database by database via SSE — you see progress live as each database completes</li>
@@ -1533,10 +1562,10 @@
             <ul>
                 <li><strong>Search form state &amp; results</strong> — browser localStorage (persists across navigation). Large result sets that exceed the browser's storage limit are reloaded in full from the saved run in <code>data/results/adhoc/</code>, so the result list, exports and Print to PDF always cover every result</li>
                 <li><strong>Excluded paper lists</strong> — browser localStorage (<code>lastExcludedDocs</code>) — enables clickable PRISMA excluded cards</li>
-                <li><strong>PRISMA manual steps &amp; checklist notes</strong> — browser localStorage (persists across page refreshes)</li>
+                <li><strong>PRISMA manual steps, snowballing &amp; checklist</strong> — stored with the corresponding run on the server and removed with that run. Older browser data can be explicitly imported.</li>
                 <li><strong>Validation papers</strong> — browser localStorage</li>
                 <li><strong>Saved searches &amp; history</strong> — server-side JSON files in <code>data/</code> folder</li>
-                <li><strong>API keys</strong> — server-side files in <code>data/</code> folder (never leave your machine)</li>
+                <li><strong>API credentials</strong> — stored as plain text in <code>data/</code> and sent to the relevant provider when required. Protect this folder; do not share or commit it.</li>
                 <li><strong>Retrieval settings</strong> — <code>data/retrieval_settings.json</code> (year range at the database, per-database maximums)</li>
             </ul>
 

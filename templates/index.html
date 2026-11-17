@@ -753,6 +753,7 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="{{ url_for('static', filename='js/prisma_guidance.js') }}"></script>
     <script>
         function toggleFilters() {
             const panel = document.getElementById('filterPanel');
@@ -3087,19 +3088,21 @@
 
             // Resolve screening decisions: prefer server-side run data over localStorage
             let _resolvedScreeningDecisions = {};
+            let _exportRun = null;
             const _screeningRunId = localStorage.getItem('lastScreeningRunId');
-            if (_screeningRunId) {
+            if (prisma.runId) {
                 try {
-                    const _sr = await fetch('/api/results/run/adhoc/' + encodeURIComponent(_screeningRunId));
+                    const _sr = await fetch('/api/results/run/adhoc/' + encodeURIComponent(prisma.runId));
                     if (_sr.ok) {
                         const _srData = await _sr.json();
-                        if (!_srData.error && _srData.screeningDecisions) {
-                            _resolvedScreeningDecisions = _srData.screeningDecisions;
+                        if (!_srData.error) {
+                            _exportRun = _srData;
+                            _resolvedScreeningDecisions = _srData.screeningDecisions || {};
                         }
                     }
                 } catch(e) { /* fall through to localStorage */ }
             }
-            if (!Object.keys(_resolvedScreeningDecisions).length) {
+            if (_screeningRunId && prisma.runId === _screeningRunId && !Object.keys(_resolvedScreeningDecisions).length) {
                 try { _resolvedScreeningDecisions = JSON.parse(localStorage.getItem('screeningDecisions') || '{}'); } catch(e) {}
             }
             const _sd = _resolvedScreeningDecisions;
@@ -3115,7 +3118,12 @@
                 prisma:           prisma,
                 // Lets the server enrich the package from the canonical run
                 // record (full rawDocs, per-reason excluded lists, decisions)
-                runId:            (prisma && prisma.runId) || localStorage.getItem('lastScreeningRunId') || '',
+                runId:            (prisma && prisma.runId) || '',
+                checklistContext: _exportRun ? PrismaGuidance.evidenceContext(
+                    prisma, JSON.parse(localStorage.getItem('searchFormState') || '{}'), docs,
+                    JSON.parse(localStorage.getItem('lastExcludedDocs') || '{}'),
+                    (_exportRun.prismaManualEvidence || {}).manualSteps || [],
+                    (_exportRun.prismaManualEvidence || {}).snowballing || null) : null,
                 executionDate:    dateStr,
                 includedDocs:     (() => {
                     const included = docs.filter(d => {

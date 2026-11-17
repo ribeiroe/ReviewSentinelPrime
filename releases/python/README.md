@@ -1,4 +1,4 @@
-# Review Sentinel Prime v2.2.4 — Python Edition
+# Review Sentinel Prime v2.3.0 — Python Edition
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
@@ -28,7 +28,7 @@
 
 Instead of visiting Google Scholar, IEEE, PubMed, arXiv, and others one by one, this app lets you search up to **twelve databases at the same time** from a single screen — and automatically removes duplicate results.
 
-**Everything runs on your own computer.** Your search history, API keys, and results never leave your machine.
+**The application and its saved data are local.** Searches send queries and any required credentials to database providers. Optional online AI sends paper details and protocol context to the selected service; email, feedback and survey submissions also use external services. Browser fonts and some libraries load from external hosts. Credentials are stored in plain text in `data/`; protect that folder and do not share or commit it.
 
 ---
 
@@ -78,11 +78,11 @@ sudo apt update && sudo apt install -y python3 python3-venv python3-pip
 
 ## 4. Step 2 — Extract the ZIP file
 
-1. Find the ZIP file you downloaded (e.g. `ReviewSentinel-v2.2.4-Python.zip`).
+1. Find the ZIP file you downloaded (e.g. `ReviewSentinel-v2.3.0-Python.zip`).
 2. **Right-click** the ZIP file and choose:
    - Windows: **Extract All…** → choose a location (e.g. your Desktop or Documents folder) → click **Extract**
    - macOS: **double-click** the ZIP file — it extracts automatically
-   - Linux: right-click → **Extract Here**, or run `unzip ReviewSentinel-v2.2.4-Python.zip`
+   - Linux: right-click → **Extract Here**, or run `unzip ReviewSentinel-v2.3.0-Python.zip`
 3. You should now have a folder called `ReviewSentinelPrime` (or similar). Open it.
 
 > **Do not run the app from inside the ZIP file.** Always extract it first.
@@ -205,8 +205,7 @@ Your internet connection may have dropped during the first-run setup.
 
 Another program (possibly a previous instance of RSP) is already using the port.
 
-→ On **Windows:** open Task Manager → find Python → End Task, then start the app again.  
-→ On **macOS/Linux:** run `kill -9 $(lsof -ti :5001)` in a terminal, then start again.
+→ Identify the application using port 5001 and stop it using its normal shutdown procedure. If it is your existing RSP instance, use its matching stop launcher. Do not terminate an unrelated process.
 
 ---
 
@@ -253,4 +252,4 @@ Please contact the research team and include:
 
 ---
 
-Review Sentinel Prime v2.2.4 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.3.0 — Systematic Literature Review Automation Platform

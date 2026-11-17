@@ -4,13 +4,13 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.2.4 · Python 3.12 · Flask 3.1 · Docker ready
+v2.3.0 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
 ## What is RSP?
 
-**Review Sentinel Prime** is a web application that runs entirely on your own computer. It lets researchers search up to **12 scientific databases simultaneously** using Boolean query syntax (`OR`, `AND`, parentheses), filter and validate results, generate PRISMA 2020 flow diagrams, and export complete SLR replication packages — all from a browser interface with no coding required.
+**Review Sentinel Prime** is a locally run web application. It lets researchers search up to **12 scientific databases simultaneously** using Boolean query syntax (`OR`, `AND`, parentheses), filter and validate results, generate PRISMA 2020 flow diagrams, and export SLR replication packages — all from a browser interface with no coding required. Searches and optional online services require network connections; researchers must review the evidence and reporting themselves.
 
 ---
 
@@ -21,7 +21,7 @@ v2.2.4 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **Multi-database search** | Search IEEE Xplore, ACM DL, Scopus, ScienceDirect, Springer, Inspec, PubMed, arXiv, HAL, OpenAlex, EBSCO, Web of Science simultaneously (12 databases) |
 | ▸ **Boolean query syntax** | Full support for `OR`, `AND`, parentheses, and exact phrases — with an in-page Query tips guide |
 | ▸ **Live progress** | Real-time per-database progress panel with elapsed timer |
-| ▸ **Retrieval settings** | Optionally apply the year range at each database (records outside it are counted for PRISMA, not downloaded) and set the maximum records per database for IEEE Xplore, Scopus and Springer Nature |
+| ▸ **Retrieval settings** | Optionally apply the year range at each database (records outside it are counted for PRISMA, not downloaded) and set the maximum records for each database |
 | ▸ **Coverage status & search log** | Each database is marked complete / partial / failed after every run (never a silent 0); a per-database `search_log.csv` (query sent, reported vs retrieved, records removed per filter, pages, retries, errors) is exported with the results |
 | ▸ **Filters & criteria** | Year range, document type, language, and four color-coded filter cards (Include Terms, Exclude Terms, Include Venues, Exclude Venues) |
 | ▸ **ALL / ANY match modes** | Each filter card has an inline `ALL (AND)` / `ANY (OR)` toggle — control whether all terms or any term must match |
@@ -33,19 +33,42 @@ v2.2.4 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **Email notifications** | Diff-based alerts showing new/removed papers after each scheduled run |
 | ▸ **Bug reports & feature requests** | Built-in Feedback page that records submissions in the project's issue-collection forms — works even when no SMTP server is configured |
 | ▸ **T&A Screening** | Manual Title & Abstract screening page — review papers one-by-one with Include / Exclude / Unsure decisions, navigate prev/next, and export decisions as CSV |
+| ▸ **Full-text screening** | Review T&A-included papers per run; record inclusions, exclusions with reasons, non-retrieval and deferred decisions. The PRISMA flow and replication ZIP reflect recorded decisions and pending papers. |
+| ▸ **Two-reviewer screening** | Optional per-run, per-stage reviewer decisions and adjudication. Labels are self-declared; identity and blinding are not enforced. Only resolved decisions count. |
 | ▸ **AI Screening Assistant** | Optional AI suggestions during T&A screening — run privately on your own computer (Ollama, LM Studio) or use an online service (OpenAI, Anthropic, Google Gemini, Groq, OpenRouter). Guided setup with automatic model list and one-click **Test & Save**; each service's settings are remembered. The reviewer accepts or overrides each suggestion, and accepted decisions carry model provenance that feeds the PRISMA item 8 automation-tool disclosure |
 | ▸ **Results Hub** | Browse and download all local run snapshots (saved and ad-hoc) from a single page |
 | ▸ **Charts** | Publications per year (with trend line), abstract keyword frequency (top terms bar chart), venue, and document-type charts — all with PNG export |
-| ▸ **PRISMA 2020** | Auto-generated flow diagram; clickable stage cards **and** excluded/removed cards showing the actual papers removed at each stage; Snowballing / Other Sources panel; Review Protocol form (research questions, registration, reviewer team, synthesis/RoB methods); PRISMA 2020 Evidence Checklist (29 of 39 entries auto-assessed from run data + protocol, incl. auto-drafted abstract and process-limitations statements, study characteristics and reviewer–AI agreement) |
+| ▸ **PRISMA 2020** | Auto-generated flow diagram; clickable stage and excluded cards; Snowballing / Other Sources; Review Protocol; evidence checklist with recorded evidence and drafts that require researcher confirmation |
 | ▸ **PNG export** | DOM-capture export of the PRISMA diagram and evidence checklist at 2× resolution via html2canvas |
 | ▸ **Replication package** | One-click ZIP export with CSVs, JSON config, protocol, PRISMA data, README |
 | ▸ **Print to PDF** | Print-ready results page (source, title, authors, year, venue, DOI), with a **Print to PDF + Abstracts** variant |
 | ▸ **Import / Export config** | Save and reload the complete search configuration — including filter modes — as a JSON file |
 | ▸ **Cards & List view** | Toggle between rich card and compact list result layouts |
 | ▸ **Persistent UI state** | Filter and validation panel visibility is remembered across refreshes and saved-search restores |
-| ▸ **API key management** | Secure local storage with per-database test connection and last-checked timestamp; optional Elsevier institutional token (Scopus/ScienceDirect/Inspec) for off-network access |
+| ▸ **API key management** | Local credential storage with per-database test connection and last-checked timestamp; optional Elsevier institutional token (Scopus/ScienceDirect/Inspec) for off-network access. Credentials are stored in plain text in `data/` |
 | ▸ **Built-in manual** | Full 17-section user manual available at `/manual` |
 | ▸ **Docker ready** | One-click Docker Compose deployment with start/stop scripts for Windows and macOS |
+
+---
+
+## Screening and PRISMA workflow
+
+1. Open a saved or ad-hoc run from **Results** and record title-and-abstract decisions. Browser-memory-only decisions do not create full-text candidates.
+2. Open **Full-text screening** for the same run. Only records included at title-and-abstract screening qualify. Record exclusions and reports not retrieved with reasons; pending and unsure papers are not final inclusions. Decisions for records that later become ineligible are retained but no longer counted.
+3. Optionally enable **Two-reviewer screening** separately for either stage *before* that stage has decisions. Matching definite decisions resolve automatically; disagreements and unsure decisions require adjudication. Reviewer labels are self-declared, and neither authentication nor blinding is enforced. AI suggestions are unavailable in this mode.
+4. On **PRISMA**, review the flow and consistency checks, then verify the evidence against the report. Add notes, confirm addressed checklist items and select **Save checklist**. Refresh evidence and reconfirm stale items after changes. Manual steps and other-source counts belong to the run; avoid counting full-text exclusions twice. The protocol is shared across runs.
+5. Export the replication package. Depending on the run, it includes `02_data/full_text_screening.csv`, `02_data/two_reviewer_screening.json`, `02_data/prisma_manual_evidence.json` and `05_evidence_checklist/researcher_checklist.json`. Manual other-source counts are not individual full-text records. Missing or mismatched checklist evidence is marked unverified, not automatically confirmed.
+
+Run data, screening decisions and run-specific checklist evidence are removed when the run is deleted or pruned. Older browser-only checklist notes and manual evidence can be imported explicitly after checking that they belong to the run; checklist confirmations are not imported.
+
+---
+
+## What's New in v2.3.0
+
+- **Run-scoped full-text screening** — record included, excluded, not-retrieved and deferred reports, with reasons and pending counts in the PRISMA flow and replication package.
+- **Optional two-reviewer screening** — record separate decisions and adjudicate disagreements in either screening stage. Reviewer labels are self-declared; identity and blinding are not enforced.
+- **PRISMA evidence workflow** — guided completion and consistency checks, researcher-confirmed checklist items, stale-evidence warnings, and run-scoped checklist notes and manual evidence.
+- **Retrieval and documentation** — configurable limits for all databases, refreshed settings and screening visuals, and updated guides and workflow illustrations. Provider limits and connector safeguards still apply.
 
 ---
 
@@ -54,8 +77,8 @@ v2.2.4 · Python 3.12 · Flask 3.1 · Docker ready
 - **No more silent zeros** — after every search, a **Database coverage** table shows each database as *Complete*, *Partial* or *Failed*, with the reason (quota, rate limit, network error, retrieval cap, rejected query). The same status appears on the PRISMA database chips, on scheduled searches ("⚠ incomplete coverage") and in notification emails. Records from a partial database are kept.
 - **Per-database search log** — `search_log.csv` / `.json` in the replication package and the Results Hub ZIP: the query sent to each API, total reported, retrieved, records removed by each filter, pages, retries, errors and status.
 - **More reliable retrieval** — automatic retries with backoff for rate limits (429), server errors, timeouts and network errors, honouring `Retry-After`; each API's documented page size and request rate; quota exhaustion is reported with the time until it resets. Fixes OpenAlex returning 0 after its daily budget ran out, arXiv stopping silently on empty pages, and Scopus failing on a transient network error.
-- **Settings → Retrieval** — optionally apply the year range at the database (records outside it are counted for PRISMA as *Removed before retrieval*, not downloaded), and set the maximum records for IEEE Xplore, Scopus and Springer Nature, with the quota cost shown.
-- **OpenAlex API key (optional)** — a free key raises OpenAlex's daily budget 10× and allows retrieval beyond 10,000 records; the connection test is now free and shows the credits left.
+- **Settings → Retrieval** — optionally apply the year range at the database (records outside it are counted for PRISMA as *Removed before retrieval*, not downloaded), and set the maximum records for each database, with request estimates and known limits shown. Provider quotas and connector safeguards can stop retrieval earlier.
+- **OpenAlex API key (optional)** — a free key raises OpenAlex's daily budget 10× and supports cursor paging; the current RSP retrieval setting still caps a database at 10,000 records. The connection test shows the credits left.
 - **PRISMA** — the flow diagram adds *Removed before retrieval* (date limit at the database, or not retrieved) and *Records retrieved*, so the numbers always add up.
 - **Fixes** — Springer's year filter now uses the documented `datefrom`/`dateto` constraints; duplicates are attributed to databases in a fixed order; exclude-term phrases match across line breaks; terms can be entered one per line; *ALL* mode for exclude terms is respected when filters are sent to the APIs.
 
@@ -86,7 +109,7 @@ v2.2.4 · Python 3.12 · Flask 3.1 · Docker ready
 
 - **AI Screening Assistant** — optional AI suggestions during T&A screening, running locally (Ollama, LM Studio) or via an online service (OpenAI, Anthropic, Gemini, Groq, OpenRouter). Guided setup, one-click **Test & Save**, per-service settings, recommended-model tags, privacy confirmation, batch estimate, and one-click Ollama model download.
 - **AI provenance & agreement** — each decision records the AI suggestion, confidence and model; the Screening page and PRISMA items 8/23c report reviewer–AI agreement (Cohen's κ).
-- **PRISMA automation** — more checklist items auto-assessed; the replication package now includes risk-of-bias (RoB 2 / ROBINS-I) and GRADE certainty templates.
+- **PRISMA automation** — checklist evidence and drafts from recorded data; the replication package includes risk-of-bias (RoB 2 / ROBINS-I) and GRADE certainty templates. Researchers confirm each checklist item against their report.
 - **Docker** — the container can reach Ollama / LM Studio on the host via `host.docker.internal`.
 
 ---
@@ -131,7 +154,7 @@ Include/exclude **term filters now also match author keywords**, in addition to 
 ### Interface
 
 - Search and Saved Searches: database checkboxes grouped into *Ready to use — no API key* and *Requires an API key*.
-- Settings: database cards regrouped into *Requires an API key* / *Optional key* / *No key needed*, with the three Elsevier services (Scopus, ScienceDirect, Inspec) placed together since they share one key.
+- Settings: database cards grouped by required credentials, optional keys and no-key connections, with the three Elsevier services (Scopus, ScienceDirect, Inspec) placed together since they share one key.
 
 ### Documentation
 
@@ -145,7 +168,7 @@ This is the first public release of Review Sentinel Prime. Highlights include:
 
 - **Multi-database search** across 12 scientific databases with Boolean query syntax, live progress tracking, and configurable filters/criteria
 - **T&A Screening** with an optional AI Screening Assistant (local via Ollama / LM Studio, or online via OpenAI, Anthropic, Gemini, Groq, OpenRouter) that suggests Include/Exclude/Unsure decisions for the reviewer to accept or override
-- **PRISMA 2020 support** — auto-generated flow diagram, Review Protocol form, and an Evidence Checklist that auto-assesses up to 29 of 39 entries from run data
+- **PRISMA 2020 support** — auto-generated flow diagram, Review Protocol form, and an Evidence Checklist that presents recorded evidence for researcher review and confirmation
 - **Saved searches** with scheduled re-runs and diff-based email notifications
 - **Feedback, feature request, and survey collection** relayed server-side to Google Forms, working even without SMTP configured
 - **Replication package export** — one-click ZIP with CSVs, JSON config, protocol, and PRISMA data
@@ -236,7 +259,7 @@ ReviewSentinelPrime/
 ├── build-releases.sh/.ps1  # Stamp the version and build the release ZIPs
 ├── index.html              # Quick-start launcher page (docs/index.html is the copy for docs/)
 ├── templates/              # Jinja2 HTML templates (pages and the built-in manual)
-├── static/                 # CSS, images
+├── static/                 # CSS, JavaScript, images
 ├── data/                   # Saved searches, API keys, results (created at runtime)
 │   └── results/            # Per-search result history (JSON)
 ├── qa/                     # Automated pytest suite (see qa/docs/README.md)
@@ -359,7 +382,7 @@ RSP's only stage that uses a language model is the optional **AI Screening Assis
 
 1. Open **Settings → AI Screening Assistant** and set *Assistant* to **Enabled**.
 2. Under **Where should the AI run?** choose one option — the page shows step-by-step instructions for it:
-   - **Ollama** or **LM Studio** — runs on a computer you control; titles and abstracts never leave it. Install the app, download a model, and (LM Studio) start its server. To use one running on another computer on your network, replace `localhost` with that computer's IP address (Ollama: set `OLLAMA_HOST=0.0.0.0` on that computer; LM Studio: enable *Serve on Local Network*).
+   - **Ollama** or **LM Studio** — runs on a computer you control; titles and abstracts are sent to the configured model server. Install the app, download a model, and (LM Studio) start its server. To use one running on another computer on your network, replace `localhost` with that computer's IP address (Ollama: set `OLLAMA_HOST=0.0.0.0` on that computer; LM Studio: enable *Serve on Local Network*).
    - **OpenAI, Anthropic, Google Gemini, Groq, OpenRouter** — online services; paste your API key (the page links to where to get one). Titles and abstracts are sent to that provider and usage is billed to your account.
    - **Other / custom server** — any OpenAI-compatible or Ollama-compatible server.
 3. Choose a model from the list (it fills in automatically once connected; *Other* lets you type a name).

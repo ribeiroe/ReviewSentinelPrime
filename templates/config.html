@@ -533,6 +533,7 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="{{ url_for('static', filename='js/prisma_guidance.js') }}"></script>
     <script>
         let editingId = null;
         let cfgValidationPapers = [];
@@ -1499,13 +1500,17 @@
                 });
             });
 
+            const checklistContext = latest.runId ? PrismaGuidance.evidenceContextFromRun(latest) : null;
             const payload = {
                 searchName: search.name,
-                keywords: search.query,
-                databases: search.databases,
-                filters: search.filters || {},
+                keywords: latest.query || search.query,
+                databases: latest.databases || search.databases,
+                filters: latest.filters || search.filters || {},
                 docs: latest.rawDocs && latest.rawDocs.length ? latest.rawDocs : (latest.docs || []),
-                prisma: latest.prisma || {},
+                prisma: checklistContext ? checklistContext.prisma : (latest.prisma || {}),
+                runId: latest.runId || '',
+                searchId: id,
+                checklistContext: checklistContext,
                 executionDate: dateStr,
                 includedDocs: latest.docs || [],
                 dedupDocs: latest.docs || [],

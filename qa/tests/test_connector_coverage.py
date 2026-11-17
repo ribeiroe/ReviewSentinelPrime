@@ -42,6 +42,10 @@ class FakeResp:
             raise ValueError("no JSON")
         return self._json
 
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"HTTP {self.status_code}")
+
 
 class FakeServer:
     """Serves pages from `total` synthetic records; `faults` maps a 0-based
@@ -632,16 +636,121 @@ def test_database_ignoring_the_date_limit_is_flagged(client):
 
 def test_retrieval_settings_round_trip_and_clamp(client):
     resp = client.post("/api/retrieval-settings", data=json.dumps(
-        {"yearAtDatabase": True, "caps": {"ieee": 999999, "scopus": 5, "springer": 2000}}),
+        {"yearAtDatabase": True, "caps": {"ieee": 999999, "scopus": 5, "springer": 2000,
+                                          "pubmed": 5000, "hal": 500}}),
         content_type="application/json")
     saved = resp.get_json()["settings"]
-    assert saved["caps"] == {"ieee": 10000, "scopus": 100, "springer": 2000}
+    assert set(saved["caps"]) == set(rsp_app._connector_table())
+    assert {db: saved["caps"][db] for db in ("ieee", "scopus", "springer", "pubmed", "hal")} == {
+        "ieee": 10000, "scopus": 100, "springer": 2000, "pubmed": 5000, "hal": 500}
     got = client.get("/api/retrieval-settings").get_json()["settings"]
-    assert got["yearAtDatabase"] is True and got["caps"]["springer"] == 2000
+    assert got["yearAtDatabase"] is True and got["caps"] == saved["caps"]
     server = FakeServer(springer_page, 5000)
     with patch.object(rsp_app.requests, "get", side_effect=server):
         result = rsp_app.search_springer("x", 10000, {})
     assert len(result["docs"]) == 2000 and "2,000" in result["log"]["truncated"]
+
+
+def test_old_retrieval_settings_keep_existing_caps_and_new_defaults():
+    with open(rsp_app.RETRIEVAL_SETTINGS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"yearAtDatabase": True, "caps": {"ieee": 5000, "scopus": 2000, "springer": 500}}, f)
+    settings = rsp_app.get_retrieval_settings()
+    assert settings["yearAtDatabase"] is True
+    assert settings["caps"] == dict(rsp_app.RSP_RETRIEVAL_CAP, ieee=5000, scopus=2000, springer=500)
+
+
+@pytest.mark.parametrize("db", ["inspec", "sciencedirect", "pubmed", "acm"])
+def test_previously_fixed_caps_can_be_lowered_and_raised(db, monkeypatch):
+    monkeypatch.setattr(rsp_app, "get_inspec_api_key", lambda: "key")
+    monkeypatch.setattr(rsp_app, "get_sciencedirect_api_key", lambda: "key")
+    monkeypatch.setattr(rsp_app, "get_pubmed_api_key", lambda: "")
+    monkeypatch.setattr(rsp_app, "get_acm_api_key", lambda: "")
+    total = 1100
+
+    def get_page(url, params=None, headers=None, timeout=None):
+        if db == "inspec":
+            ids = _slice(total, params["offset"] - 1, params["pageSize"], False)
+            return FakeResp(json_data={"PAGE": {"RESULTS-COUNT": total, "PAGE-RESULTS": {
+                "PAGE-ENTRY": [{"EI-DOCUMENT": {"DOCUMENTPROPERTIES": {"TI": str(i)}}} for i in ids]}}})
+        if db == "sciencedirect":
+            ids = _slice(total, params["start"], params["count"], False)
+            return FakeResp(json_data={"search-results": {"opensearch:totalResults": str(total),
+                                                           "entry": [{"dc:title": str(i)} for i in ids]}})
+        if db == "acm":
+            ids = _slice(total, params["startPage"] * 50, params["pageSize"], False)
+            return FakeResp(json_data={"totalHits": total, "items": [{"title": str(i)} for i in ids]})
+        if url.endswith("esearch.fcgi"):
+            ids = _slice(total, 0, params["retmax"], False)
+            return FakeResp(json_data={"esearchresult": {"count": str(total), "idlist": [str(i) for i in ids]}})
+        articles = "".join(f"<PubmedArticle><MedlineCitation><PMID>{i}</PMID>"
+                           f"<Article><ArticleTitle>{i}</ArticleTitle></Article></MedlineCitation></PubmedArticle>"
+                           for i in params["id"].split(","))
+        return FakeResp(text=f"<PubmedArticleSet>{articles}</PubmedArticleSet>")
+
+    with patch.object(rsp_app.requests, "get", side_effect=get_page):
+        rsp_app.save_retrieval_settings({"caps": {db: 100}})
+        _, result, _ = next(rsp_app._run_connectors([db], "test", 10000, {}))
+        entry = rsp_app._db_status_entry(db, result)
+        assert len(result["docs"]) == 100
+        assert entry["status"] == "partial" and "RSP retrieval cap" in entry["message"]
+
+        rsp_app.save_retrieval_settings({"caps": {db: 2000}})
+        _, result, _ = next(rsp_app._run_connectors([db], "test", 10000, {}))
+        assert len(result["docs"]) == total
+        assert rsp_app._db_status_entry(db, result)["status"] == "complete"
+
+
+@pytest.mark.parametrize("db", ["hal", "arxiv", "openalex", "ebsco", "wos"])
+def test_new_database_cap_limits_retrieval(db, monkeypatch):
+    total = 250
+    rsp_app.save_retrieval_settings({"caps": {db: 100}})
+    monkeypatch.setattr(rsp_app, "get_ebsco_credentials",
+                        lambda: {"userId": "u", "password": "p", "profile": "p"})
+    monkeypatch.setattr(rsp_app, "_ebsco_auth_token", lambda *args, **kwargs: ("auth", None))
+    monkeypatch.setattr(rsp_app, "_ebsco_create_session", lambda *args: ("session", None))
+    monkeypatch.setattr(rsp_app, "_ebsco_end_session", lambda *args: None)
+    monkeypatch.setattr(rsp_app, "get_wos_api_key", lambda: "key")
+    monkeypatch.setattr(rsp_app, "get_wos_edition", lambda: "starter")
+    monkeypatch.setattr(rsp_app, "_wos_throttle", lambda: None)
+
+    def get_page(url, params=None, headers=None, timeout=None):
+        if db == "arxiv":
+            return arxiv_page(params, total, False)
+        if db == "openalex":
+            return openalex_page(params, total, False)
+        if db == "hal":
+            ids = _slice(total, params["start"], params["rows"], False)
+            return FakeResp(json_data={"response": {"numFound": total,
+                                                     "docs": [{"title_s": str(i)} for i in ids]}})
+        if db == "ebsco":
+            ids = _slice(total, (params["pagenumber"] - 1) * 100, params["resultsperpage"], False)
+            return FakeResp(json_data={"SearchResult": {"Statistics": {"TotalHits": total},
+                                                         "Data": {"Records": [{} for _ in ids]}}})
+        ids = _slice(total, (params["page"] - 1) * 50, params["limit"], False)
+        return FakeResp(json_data={"metadata": {"total": total}, "hits": [{} for _ in ids]})
+
+    with patch.object(rsp_app.requests, "get", side_effect=get_page):
+        _, result, _ = next(rsp_app._run_connectors([db], "test", 10000, {}))
+    entry = rsp_app._db_status_entry(db, result)
+    assert len(result["docs"]) == 100
+    assert entry["status"] == "partial"
+    assert "retrieval cap" in entry["message"]
+
+
+def test_sciencedirect_paging_safeguard_remains_when_cap_is_raised(monkeypatch):
+    rsp_app.save_retrieval_settings({"caps": {"sciencedirect": 10000}})
+    monkeypatch.setattr(rsp_app, "get_sciencedirect_api_key", lambda: "key")
+
+    def get_page(url, params=None, headers=None, timeout=None):
+        assert params["start"] + params["count"] <= 5000
+        ids = _slice(5100, params["start"], params["count"], False)
+        return FakeResp(json_data={"search-results": {"opensearch:totalResults": "5100",
+                                                       "entry": [{"dc:title": str(i)} for i in ids]}})
+
+    with patch.object(rsp_app.requests, "get", side_effect=get_page):
+        _, result, _ = next(rsp_app._run_connectors(["sciencedirect"], "test", 10000, {}))
+    assert len(result["docs"]) == 5000
+    assert rsp_app._db_status_entry("sciencedirect", result)["status"] == "partial"
 
 
 def test_prisma_svg_shows_records_removed_before_retrieval():

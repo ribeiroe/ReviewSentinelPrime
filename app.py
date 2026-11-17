@@ -1,4 +1,6 @@
 import csv
+import copy
+import hashlib
 import html
 import io
 import json
@@ -27,7 +29,7 @@ from flask import Flask, render_template, request, jsonify, send_file, Response,
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-RSP_VERSION = "v2.2.4"
+RSP_VERSION = "v2.3.0"
 
 @app.context_processor
 def inject_rsp_version():
@@ -474,7 +476,7 @@ def get_retrieval_settings():
 
     yearAtDatabase: send the year range to each API (records outside it are
     counted with one extra count-only request, not downloaded).
-    caps: per-database retrieval ceilings for the APIs that page slowly.
+    caps: per-database retrieval ceilings.
     """
     settings = {"yearAtDatabase": False, "caps": dict(RSP_RETRIEVAL_CAP)}
     if os.path.exists(RETRIEVAL_SETTINGS_FILE):
@@ -1774,9 +1776,30 @@ def screening_page():
     return render_template("screening.html")
 
 
+@app.route("/full-text")
+def full_text_page():
+    return render_template("full_text.html")
+
+
+@app.route("/dual-screening")
+def dual_screening_page():
+    return render_template("dual_screening.html")
+
+
 @app.route("/prisma")
 def prisma_page():
-    return render_template("prisma.html")
+    run_id = request.args.get("runId")
+    search_id = request.args.get("searchId")
+    if not run_id and not search_id:
+        return render_template("prisma.html", selected_run=None, selected_search_id=None)
+    if not run_id or not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return "Invalid run or search ID", 400
+    with _data_io_lock:
+        target, error, status = _checklist_target(run_id, search_id)
+        if error:
+            return error, status
+        run = target[1]
+    return render_template("prisma.html", selected_run=run, selected_search_id=search_id)
 
 
 @app.route("/settings")
@@ -2263,7 +2286,8 @@ def set_protocol_route():
         else:
             protocol[field] = str(value or "").strip()
     protocol["updatedAt"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
-    _write_json_atomic(PROTOCOL_FILE, protocol)
+    with _data_io_lock:
+        _write_json_atomic(PROTOCOL_FILE, protocol)
     return jsonify({"ok": True, "protocol": protocol})
 
 
@@ -3683,6 +3707,7 @@ def _http_error_message(label, resp):
 def search_hal(query, rows, filters=None):
     """Search HAL and return normalized results."""
     filters = filters or {}
+    rows = min(rows, _retrieval_cap("hal"))
     page_size = 1000  # HAL Solr handles up to 1000 rows per request cleanly
 
     base_params = {
@@ -3773,7 +3798,7 @@ def search_hal(query, rows, filters=None):
                 "docType": _hal_type_map.get(_hal_raw_dt, ""),
                 "language": language_raw[0] if isinstance(language_raw, list) and language_raw else (language_raw if isinstance(language_raw, str) else ""),
             })
-        if len(normalized) >= total_records:
+        if len(normalized) >= total_records or (rows and len(normalized) >= rows):
             break
 
     result = {"numFound": total_records, "docs": normalized}
@@ -3804,9 +3829,14 @@ ARXIV_MIN_INTERVAL = 3.0
 OPENALEX_MAX_PAGE = 100
 OPENALEX_BASIC_PAGING_LIMIT = 10000
 
-# RSP's own retrieval ceilings (not API limits): keep a run to a few dozen
-# requests per database. Hitting one is reported as a truncated result.
-RSP_RETRIEVAL_CAP = {"ieee": 1000, "scopus": 1000, "springer": 1000}
+# Defaults preserve the existing interactive search limits. Provider and
+# connector-specific paging limits can still stop retrieval earlier.
+RSP_RETRIEVAL_CAP = {
+    "hal": 10000, "arxiv": 10000, "ieee": 1000, "scopus": 1000,
+    "inspec": 1000, "sciencedirect": 1000, "springer": 1000,
+    "pubmed": 1000, "acm": 1000, "openalex": 10000,
+    "ebsco": 10000, "wos": 10000,
+}
 
 
 def _connector_result(log, total, docs, error=None):
@@ -3901,7 +3931,7 @@ def _arxiv_error_entry(entries):
 def search_arxiv(keywords, rows, filters=None):
     """Search arXiv and return normalized results."""
     filters = filters or {}
-    cap = min(rows, ARXIV_MAX_TOTAL)
+    cap = min(rows, _retrieval_cap("arxiv"), ARXIV_MAX_TOTAL)
     log = ConnectorLog("arxiv", page_size=ARXIV_PAGE_SIZE, cap=cap)
     search_query = build_arxiv_query(keywords)
 
@@ -4338,10 +4368,7 @@ def search_scopus(keywords, rows, filters=None):
 def search_inspec(keywords, rows, filters=None):
     """Search Inspec on Engineering Village and return normalized results."""
     filters = filters or {}
-    # Inspec returns 25 records per call; cap total retrieval so broad queries
-    # can't trigger hundreds of sequential requests (see IEEE/Springer for the
-    # same fix).
-    rows = min(rows, 1000)
+    rows = min(rows, _retrieval_cap("inspec"))
     api_key = get_inspec_api_key()
     if not api_key:
         return {"numFound": 0, "docs": [], "error": "Inspec API key not configured"}
@@ -4498,10 +4525,7 @@ def search_inspec(keywords, rows, filters=None):
 def search_sciencedirect(keywords, rows, filters=None):
     """Search ScienceDirect and return normalized results."""
     filters = filters or {}
-    # ScienceDirect returns 25 records per call; cap total retrieval so broad
-    # queries can't trigger hundreds of sequential requests (see IEEE/Springer
-    # for the same fix). The Elsevier start+count<=5000 limit below still applies.
-    rows = min(rows, 1000)
+    rows = min(rows, _retrieval_cap("sciencedirect"))
     api_key = get_sciencedirect_api_key()
     if not api_key:
         return {"numFound": 0, "docs": [], "error": "ScienceDirect API key not configured"}
@@ -4802,9 +4826,7 @@ def search_pubmed(keywords, rows, filters=None):
     """Search PubMed via NCBI E-utilities and return normalized results."""
     import xml.etree.ElementTree as ET
     filters = filters or {}
-    # EFetch runs in batches of 200; cap total retrieval so broad queries can't
-    # trigger dozens of sequential requests (see IEEE/Springer for the same fix).
-    rows = min(rows, 1000)
+    rows = min(rows, _retrieval_cap("pubmed"))
     api_key = get_pubmed_api_key()
 
     # Build query
@@ -5004,10 +5026,7 @@ def search_pubmed(keywords, rows, filters=None):
 def search_acm(keywords, rows, filters=None):
     """Search ACM Digital Library and return normalized results."""
     filters = filters or {}
-    # ACM DL returns 50 records per call; cap total retrieval so broad queries
-    # can't trigger dozens of sequential requests (see IEEE/Springer for the
-    # same fix).
-    rows = min(rows, 1000)
+    rows = min(rows, _retrieval_cap("acm"))
 
     query_text = keywords
 
@@ -5154,6 +5173,7 @@ def search_openalex(keywords, rows, filters=None):
     """
     filters = filters or {}
     api_key = get_openalex_api_key()
+    rows = min(rows, _retrieval_cap("openalex"))
     cap = rows if api_key else min(rows, OPENALEX_BASIC_PAGING_LIMIT)
     log = ConnectorLog("openalex", page_size=OPENALEX_MAX_PAGE, cap=cap)
 
@@ -5488,6 +5508,7 @@ def search_ebsco(keywords, rows, filters=None):
     are configured in Settings. Results are capped at 100 records per page.
     """
     filters = filters or {}
+    rows = min(rows, _retrieval_cap("ebsco"))
     creds = get_ebsco_credentials()
     if not (creds["userId"] and creds["password"] and creds["profile"]):
         return {
@@ -5767,6 +5788,7 @@ def search_wos(keywords, rows, filters=None):
     and the subscription Expanded API (full records including abstracts).
     """
     filters = filters or {}
+    rows = min(rows, _retrieval_cap("wos"))
     key = get_wos_api_key()
     if not key:
         return {
@@ -6021,7 +6043,17 @@ def _run_connectors(databases, keywords, rows, api_filters, count_filters=None):
         done = {db: {} for db in jobs}
         for future in as_completed(future_to_job):
             db, part = future_to_job[future]
-            done[db][part] = future.result()
+            result = future.result()
+            if part == "main" and not result.get("error"):
+                cap = _retrieval_cap(db)
+                retrieved = len(result.get("docs") or [])
+                total = int(result.get("numFound") or 0)
+                if cap <= rows and retrieved >= cap and total > retrieved:
+                    log = result.get("log") or {}
+                    result["log"] = log
+                    if not log.get("truncated"):
+                        log["truncated"] = _cap_reason(cap, total, "RSP")
+            done[db][part] = result
             if "main" in done[db] and (not want_count or "count" in done[db]):
                 yield db, done[db]["main"], done[db].get("count")
 
@@ -6051,7 +6083,7 @@ def _db_status_entry(db, result):
         status = "failed" if retrieved == 0 else "partial"
         if not truncated:
             truncated = (f"API reported {found:,} records but returned none" if retrieved == 0
-                         else f"Only {retrieved:,} of {found:,} records retrieved (API pagination limit)")
+                         else f"Only {retrieved:,} of {found:,} records retrieved (retrieval stopped early)")
     else:
         status = "complete"
 
@@ -6433,11 +6465,425 @@ def get_saved_run(search_id, history_index):
     return jsonify(history[history_index])
 
 
+@app.route("/api/results/run/saved/<search_id>/by-id/<run_id>", methods=["GET"])
+def get_saved_run_by_id(search_id, run_id):
+    if not _UUID_RE.fullmatch(search_id) or not _UUID_RE.fullmatch(run_id):
+        return jsonify({"error": "Invalid run or search ID"}), 400
+    with _data_io_lock:
+        target, error, status = _checklist_target(run_id, search_id)
+        if error:
+            return jsonify({"error": error}), status
+        return jsonify(target[1])
+
+
+_CHECKLIST_IDS = (
+    "1", "2", "3", "4", "5", "6", "7", "8", "9", "10a", "10b", "11", "12",
+    "13a", "13b", "13c", "13d", "13e", "13f", "14", "15", "16a", "16b",
+    "17", "18", "19", "20a", "20b", "20c", "20d", "21", "22", "23a",
+    "23b", "23c", "24", "25", "26", "27",
+)
+
+
+def _checklist_context_valid(context, run_id):
+    return (isinstance(context, dict) and isinstance(context.get("prisma"), dict)
+            and context["prisma"].get("runId") == run_id
+            and isinstance(context.get("formState"), dict)
+            and isinstance(context.get("docs"), list)
+            and isinstance(context.get("excludedDocs"), dict)
+            and isinstance(context.get("manualSteps"), list)
+            and (context.get("snowballing") is None or isinstance(context.get("snowballing"), dict)))
+
+
+def _checklist_revision(run, context, protocol=None):
+    protocol = {k: v for k, v in (protocol if protocol is not None else _load_protocol()).items()
+                if k != "updatedAt"}
+    run_evidence = {k: run.get(k) for k in (
+        "runId", "query", "databases", "filters", "prisma", "docs",
+        "rawDocs", "excluded_docs", "dbCounts", "screeningDecisions",
+    )}
+    if (run.get("fullTextScreening") or {}).get("decisions"):
+        run_evidence["fullTextScreening"] = run["fullTextScreening"]
+    if run.get("dualScreening"):
+        run_evidence["dualScreening"] = run["dualScreening"]
+    evidence = {
+        "run": run_evidence,
+        "protocol": protocol,
+        "browserEvidence": context,
+    }
+    encoded = json.dumps(evidence, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _checklist_target(run_id, search_id=None):
+    path = os.path.join(RESULTS_DIR if search_id else ADHOC_RESULTS_DIR,
+                        f"{search_id if search_id else run_id}.json")
+    if not os.path.exists(path):
+        return None, "Run not found", 404
+    data = _read_json_file(path, None)
+    if search_id:
+        if not isinstance(data, list):
+            return None, "Invalid run history", 500
+        for index, run in enumerate(data):
+            if isinstance(run, dict) and run.get("runId") == run_id:
+                return (path, run, data, index), None, 200
+        return None, "Run not found", 404
+    if not isinstance(data, dict):
+        return None, "Invalid run file", 500
+    if data.get("runId") != run_id:
+        return None, "Run ID does not match stored record", 500
+    return (path, data, None, None), None, 200
+
+
+def _screening_paper_id(doc):
+    doi = str(doc.get("doi") or "").strip().lower()
+    return "doi:" + doi if doi else "title:" + str(doc.get("title") or "").strip().lower()
+
+
+def _dual_stage(run, stage):
+    return (run.get("dualScreening") or {}).get(stage)
+
+
+def _dual_candidates(run, stage):
+    docs = run.get("docs") or []
+    counts = {}
+    for doc in docs:
+        pid = _screening_paper_id(doc)
+        counts[pid] = counts.get(pid, 0) + 1
+    ta = run.get("screeningDecisions") or {}
+    return [{"paperId": _screening_paper_id(doc), "paper": doc,
+             "ambiguous": _screening_paper_id(doc) == "title:" or counts[_screening_paper_id(doc)] != 1}
+            for doc in docs if stage == "title-abstract" or
+            (ta.get(_screening_paper_id(doc)) or {}).get("decision") == "include"]
+
+
+def _dual_response(run, stage):
+    current = _dual_stage(run, stage)
+    candidates = _dual_candidates(run, stage)
+    eligible = {row["paperId"] for row in candidates if not row["ambiguous"]}
+    inactive = sum(1 for pid in (current or {}).get("records", {}) if pid not in eligible)
+    return {"stage": current, "candidates": candidates, "inactive": inactive}
+
+
+@app.route("/api/results/run/adhoc/<run_id>/dual-screening/<stage>", methods=["GET", "POST", "PUT"])
+@app.route("/api/results/run/saved/<search_id>/<run_id>/dual-screening/<stage>", methods=["GET", "POST", "PUT"])
+def run_dual_screening(run_id, stage, search_id=None):
+    if not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return jsonify({"error": "Invalid run or search ID"}), 400
+    if stage not in ("title-abstract", "full-text"):
+        return jsonify({"error": "Invalid screening stage"}), 400
+    body = request.get_json(silent=True) if request.method != "GET" else None
+    if request.method != "GET" and not isinstance(body, dict):
+        return jsonify({"error": "Invalid screening request"}), 400
+    with _data_io_lock:
+        target, error, status = _checklist_target(run_id, search_id)
+        if error:
+            return jsonify({"error": error}), status
+        path, run, history, index = target
+        current = _dual_stage(run, stage)
+        if request.method == "GET":
+            return jsonify(_dual_response(run, stage))
+        if request.method == "POST":
+            reviewers = body.get("reviewers")
+            if (not isinstance(reviewers, list) or len(reviewers) != 2 or
+                    any(not isinstance(name, str) or not name.strip() or len(name.strip()) > 100 for name in reviewers)
+                    or reviewers[0].strip().casefold() == reviewers[1].strip().casefold()):
+                return jsonify({"error": "Enter two distinct reviewer labels (up to 100 characters each)."}), 400
+            existing = (run.get("screeningDecisions") or {}) if stage == "title-abstract" else (
+                (run.get("fullTextScreening") or {}).get("decisions") or {})
+            if current or existing:
+                return jsonify({"error": "Two-reviewer mode can only be enabled before this stage has decisions."}), 409
+            current = {"version": 0, "reviewers": [name.strip() for name in reviewers], "records": {}, "history": []}
+            run.setdefault("dualScreening", {})[stage] = current
+        else:
+            if not current:
+                return jsonify({"error": "Two-reviewer mode is not enabled for this stage."}), 409
+            if type(body.get("version")) is not int or body["version"] != current["version"]:
+                return jsonify({"error": "Screening changed elsewhere. Reload before saving."}), 409
+            pid, action = body.get("paperId"), body.get("action")
+            candidate = next((row for row in _dual_candidates(run, stage) if row["paperId"] == pid), None)
+            if not candidate or candidate["ambiguous"]:
+                return jsonify({"error": "Paper is not uniquely eligible for this stage."}), 409
+            options = ("include", "exclude", "unsure") if stage == "title-abstract" else (
+                "include", "exclude", "unsure", "not_retrieved")
+            decision, reason = body.get("decision"), body.get("reason")
+            if (action not in ("review", "adjudicate") or decision not in options or
+                    not isinstance(reason, str) or len(reason) > 5000):
+                return jsonify({"error": "Invalid decision or reason."}), 400
+            reason = reason.strip()
+            if decision in ("exclude", "not_retrieved") and not reason:
+                return jsonify({"error": "A reason is required for exclusion or non-retrieval."}), 400
+            record = current["records"].setdefault(pid, {"reviews": {}, "adjudication": None})
+            timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
+            if action == "review":
+                reviewer = body.get("reviewer")
+                if type(reviewer) is not int or reviewer not in (0, 1):
+                    return jsonify({"error": "Select a reviewer."}), 400
+                entry = {"decision": decision, "reason": reason, "timestamp": timestamp}
+                record["reviews"][str(reviewer)] = entry
+                record["adjudication"] = None
+                event = {"paperId": pid, "action": action, "reviewer": current["reviewers"][reviewer], **entry}
+            else:
+                reviews = record["reviews"]
+                adjudicator = body.get("adjudicator")
+                if (len(reviews) != 2 or
+                        (reviews["0"]["decision"] == reviews["1"]["decision"] != "unsure")):
+                    return jsonify({"error": "Adjudication requires two conflicting or unsure reviews."}), 409
+                if (not isinstance(adjudicator, str) or not adjudicator.strip() or len(adjudicator.strip()) > 100
+                        or not reason or decision == "unsure"):
+                    return jsonify({"error": "Enter an adjudicator, a final decision, and an explanation."}), 400
+                entry = {"decision": decision, "reason": reason, "timestamp": timestamp,
+                         "adjudicator": adjudicator.strip()}
+                record["adjudication"] = entry
+                event = {"paperId": pid, "action": action, **entry}
+            current["history"].append(event)
+            current["version"] += 1
+            reviews = record["reviews"]
+            final = record["adjudication"]
+            if not final and len(reviews) == 2 and reviews["0"]["decision"] == reviews["1"]["decision"] != "unsure":
+                reasons = [f'{current["reviewers"][i]}: {reviews[str(i)]["reason"]}' for i in range(2)
+                           if reviews[str(i)]["reason"]]
+                final = {"decision": reviews["0"]["decision"], "reason": "; ".join(reasons), "timestamp": timestamp}
+            if stage == "title-abstract":
+                decisions = run.setdefault("screeningDecisions", {})
+            else:
+                full_text = run.setdefault("fullTextScreening", {"version": 0, "decisions": {}})
+                full_text["version"] += 1
+                decisions = full_text["decisions"]
+            if final:
+                decisions[pid] = final.copy()
+            else:
+                decisions.pop(pid, None)
+        if history is not None:
+            history[index] = run
+        _write_json_atomic(path, history if history is not None else run)
+        return jsonify(_dual_response(run, stage))
+
+
+def _full_text_records(run):
+    docs = run.get("docs") or []
+    ta = run.get("screeningDecisions") or {}
+    stored = run.get("fullTextScreening") or {"version": 0, "decisions": {}}
+    id_counts = {}
+    for doc in docs:
+        pid = _screening_paper_id(doc)
+        id_counts[pid] = id_counts.get(pid, 0) + 1
+    candidates = []
+    eligible_ids = set()
+    for doc in docs:
+        pid = _screening_paper_id(doc)
+        if (ta.get(pid) or {}).get("decision") != "include":
+            continue
+        ambiguous = pid == "title:" or id_counts[pid] != 1
+        eligible_ids.add(pid)
+        candidates.append({"paperId": pid, "paper": doc, "ambiguous": ambiguous,
+                           "decision": None if ambiguous else stored["decisions"].get(pid)})
+    inactive = [{"paperId": pid, "decision": decision} for pid, decision in stored["decisions"].items()
+                if pid not in eligible_ids or id_counts.get(pid, 0) != 1 or pid == "title:"]
+    return {"version": stored["version"], "candidates": candidates, "inactive": inactive,
+            "dualReview": bool(_dual_stage(run, "full-text"))}
+
+
+def _full_text_summary(records):
+    candidates = records["candidates"]
+    counts = {name: 0 for name in ("include", "exclude", "unsure", "not_retrieved")}
+    excluded = []
+    for row in candidates:
+        decision = row["decision"]
+        if not decision:
+            continue
+        counts[decision["decision"]] += 1
+        if decision["decision"] == "exclude":
+            excluded.append({"paper": row["paper"], "reason": decision["reason"]})
+    screened = sum(counts.values())
+    return {"total": len(candidates), "screened": screened, "included": counts["include"],
+            "excluded": counts["exclude"], "unsure": counts["unsure"],
+            "notRetrieved": counts["not_retrieved"],
+            "pending": len(candidates) - screened, "excludedRecords": excluded,
+            "inactive": len(records["inactive"]),
+            "ambiguous": sum(1 for row in candidates if row["ambiguous"]),
+            "dualReview": records["dualReview"]}
+
+
+@app.route("/api/results/run/adhoc/<run_id>/full-text", methods=["GET", "PUT"])
+@app.route("/api/results/run/saved/<search_id>/<run_id>/full-text", methods=["GET", "PUT"])
+def run_full_text_screening(run_id, search_id=None):
+    if not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return jsonify({"error": "Invalid run or search ID"}), 400
+    body = request.get_json(silent=True) if request.method == "PUT" else None
+    if request.method == "PUT":
+        if (not isinstance(body, dict) or type(body.get("version")) is not int or body["version"] < 0
+                or not isinstance(body.get("paperId"), str) or not body["paperId"]
+                or body.get("decision") not in ("include", "exclude", "unsure", "not_retrieved", "clear")
+                or not isinstance(body.get("reason"), str) or len(body["reason"]) > 5000):
+            return jsonify({"error": "Invalid full-text decision"}), 400
+        if body["decision"] in ("exclude", "not_retrieved") and not body["reason"].strip():
+            return jsonify({"error": "A reason is required for exclusion or non-retrieval"}), 400
+    with _data_io_lock:
+        target, error, status = _checklist_target(run_id, search_id)
+        if error:
+            return jsonify({"error": error}), status
+        path, run, history, index = target
+        current = _full_text_records(run)
+        if request.method == "GET":
+            return jsonify(current)
+        if _dual_stage(run, "full-text"):
+            return jsonify({"error": "Use two-reviewer screening for this stage."}), 409
+        if body["version"] != current["version"]:
+            return jsonify({"error": "Full-text decisions changed elsewhere. Reload before saving."}), 409
+        candidate = next((row for row in current["candidates"] if row["paperId"] == body["paperId"]), None)
+        if not candidate or candidate["ambiguous"]:
+            return jsonify({"error": "Paper is not uniquely eligible for full-text screening. Refresh title and abstract screening."}), 409
+        stored = run.get("fullTextScreening") or {"version": 0, "decisions": {}}
+        decisions = stored["decisions"]
+        if body["decision"] == "clear":
+            decisions.pop(body["paperId"], None)
+        else:
+            decisions[body["paperId"]] = {"decision": body["decision"], "reason": body["reason"].strip(),
+                                         "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"}
+        run["fullTextScreening"] = {"version": stored["version"] + 1, "decisions": decisions}
+        if history is not None:
+            history[index] = run
+        _write_json_atomic(path, history if history is not None else run)
+        return jsonify(_full_text_records(run))
+
+
+def _manual_evidence(run):
+    return run.get("prismaManualEvidence") or {"version": 0, "manualSteps": [], "snowballing": None}
+
+
+def _manual_evidence_matches(run, context):
+    evidence = _manual_evidence(run)
+    return (context.get("manualSteps") == evidence["manualSteps"]
+            and context.get("snowballing") == evidence["snowballing"])
+
+
+@app.route("/api/results/run/adhoc/<run_id>/manual-evidence", methods=["GET", "PUT"])
+@app.route("/api/results/run/saved/<search_id>/<run_id>/manual-evidence", methods=["GET", "PUT"])
+def run_manual_evidence(run_id, search_id=None):
+    if not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return jsonify({"error": "Invalid run or search ID"}), 400
+    body = request.get_json(silent=True) if request.method == "PUT" else None
+    if request.method == "PUT":
+        if not isinstance(body, dict) or type(body.get("version")) is not int or body["version"] < 0:
+            return jsonify({"error": "Invalid manual evidence version"}), 400
+        steps, snowballing = body.get("manualSteps"), body.get("snowballing")
+        def nonnegative(value):
+            return type(value) is int and 0 <= value <= 1000000000
+        if (not isinstance(steps, list) or len(steps) > 1000 or
+                any(not isinstance(step, dict) or not isinstance(step.get("name"), str)
+                    or not step["name"].strip() or len(step["name"]) > 1000
+                    or not isinstance(step.get("desc"), str) or len(step["desc"]) > 50000
+                    or not nonnegative(step.get("added")) or not nonnegative(step.get("removed"))
+                    for step in steps)):
+            return jsonify({"error": "Invalid manual review steps"}), 400
+        if snowballing is not None and (
+                not isinstance(snowballing, dict)
+                or any(not nonnegative(snowballing.get(key)) for key in ("backward", "forward", "other", "excluded"))
+                or snowballing["excluded"] > snowballing["backward"] + snowballing["forward"] + snowballing["other"]
+                or not isinstance(snowballing.get("desc"), str) or len(snowballing["desc"]) > 50000):
+            return jsonify({"error": "Invalid snowballing evidence"}), 400
+    with _data_io_lock:
+        target, error, status = _checklist_target(run_id, search_id)
+        if error:
+            return jsonify({"error": error}), status
+        path, run, history, index = target
+        stored = _manual_evidence(run)
+        if request.method == "GET":
+            return jsonify(stored)
+        if body["version"] != stored["version"]:
+            return jsonify({"error": "Manual evidence changed elsewhere. Reload before saving."}), 409
+        updated = {"version": stored["version"] + 1,
+                   "manualSteps": [{"name": s["name"], "added": s["added"], "removed": s["removed"],
+                                    "desc": s["desc"]} for s in steps],
+                   "snowballing": ({key: snowballing[key] for key in
+                                    ("backward", "forward", "other", "excluded", "desc")}
+                                   if snowballing is not None else None)}
+        run["prismaManualEvidence"] = updated
+        if history is not None:
+            history[index] = run
+        _write_json_atomic(path, history if history is not None else run)
+        return jsonify(updated)
+
+
+@app.route("/api/results/run/adhoc/<run_id>/checklist/evaluate", methods=["POST"])
+@app.route("/api/results/run/saved/<search_id>/<run_id>/checklist/evaluate", methods=["POST"])
+def evaluate_adhoc_checklist(run_id, search_id=None):
+    if not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return jsonify({"error": "Invalid run or search ID"}), 400
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or not _checklist_context_valid(body.get("context"), run_id):
+        return jsonify({"error": "Checklist evidence must belong to this run"}), 400
+    with _data_io_lock:
+        target, error, status = _checklist_target(run_id, search_id)
+        if error:
+            return jsonify({"error": error}), status
+        _, run, _, _ = target
+        if not _manual_evidence_matches(run, body["context"]):
+            return jsonify({"error": "Manual evidence changed. Reload this run before confirming."}), 409
+        stored = run.get("prismaChecklist") or {"version": 0, "items": {}}
+        return jsonify({"version": stored["version"], "items": stored["items"],
+                        "revision": _checklist_revision(run, body["context"]),
+                        "fullText": _full_text_summary(_full_text_records(run)),
+                        "screeningDecisions": run.get("screeningDecisions") or {},
+                        "screeningDocs": run.get("docs") or []})
+
+
+@app.route("/api/results/run/adhoc/<run_id>/checklist", methods=["PUT"])
+@app.route("/api/results/run/saved/<search_id>/<run_id>/checklist", methods=["PUT"])
+def save_adhoc_checklist(run_id, search_id=None):
+    if not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return jsonify({"error": "Invalid run or search ID"}), 400
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or not _checklist_context_valid(body.get("context"), run_id):
+        return jsonify({"error": "Checklist evidence must belong to this run"}), 400
+    items = body.get("items")
+    version = body.get("version")
+    if not isinstance(items, dict) or type(version) is not int or version < 0:
+        return jsonify({"error": "Invalid checklist or version"}), 400
+    if any(key not in _CHECKLIST_IDS for key in items):
+        return jsonify({"error": "Unknown checklist item"}), 400
+    for item in items.values():
+        if (not isinstance(item, dict) or type(item.get("checked")) is not bool
+                or not isinstance(item.get("text"), str) or len(item["text"]) > 50000):
+            return jsonify({"error": "Invalid checklist item or note"}), 400
+        revision = item.get("confirmedRevision")
+        if item["checked"]:
+            if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{64}", revision):
+                return jsonify({"error": "A confirmation requires an evidence revision"}), 400
+        elif revision is not None:
+            return jsonify({"error": "Unchecked items cannot have a confirmation revision"}), 400
+    with _data_io_lock:
+        target, error, status = _checklist_target(run_id, search_id)
+        if error:
+            return jsonify({"error": error}), status
+        path, run, history, index = target
+        if not _manual_evidence_matches(run, body["context"]):
+            return jsonify({"error": "Manual evidence changed. Reload this run before confirming."}), 409
+        stored = run.get("prismaChecklist") or {"version": 0, "items": {}}
+        if version != stored["version"]:
+            return jsonify({"error": "Checklist was changed elsewhere. Reload before saving."}), 409
+        current_revision = _checklist_revision(run, body["context"])
+        for key, item in items.items():
+            if item["checked"] and item["confirmedRevision"] != current_revision:
+                previous = stored["items"].get(key, {})
+                if not previous.get("checked") or previous.get("confirmedRevision") != item["confirmedRevision"]:
+                    return jsonify({"error": "Evidence changed before confirmation. Review and confirm again."}), 409
+        cleaned = {key: {"checked": item["checked"], "text": item["text"],
+                         "confirmedRevision": item.get("confirmedRevision")} for key, item in items.items()}
+        new_version = version + 1
+        run["prismaChecklist"] = {"version": new_version, "items": cleaned}
+        if history is not None:
+            history[index] = run
+        _write_json_atomic(path, history if history is not None else run)
+        return jsonify({"version": new_version, "revision": current_revision, "items": cleaned})
+
+
 @app.route("/api/results/run/adhoc/<run_id>/screening/decision", methods=["POST"])
-def save_adhoc_screening_decision(run_id):
+@app.route("/api/results/run/saved/<search_id>/<run_id>/screening/decision", methods=["POST"])
+def save_adhoc_screening_decision(run_id, search_id=None):
     """Upsert one screening decision in an ad-hoc run file."""
-    if not _UUID_RE.fullmatch(run_id):
-        return jsonify({"error": "Invalid run ID"}), 400
+    if not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return jsonify({"error": "Invalid run or search ID"}), 400
     body = request.get_json(silent=True) or {}
     paper_id = str(body.get("paperId", "")).strip()
     decision = str(body.get("decision", "")).strip()
@@ -6446,14 +6892,14 @@ def save_adhoc_screening_decision(run_id):
     if decision not in ("include", "exclude", "unsure"):
         return jsonify({"error": "decision must be include, exclude, or unsure"}), 400
     reason = str(body.get("reason", "")).strip()
-    file_path = os.path.join(ADHOC_RESULTS_DIR, f"{run_id}.json")
-    if not os.path.exists(file_path):
-        return jsonify({"error": "Run not found"}), 404
     try:
         with _data_io_lock:
-            payload = _read_json_file(file_path, None)
-            if not isinstance(payload, dict):
-                return jsonify({"error": "Invalid run file"}), 500
+            target, error, status = _checklist_target(run_id, search_id)
+            if error:
+                return jsonify({"error": error}), status
+            file_path, payload, history, index = target
+            if _dual_stage(payload, "title-abstract"):
+                return jsonify({"error": "Use two-reviewer screening for this stage."}), 409
             if "screeningDecisions" not in payload:
                 payload["screeningDecisions"] = {}
             entry = {
@@ -6472,53 +6918,61 @@ def save_adhoc_screening_decision(run_id):
             if body.get("aiAssisted") or entry.get("aiSuggested"):
                 entry["aiModel"] = str(body.get("aiModel", ""))[:100]
             payload["screeningDecisions"][paper_id] = entry
-            _write_json_atomic(file_path, payload)
+            if history is not None:
+                history[index] = payload
+            _write_json_atomic(file_path, history if history is not None else payload)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
     return jsonify({"ok": True})
 
 
 @app.route("/api/results/run/adhoc/<run_id>/screening/decision", methods=["DELETE"])
-def delete_adhoc_screening_decision(run_id):
+@app.route("/api/results/run/saved/<search_id>/<run_id>/screening/decision", methods=["DELETE"])
+def delete_adhoc_screening_decision(run_id, search_id=None):
     """Remove a single screening decision from an ad-hoc run file."""
-    if not _UUID_RE.fullmatch(run_id):
-        return jsonify({"error": "Invalid run ID"}), 400
+    if not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return jsonify({"error": "Invalid run or search ID"}), 400
     body = request.get_json(silent=True) or {}
     paper_id = str(body.get("paperId", "")).strip()
     if not paper_id:
         return jsonify({"error": "paperId required"}), 400
-    file_path = os.path.join(ADHOC_RESULTS_DIR, f"{run_id}.json")
-    if not os.path.exists(file_path):
-        return jsonify({"error": "Run not found"}), 404
     try:
         with _data_io_lock:
-            payload = _read_json_file(file_path, None)
-            if not isinstance(payload, dict):
-                return jsonify({"error": "Invalid run file"}), 500
+            target, error, status = _checklist_target(run_id, search_id)
+            if error:
+                return jsonify({"error": error}), status
+            file_path, payload, history, index = target
+            if _dual_stage(payload, "title-abstract"):
+                return jsonify({"error": "Use two-reviewer screening for this stage."}), 409
             decisions = payload.get("screeningDecisions") or {}
             decisions.pop(paper_id, None)
             payload["screeningDecisions"] = decisions
-            _write_json_atomic(file_path, payload)
+            if history is not None:
+                history[index] = payload
+            _write_json_atomic(file_path, history if history is not None else payload)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
     return jsonify({"ok": True})
 
 
 @app.route("/api/results/run/adhoc/<run_id>/screening", methods=["DELETE"])
-def reset_adhoc_screening(run_id):
+@app.route("/api/results/run/saved/<search_id>/<run_id>/screening", methods=["DELETE"])
+def reset_adhoc_screening(run_id, search_id=None):
     """Clear all screening decisions from an ad-hoc run file."""
-    if not _UUID_RE.fullmatch(run_id):
-        return jsonify({"error": "Invalid run ID"}), 400
-    file_path = os.path.join(ADHOC_RESULTS_DIR, f"{run_id}.json")
-    if not os.path.exists(file_path):
-        return jsonify({"error": "Run not found"}), 404
+    if not _UUID_RE.fullmatch(run_id) or (search_id and not _UUID_RE.fullmatch(search_id)):
+        return jsonify({"error": "Invalid run or search ID"}), 400
     try:
         with _data_io_lock:
-            payload = _read_json_file(file_path, None)
-            if not isinstance(payload, dict):
-                return jsonify({"error": "Invalid run file"}), 500
+            target, error, status = _checklist_target(run_id, search_id)
+            if error:
+                return jsonify({"error": error}), status
+            file_path, payload, history, index = target
+            if _dual_stage(payload, "title-abstract"):
+                return jsonify({"error": "Use two-reviewer screening for this stage."}), 409
             payload["screeningDecisions"] = {}
-            _write_json_atomic(file_path, payload)
+            if history is not None:
+                history[index] = payload
+            _write_json_atomic(file_path, history if history is not None else payload)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
     return jsonify({"ok": True})
@@ -7300,6 +7754,9 @@ def export_replication_package():
     validation_papers = data.get("validationPapers", [])
     docs = data.get("docs", [])
     prisma = data.get("prisma", {})
+    submitted_prisma = copy.deepcopy({k: v for k, v in prisma.items()
+                                      if k not in ("taScreening", "fullTextScreening")}) if isinstance(prisma, dict) else None
+    submitted_docs = docs
     execution_date = data.get("executionDate", datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     dedup_docs = data.get("dedupDocs", [])
     excluded_docs = data.get("excludedDocs", [])
@@ -7313,17 +7770,25 @@ def export_replication_package():
     # Client-supplied values still win when present, so in-browser
     # refinements (e.g. snowballing merges) are not lost.
     run_id = str(data.get("runId") or "").strip()
+    search_id = str(data.get("searchId") or "").strip()
     server_run = None
-    if run_id and _UUID_RE.fullmatch(run_id):
-        server_run = _read_json_file(os.path.join(ADHOC_RESULTS_DIR, f"{run_id}.json"), None)
-        if not isinstance(server_run, dict):
-            server_run = None
+    full_text_records = None
+    full_text_summary = None
+    with _data_io_lock:
+        review_protocol = _load_protocol()
+        if run_id and _UUID_RE.fullmatch(run_id) and (not search_id or _UUID_RE.fullmatch(search_id)):
+            target, error, _ = _checklist_target(run_id, search_id or None)
+            if not error:
+                server_run = target[1]
     if server_run:
+        full_text_records = _full_text_records(server_run)
+        full_text_summary = _full_text_summary(full_text_records)
         raw_docs = server_run.get("rawDocs") or []
         if not docs:
             docs = server_run.get("docs") or []
         if not prisma:
-            prisma = server_run.get("prisma") or {}
+            prisma = copy.deepcopy(server_run.get("prisma") or {})
+        prisma["fullTextScreening"] = full_text_summary
         if not excluded_docs:
             _reason_labels = {
                 "duplicates": "Duplicate record",
@@ -7340,7 +7805,8 @@ def export_replication_package():
                 for d in reason_docs or []:
                     if isinstance(d, dict):
                         excluded_docs.append({**d, "exclusion_reason": label})
-        if not screening_decisions and isinstance(server_run.get("screeningDecisions"), dict):
+        if isinstance(server_run.get("screeningDecisions"), dict):
+            screening_decisions = []
             _by_id = {}
             for d in server_run.get("docs") or []:
                 doi = (d.get("doi") or "").strip().lower()
@@ -7371,7 +7837,7 @@ def export_replication_package():
 
     # T&A screening summary for the exported flow diagram
     ta_screening = None
-    if screening_decisions:
+    if screening_decisions or (server_run and _dual_stage(server_run, "title-abstract")):
         _inc = sum(1 for r in screening_decisions if r.get("decision") == "include")
         _exc = sum(1 for r in screening_decisions if r.get("decision") == "exclude")
         _uns = sum(1 for r in screening_decisions if r.get("decision") == "unsure")
@@ -7481,6 +7947,11 @@ def export_replication_package():
 
         # Included studies (final set after all filters)
         included_docs = data.get("includedDocs", docs)
+        if full_text_summary and (full_text_summary["screened"] or _dual_stage(server_run, "full-text")):
+            included_docs = [row["paper"] for row in full_text_records["candidates"]
+                             if row["decision"] and row["decision"]["decision"] == "include"]
+        elif server_run and (screening_decisions or _dual_stage(server_run, "title-abstract")):
+            included_docs = [row["paper"] for row in full_text_records["candidates"]]
         included_csv = _docs_to_csv(included_docs)
         zf.writestr(prefix + "02_data/included_studies.csv", included_csv)
 
@@ -7498,13 +7969,41 @@ def export_replication_package():
                          "ai_assisted", "ai_model", "ai_vendor", "ai_suggested", "ai_confidence"]
             sd_writer = csv.DictWriter(sd_output, fieldnames=sd_fields, extrasaction="ignore")
             sd_writer.writeheader()
-            sd_writer.writerows(screening_decisions)
+            sd_writer.writerows(_csv_safe_row(row) for row in screening_decisions)
             zf.writestr(prefix + "02_data/screening_decisions.csv", sd_output.getvalue())
 
+        if full_text_records and (full_text_records["candidates"] or full_text_records["inactive"]):
+            output = io.StringIO()
+            fields = ["paper_id", "title", "authors", "year", "source", "doi", "eligibility", "decision", "reason", "screened_at"]
+            writer = csv.DictWriter(output, fieldnames=fields)
+            writer.writeheader()
+            by_id = {_screening_paper_id(doc): doc for doc in (server_run.get("docs") or [])}
+            for row in full_text_records["candidates"] + full_text_records["inactive"]:
+                paper = row.get("paper") or by_id.get(row["paperId"], {})
+                decision = row.get("decision") or {}
+                authors = paper.get("authors") or ""
+                writer.writerow(_csv_safe_row({
+                    "paper_id": row["paperId"], "title": paper.get("title", ""),
+                    "authors": "; ".join(authors) if isinstance(authors, list) else authors,
+                    "year": paper.get("year", ""), "source": paper.get("source", ""),
+                    "doi": paper.get("doi", ""),
+                    "eligibility": "ambiguous identity" if row.get("ambiguous") else
+                                   "eligible" if "paper" in row else "no longer eligible",
+                    "decision": decision.get("decision", "pending"), "reason": decision.get("reason", ""),
+                    "screened_at": decision.get("timestamp", ""),
+                }))
+            zf.writestr(prefix + "02_data/full_text_screening.csv", output.getvalue())
+
+        if server_run and server_run.get("dualScreening"):
+            zf.writestr(prefix + "02_data/two_reviewer_screening.json",
+                        json.dumps(server_run["dualScreening"], indent=2, ensure_ascii=False))
+
         # Fill-in templates for PRISMA items 18/21 (risk of bias) and 22 (certainty)
-        final_studies = ([r for r in screening_decisions if r.get("decision") == "include"]
+        final_studies = (included_docs if full_text_summary and
+                         (full_text_summary["screened"] or _dual_stage(server_run, "full-text")) else
+                         [r for r in screening_decisions if r.get("decision") == "include"]
                          if screening_decisions else included_docs)
-        rob_csv, grade_csv = _assessment_templates(final_studies, _load_protocol())
+        rob_csv, grade_csv = _assessment_templates(final_studies, review_protocol)
         zf.writestr(prefix + "02_data/risk_of_bias_template.csv", rob_csv)
         zf.writestr(prefix + "02_data/grade_certainty_template.csv", grade_csv)
 
@@ -7512,7 +8011,9 @@ def export_replication_package():
         import base64 as _b64
 
         # Always generate PRISMA SVG server-side (reliable, resolution-independent)
-        prisma_svg = _build_prisma_svg(prisma, search_name, ta_screening=ta_screening)
+        prisma_svg = _build_prisma_svg(prisma, search_name, ta_screening=ta_screening,
+                                       manual_evidence=_manual_evidence(server_run) if server_run else None,
+                                       full_text=full_text_summary)
         if prisma_svg:
             zf.writestr(prefix + "04_images/prisma_flow_diagram.svg", prisma_svg)
 
@@ -7629,7 +8130,6 @@ def export_replication_package():
 
         # Machine-readable review protocol (research questions, registration,
         # reviewer team, synthesis/RoB methods) when the researcher filled it in
-        review_protocol = _load_protocol()
         if any(v for k, v in review_protocol.items() if k != "updatedAt"):
             zf.writestr(prefix + "03_protocol/review_protocol.json",
                         json.dumps(review_protocol, indent=2, ensure_ascii=False))
@@ -7670,6 +8170,39 @@ def export_replication_package():
             json.dumps(importable_config, indent=2, ensure_ascii=False)
         )
 
+        checklist_record = None
+        if server_run:
+            stored = server_run.get("prismaChecklist") or {"version": 0, "items": {}}
+            zf.writestr(prefix + "02_data/prisma_manual_evidence.json",
+                        json.dumps(_manual_evidence(server_run), indent=2, ensure_ascii=False))
+            context = data.get("checklistContext")
+            matching_docs = (context.get("docs") == submitted_docs == docs) if isinstance(context, dict) else False
+            if search_id and isinstance(context, dict):
+                matching_docs = (context.get("docs") == data.get("includedDocs") == server_run.get("docs", [])
+                                 and submitted_docs == docs
+                                 and docs == (server_run.get("rawDocs") or server_run.get("docs", [])))
+            matches_export = (_checklist_context_valid(context, run_id)
+                              and _manual_evidence_matches(server_run, context)
+                              and context["prisma"] == submitted_prisma
+                              and matching_docs
+                              and filters == server_run.get("filters", {})
+                              and normalize_boolean_operators(keywords) == server_run.get("query", "")
+                              and sorted(databases) == sorted(server_run.get("databases", [])))
+            revision = _checklist_revision(server_run, context, review_protocol) if matches_export else None
+            entries = []
+            for item_id in _CHECKLIST_IDS:
+                item = stored["items"].get(item_id, {})
+                checked = item.get("checked", False)
+                status = ("unconfirmed" if not checked else
+                          "unverified" if revision is None else
+                          "confirmed" if item.get("confirmedRevision") == revision else "stale")
+                entries.append({"id": item_id, "status": status, "note": item.get("text", ""),
+                                "confirmedRevision": item.get("confirmedRevision")})
+            checklist_record = {"runId": run_id, "version": stored["version"],
+                                "currentRevision": revision, "items": entries}
+            zf.writestr(prefix + "05_evidence_checklist/researcher_checklist.json",
+                        json.dumps(checklist_record, indent=2, ensure_ascii=False))
+
         # Written last so it can report which artefacts actually made it into the ZIP.
         checklist = _build_evidence_checklist(
             prisma,
@@ -7677,6 +8210,8 @@ def export_replication_package():
             written_files={n[len(prefix):] for n in zf.namelist() if n.startswith(prefix)},
             ta_screening=ta_screening,
             recall=_validation_recall(validation_papers, docs),
+            review_protocol=review_protocol,
+            full_text=full_text_summary,
             ai_usage={
                 "count": sum(1 for r in screening_decisions if r.get("ai_assisted") == "yes"),
                 "total": len(screening_decisions),
@@ -7685,6 +8220,17 @@ def export_replication_package():
                 "agreement": _ai_agreement_stats(screening_decisions),
             },
         )
+        if checklist_record:
+            checklist += "\n--- RESEARCHER CHECKLIST (run " + run_id + ") ---\n"
+            if checklist_record["currentRevision"] is None:
+                checklist += "Current browser evidence was not supplied; confirmations cannot be verified.\n"
+            for item in checklist_record["items"]:
+                checklist += f"  {item['id']:<4} {item['status']:<11}"
+                if item["note"]:
+                    checklist += " note: " + json.dumps(item["note"], ensure_ascii=False)
+                checklist += "\n"
+        else:
+            checklist += "\n--- RESEARCHER CHECKLIST ---\nNo matching saved run was provided; checklist notes are unavailable.\n"
         zf.writestr(prefix + "05_evidence_checklist/PRISMA_evidence_checklist.txt", checklist)
 
     zip_buffer.seek(0)
@@ -7883,7 +8429,7 @@ def _excluded_docs_to_csv(excluded_docs):
     return "\ufeff" + output.getvalue()
 
 
-def _build_prisma_svg(prisma, search_name="", ta_screening=None):
+def _build_prisma_svg(prisma, search_name="", ta_screening=None, manual_evidence=None, full_text=None):
     """Generate a PRISMA 2020 flow diagram as an SVG string from prisma data.
 
     ta_screening: optional {total, screened, included, excluded, unsure}
@@ -8098,6 +8644,7 @@ def _build_prisma_svg(prisma, search_name="", ta_screening=None):
     # T&A SCREENING (manual title & abstract screening, when performed)
     final_included = included
     included_detail = "Final set after automated filters"
+    incomplete_screening = False
     if ta_screening and ta_screening.get("total"):
         ta_total = int(ta_screening.get("total", 0))
         ta_inc = int(ta_screening.get("included", 0))
@@ -8105,6 +8652,7 @@ def _build_prisma_svg(prisma, search_name="", ta_screening=None):
         ta_uns = int(ta_screening.get("unsure", 0))
         ta_screened = int(ta_screening.get("screened", ta_inc + ta_exc + ta_uns))
         ta_pending = max(0, ta_total - ta_screened)
+        incomplete_screening = ta_pending > 0 or ta_uns > 0
         lines.append(box(MAIN_X, cur_y, BW, BH,
                          "#f5f3ff", "#7c3aed", "T&A SCREENING",
                          f"Screened: {ta_screened:,}/{ta_total:,}",
@@ -8122,12 +8670,56 @@ def _build_prisma_svg(prisma, search_name="", ta_screening=None):
         final_included = ta_inc
         included_detail = "After manual title & abstract screening"
 
+    if full_text and (full_text["screened"] or full_text.get("dualReview")):
+        incomplete_screening = incomplete_screening or full_text["pending"] > 0 or full_text["unsure"] > 0
+        lines.append(box(MAIN_X, cur_y, BW, BH, "#f5f3ff", "#7c3aed", "FULL TEXT",
+                         f"Included: {full_text['included']:,} | Excluded: {full_text['excluded']:,}",
+                         f"Not retrieved: {full_text['notRetrieved']:,} | Unsure: {full_text['unsure']:,} | Pending: {full_text['pending']:,}"))
+        cur_y += BH
+        lines.append(varrow(MAIN_X + BW // 2, cur_y, ARROW_GAP))
+        cur_y += ARROW_GAP
+        final_included = full_text["included"]
+        included_detail = "After recorded full-text decisions"
+
+    manual_evidence = manual_evidence or {}
+    snowballing = manual_evidence.get("snowballing")
+    if snowballing:
+        found = snowballing["backward"] + snowballing["forward"] + snowballing["other"]
+        added = found - snowballing["excluded"]
+        final_included += added
+        included_detail += f" + {added:,} other-source records"
+
     # INCLUDED
     lines.append(box(MAIN_X, cur_y, BW, BH,
                      "#d4efdf", "#16a34a", "INCLUDED",
-                     f"Studies included: {final_included:,}",
+                     f"{'Included so far' if incomplete_screening else 'Studies included'}: {final_included:,}",
                      included_detail))
-    cur_y += BH + 30
+    if snowballing:
+        lines.append(box(EXCL_X, cur_y, EXCL_W, BH,
+                         "#f0fdf4", "#15803d", "OTHER SOURCES",
+                         f"Other-source records: {found:,}",
+                         f"Excluded: {snowballing['excluded']:,} | Added: {added:,}"))
+        lines.append(f'<line x1="{EXCL_X}" y1="{cur_y + BH // 2}" '
+                     f'x2="{MAIN_X + BW + 6}" y2="{cur_y + BH // 2}" '
+                     'stroke="#555" stroke-width="2" marker-end="url(#ah)"/>')
+    cur_y += BH
+    for step in manual_evidence.get("manualSteps", []):
+        lines.append(varrow(MAIN_X + BW // 2, cur_y, ARROW_GAP))
+        cur_y += ARROW_GAP
+        final_included += step["added"] - step["removed"]
+        lines.append(box(MAIN_X, cur_y, BW, BH,
+                         "#f4ecf7", "#8e44ad", "MANUAL STEP",
+                         step["name"], f"Remaining: {final_included:,} | +{step['added']:,} / -{step['removed']:,}"))
+        cur_y += BH
+    if manual_evidence.get("manualSteps"):
+        lines.append(varrow(MAIN_X + BW // 2, cur_y, ARROW_GAP))
+        cur_y += ARROW_GAP
+        lines.append(box(MAIN_X, cur_y, BW, BH,
+                         "#d4efdf", "#16a34a", "FINAL",
+                         f"{'Current total' if incomplete_screening else 'Final studies for synthesis'}: {final_included:,}",
+                         "After manual review steps"))
+        cur_y += BH
+    cur_y += 30
 
     svg_h = cur_y
 
@@ -8197,9 +8789,12 @@ PRISMA 2020 guidelines for transparent reporting of systematic reviews.
 │   ├── included_studies.csv                     ← Final included studies
 │   ├── excluded_studies.csv                     ← Excluded studies with reasons
 │   ├── screening_decisions.csv                  ← Title & abstract screening decisions (if performed)
+│   ├── full_text_screening.csv                  ← Full-text decisions and reasons (if candidates exist)
+│   ├── two_reviewer_screening.json              ← Reviewer and adjudication history (if enabled)
 │   ├── risk_of_bias_template.csv                ← Blank risk-of-bias table per included study (fill in)
 │   ├── grade_certainty_template.csv             ← Blank GRADE certainty table per outcome (fill in)
-│   └── prisma_data.json                         ← PRISMA flow data (machine-readable)
+│   ├── prisma_data.json                         ← PRISMA flow data (machine-readable)
+│   └── prisma_manual_evidence.json              ← Manual steps and other sources (when a run is available)
 ├── 03_protocol/
 │   └── protocol.md                              ← Inclusion/exclusion criteria as prose
 ├── 04_images/
@@ -8341,7 +8936,7 @@ _EXCLUSION_REASON_LABELS = {
 
 
 def _build_evidence_checklist(prisma, has_screening=False, written_files=None, ta_screening=None,
-                              recall=None, ai_usage=None):
+                              recall=None, ai_usage=None, review_protocol=None, full_text=None):
     """Generate an evidence checklist mapping artefacts to PRISMA items.
 
     `written_files` are the ZIP-relative paths actually written, so each row can
@@ -8351,7 +8946,8 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
     screening = prisma.get("screening", {})
     eligibility = prisma.get("eligibility", {})
     included = prisma.get("included", 0)
-    review_protocol = _load_protocol()
+    if review_protocol is None:
+        review_protocol = _load_protocol()
 
     def present(path):
         if written_files is None:
@@ -8371,9 +8967,11 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
         "",
         "This checklist maps the contents of this replication package to the",
         "relevant PRISMA 2020 items, supporting auditability and transparency.",
+        "File presence does not establish that an item is reported or that a",
+        "template is completed. Confirm the report and public availability.",
         "",
         "  [OK] = artefact is present in this package",
-        "  [--] = not applicable / not produced for this run",
+        "  [--] = artefact not present in this package",
         "",
         "-" * 88,
         row("S1: Search strategy", "01_search_strategy/"),
@@ -8382,29 +8980,42 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
         row("S4: Date of search", "01_search_strategy/search_metadata.json"),
         row("S5: Constraints/limits", "01_search_strategy/filters_and_constraints.txt"),
         row("5: Eligibility criteria", "01_search_strategy/filters_and_constraints.txt"),
-        row("6: Study selection process", "02_data/prisma_data.json"),
-        row("7: Data collection process", "02_data/initial_search_results.csv"),
+        row("6: Information sources", "01_search_strategy/search_metadata.json"),
+        row("7: Search strategies", "01_search_strategy/search_strings_per_database.txt"),
+        row("8: Selection process", "02_data/prisma_data.json"),
+        row("16a: Manual flow evidence", "02_data/prisma_manual_evidence.json"),
+        row("Record metadata", "02_data/initial_search_results.csv"),
         row("16a: Identification results", "02_data/initial_search_results.csv"),
-        row("16b: Screening (dedup)", "02_data/deduplicated_records.csv"),
-        row("16b: Screening (filters)", "02_data/excluded_studies.csv"),
-        row("16b: T&A screening decisions", "02_data/screening_decisions.csv"),
-        row("16c: Eligibility assessment", "02_data/excluded_studies.csv"),
-        row("17: Included studies", "02_data/included_studies.csv"),
+        row("16a: Deduplicated records", "02_data/deduplicated_records.csv"),
+        row("16a: Filtered records", "02_data/excluded_studies.csv"),
+        row("16a: T&A decisions", "02_data/screening_decisions.csv"),
+        row("16b: Full-text decisions", "02_data/full_text_screening.csv"),
+        row("17: Record metadata", "02_data/included_studies.csv"),
         row("18/21: Risk of bias (template)", "02_data/risk_of_bias_template.csv"),
         row("22: Certainty/GRADE (template)", "02_data/grade_certainty_template.csv"),
         row("Flow diagram", "04_images/prisma_flow_diagram.svg"),
-        row("24a: Registration", "03_protocol/review_protocol.json"),
-        row("24b: Protocol access", "03_protocol/protocol.md"),
-        row("27: Data availability", "search_configuration.json"),
+        row("24: Protocol details", "03_protocol/review_protocol.json"),
+        row("24: Search protocol", "03_protocol/protocol.md"),
+        row("Search configuration", "search_configuration.json"),
         "-" * 88,
         "",
         "--- SUMMARY STATISTICS ---",
         f"  Total identified:    {identification.get('total_found', 'N/A')}",
         f"  Retrieved:           {identification.get('retrieved', 'N/A')}",
         f"  Duplicates removed:  {screening.get('duplicates', 0)}",
-        f"  Final included:      {included}",
+        f"  After filters:       {included}",
         "",
     ]
+    if full_text:
+        lines += ["", "--- FULL-TEXT SCREENING ---",
+                  f"  Candidates: {full_text['total']}; included: {full_text['included']}; excluded: {full_text['excluded']}; not retrieved: {full_text['notRetrieved']}; unsure: {full_text['unsure']}; pending: {full_text['pending']}.",
+                  f"  Decisions no longer eligible: {full_text['inactive']}; ambiguous identities: {full_text['ambiguous']}.",
+                  "  Verify reporting in the manuscript."]
+        if full_text["total"] or full_text["inactive"]:
+            lines.append("  See full_text_screening.csv for individual records and reasons.")
+        if full_text["screened"] or full_text.get("dualReview"):
+            lines.append("  Other-source counts are not assessed by this full-text workflow; review manual steps for double counting.")
+            lines.append("  included_studies.csv lists full-text inclusions from T&A candidates, not unlinked other-source or manual-step records.")
 
     other_methods = identification.get("other_methods")
     if other_methods is not None:
@@ -8417,7 +9028,7 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
         ]
 
     lines += [
-        "--- RECORDS EXCLUDED, WITH REASONS (PRISMA 16b) ---",
+        "--- RECORDS EXCLUDED BY AUTOMATED FILTERS (PRISMA 16a) ---",
     ]
 
     reason_counts = [
@@ -8434,10 +9045,10 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
     else:
         lines.append("  No records were excluded by automated filters.")
 
-    if ta_screening and ta_screening.get("screened"):
+    if ta_screening:
         lines += [
             "",
-            "--- TITLE & ABSTRACT SCREENING (PRISMA 16b/17) ---",
+            "--- TITLE & ABSTRACT SCREENING (PRISMA 16a) ---",
             f"  Records to screen:   {ta_screening.get('total', 0)}",
             f"  Screened:            {ta_screening.get('screened', 0)}",
             f"  Included:            {ta_screening.get('included', 0)}",
@@ -8470,8 +9081,9 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
                 reg += f", {review_protocol['registrationDate']}"
             lines.append(reg)
         else:
-            lines.append("  Registration:        not registered")
-        lines.append(f"  Reviewers:           {review_protocol.get('reviewers', 1)}")
+            lines.append("  Registration:        protocol shows not registered; confirm status")
+        if review_protocol.get("reviewers"):
+            lines.append(f"  Reviewers:           {review_protocol['reviewers']} (confirm screening roles)")
         for label, field in (
             ("Synthesis method",   "synthesisMethod"),
             ("Risk-of-bias tool",  "robTool"),
@@ -8501,7 +9113,7 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
     if ai_usage and (ai_usage.get("count") or ai_usage.get("agreement")):
         lines += [
             "",
-            "--- AUTOMATION TOOLS USED IN SELECTION (PRISMA 16b) ---",
+            "--- AUTOMATION TOOLS USED IN SELECTION (PRISMA 8) ---",
             f"  AI-assisted decisions: {ai_usage.get('count', 0)} of {ai_usage.get('total', 0)}",
             f"  Model(s):              {', '.join(ai_usage.get('models') or ['unspecified'])}",
             "  Every AI suggestion was accepted or overridden by a human reviewer.",
@@ -8513,9 +9125,11 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
     lines += ["", "--- ITEMS STILL NEEDING MANUAL ATTENTION ---"]
     todo = []
     if not review_protocol.get("registered"):
-        todo.append("24a: not registered - record the register and number, or state 'not registered'.")
-    if _to_int(review_protocol.get("reviewers"), 1) < 2:
-        todo.append("Selection: 1 reviewer recorded - PRISMA recommends >= 2 independent reviewers.")
+        todo.append("24: confirm registration status - record the register and number, or state 'not registered'.")
+    if review_protocol.get("reviewers"):
+        todo.append("8: confirm how many reviewers screened each record and whether they worked independently.")
+    else:
+        todo.append("8: reviewer count and screening independence are not recorded; confirm them.")
     for label, field in (
         ("11: risk-of-bias assessment", "robTool"),
         ("13: synthesis method", "synthesisMethod"),
@@ -8530,17 +9144,16 @@ def _build_evidence_checklist(prisma, has_screening=False, written_files=None, t
         if not review_protocol.get(field):
             todo.append(f"{label}: not recorded in the protocol.")
     if not has_screening:
-        todo.append("16b: no title/abstract screening decisions were recorded in this package.")
+        todo.append("16a: no title/abstract screening decisions were recorded in this package.")
+    todo.append("16b: verify citations and reasons for studies excluded after full-text assessment.")
+    todo.append("All items: verify reporting in the manuscript; artefact presence alone is not confirmation.")
     for db, counts in db_counts.items():
         if counts.get("error"):
             todo.append(f"16a: '{db}' returned an error - its records are missing or incomplete.")
         elif counts.get("warning"):
             todo.append(f"16a: '{db}' was truncated by an API limit - report as a search limitation.")
-    if todo:
-        for entry in todo:
-            lines.append(f"  [ ] {entry}")
-    else:
-        lines.append("  Nothing outstanding - all auto-checkable items are recorded.")
+    for entry in todo:
+        lines.append(f"  [ ] {entry}")
 
     lines.append("")
     lines.append("=" * 88)
