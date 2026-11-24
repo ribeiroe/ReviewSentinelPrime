@@ -1,4 +1,4 @@
-# Review Sentinel Prime v2.3.0 — Python Edition
+# Review Sentinel Prime v2.4.0 — Python Edition
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
@@ -28,7 +28,7 @@
 
 Instead of visiting Google Scholar, IEEE, PubMed, arXiv, and others one by one, this app lets you search up to **twelve databases at the same time** from a single screen — and automatically removes duplicate results.
 
-**The application and its saved data are local.** Searches send queries and any required credentials to database providers. Optional online AI sends paper details and protocol context to the selected service; email, feedback and survey submissions also use external services. Browser fonts and some libraries load from external hosts. Credentials are stored in plain text in `data/`; protect that folder and do not share or commit it.
+**The application and its saved data are local.** Searches send queries and any required credentials to database providers. Optional online AI sends paper details and protocol context to the selected service; email, feedback and survey submissions also use external services. Feedback attachment uploads require a separately configured service and are disabled by default; otherwise files are saved locally and attached to email if SMTP is configured. Browser fonts and some libraries load from external hosts. Credentials are stored in plain text in `data/`; protect that folder and do not share or commit it.
 
 ---
 
@@ -37,7 +37,7 @@ Instead of visiting Google Scholar, IEEE, PubMed, arXiv, and others one by one, 
 | Requirement | Details |
 | --- | --- |
 | **Python 3.12 or later** | Free — download from [python.org](https://www.python.org/downloads/) |
-| **Internet connection** | Required for searching databases and downloading dependencies (first run only) |
+| **Internet connection** | Required for searching databases, and for downloading dependencies on the first run and after updating to a new version |
 | **A modern browser** | Chrome, Firefox, Edge, or Safari all work |
 
 That is all. You do not need to install anything else.
@@ -78,11 +78,11 @@ sudo apt update && sudo apt install -y python3 python3-venv python3-pip
 
 ## 4. Step 2 — Extract the ZIP file
 
-1. Find the ZIP file you downloaded (e.g. `ReviewSentinel-v2.3.0-Python.zip`).
+1. Find the ZIP file you downloaded (e.g. `ReviewSentinel-v2.4.0-Python.zip`).
 2. **Right-click** the ZIP file and choose:
    - Windows: **Extract All…** → choose a location (e.g. your Desktop or Documents folder) → click **Extract**
    - macOS: **double-click** the ZIP file — it extracts automatically
-   - Linux: right-click → **Extract Here**, or run `unzip ReviewSentinel-v2.3.0-Python.zip`
+   - Linux: right-click → **Extract Here**, or run `unzip ReviewSentinel-v2.4.0-Python.zip`
 3. You should now have a folder called `ReviewSentinelPrime` (or similar). Open it.
 
 > **Do not run the app from inside the ZIP file.** Always extract it first.
@@ -235,6 +235,16 @@ After every search, a **Database coverage** table under the results shows each d
 
 ---
 
+### The search does not start: "Please fix your search query before searching"
+
+RSP checks the query before contacting any database. The message names the problem.
+→ Close every `(` with a `)` and every `"` with a second `"`.  
+→ Don't start with `AND`/`OR`, and don't end with `AND`/`OR`/`NOT`.  
+→ With Scopus selected, replace `&&`/`||` with `AND`/`OR`, `"phrase"~5` with `NEAR/5`, `+term`/`-term` with `AND`/`NOT`, and remove Web of Science tags such as `TI=`.  
+See the Manual → *Query Syntax Guide → Query check before searching*.
+
+---
+
 ### AI Assistant: "Can't reach the AI server" with Ollama or LM Studio
 
 → Make sure Ollama / LM Studio is open (LM Studio: start the server in its *Developer* tab).  
@@ -245,11 +255,14 @@ After every search, a **Database coverage** table under the results shows each d
 
 ### I need help
 
-Please contact the research team and include:
+Report it on the app's **Feedback** page (choose *Bug Report*) and attach:
 
-- A screenshot of the terminal window showing the error.
-- Your operating system (Windows 10/11, macOS version, Linux distribution) and Python version (`python --version`).
+- A screenshot of the error (paste it with Ctrl+V on the Feedback page).
+- The log file **`rsp.log`** from the RSP folder — the launcher writes the app's errors there (Windows and macOS/Linux).
+- In the description: your operating system (Windows 10/11, macOS version, Linux distribution), your Python version (`python --version`), and the RSP version shown on the About page.
+
+If the app does not start at all, send the same details to the research team, with a screenshot of the launcher window.
 
 ---
 
-Review Sentinel Prime v2.3.0 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.4.0 — Systematic Literature Review Automation Platform

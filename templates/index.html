@@ -422,6 +422,7 @@
                 <li>Use <strong>OR</strong> to accept either term: <code>deep learning OR neural network</code></li>
                 <li>Use <strong>parentheses</strong> to group: <code>(deep learning OR neural network) AND protein</code></li>
                 <li>Use <strong>quotes</strong> for an exact phrase: <code>"machine learning"</code></li>
+                <li>Close every <code>(</code> and <code>"</code>, and don't end with AND / OR / NOT — RSP checks this before searching and tells you what to fix</li>
               </ul>
             </details>
 
@@ -1013,7 +1014,7 @@
                                 data = payload;
                             } else if (payload.type === 'error') {
                                 clearInterval(_timerInterval);
-                                statusEl.innerHTML = `<span class="error">${payload.message}</span>`;
+                                statusEl.innerHTML = `<span class="error">${escapeHtml(payload.message)}</span>`;
                                 return;
                             }
                         } catch (e) { /* ignore parse errors */ }

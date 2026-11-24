@@ -23,7 +23,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $Root        = $PSScriptRoot
 $Dist        = Join-Path $Root "dist"
-$CurrentVersion = "v2.3.0" # single source of truth
+$CurrentVersion = "v2.4.0" # single source of truth
 
 # -- Validate version format --------------------------------------------------
 if ($Version -ne "" -and $Version -notmatch '^v\d+\.\d+\.\d+$') {
@@ -212,7 +212,7 @@ function Add-DataSkeleton ($StageDir) {
     }
     # Relay configs live in the tracked releases/relay/ folder so every release ships them.
     # They hold public form URLs and field IDs only - never credentials.
-    foreach ($cfg in @("google_form_config.json", "google_form_feedback_config.json", "google_form_feature_config.json")) {
+    foreach ($cfg in @("google_form_config.json", "google_form_feedback_config.json", "google_form_feature_config.json", "feedback_upload_config.json")) {
         $src = Join-Path $Root "releases\relay\$cfg"
         if (-not (Test-Path $src)) {
             Write-Host "    [ERROR] Relay config missing: releases\relay\$cfg"

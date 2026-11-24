@@ -4,7 +4,7 @@
 
 ## A locally-run, browser-based tool for Systematic Literature Reviews — no cloud account required
 
-v2.3.0 · Python 3.12 · Flask 3.1 · Docker ready
+v2.4.0 · Python 3.12 · Flask 3.1 · Docker ready
 
 ---
 
@@ -19,7 +19,7 @@ v2.3.0 · Python 3.12 · Flask 3.1 · Docker ready
 | Feature | Description |
 | --- | --- |
 | ▸ **Multi-database search** | Search IEEE Xplore, ACM DL, Scopus, ScienceDirect, Springer, Inspec, PubMed, arXiv, HAL, OpenAlex, EBSCO, Web of Science simultaneously (12 databases) |
-| ▸ **Boolean query syntax** | Full support for `OR`, `AND`, parentheses, and exact phrases — with an in-page Query tips guide |
+| ▸ **Boolean query syntax** | Full support for `OR`, `AND`, parentheses, and exact phrases — with an in-page Query tips guide. Before a search starts, RSP checks the query (unbalanced parentheses or quotes, `AND`/`OR`/`NOT` with no term, syntax Scopus rejects) and says exactly what to fix |
 | ▸ **Live progress** | Real-time per-database progress panel with elapsed timer |
 | ▸ **Retrieval settings** | Optionally apply the year range at each database (records outside it are counted for PRISMA, not downloaded) and set the maximum records for each database |
 | ▸ **Coverage status & search log** | Each database is marked complete / partial / failed after every run (never a silent 0); a per-database `search_log.csv` (query sent, reported vs retrieved, records removed per filter, pages, retries, errors) is exported with the results |
@@ -31,11 +31,11 @@ v2.3.0 · Python 3.12 · Flask 3.1 · Docker ready
 | ▸ **Saved searches** | Save, schedule (hourly/daily/monthly), and re-run searches automatically |
 | ▸ **Countdown timer** | Live countdown to the next scheduled run, anchored to `lastRun` timestamp — accurate after refreshes |
 | ▸ **Email notifications** | Diff-based alerts showing new/removed papers after each scheduled run |
-| ▸ **Bug reports & feature requests** | Built-in Feedback page that records submissions in the project's issue-collection forms — works even when no SMTP server is configured |
+| ▸ **Bug reports & feature requests** | Built-in Feedback page that records submissions in the project's issue-collection forms — works even when no SMTP server is configured. Attach up to 5 screenshots or files (paste with Ctrl+V, drag and drop, or browse) |
 | ▸ **T&A Screening** | Manual Title & Abstract screening page — review papers one-by-one with Include / Exclude / Unsure decisions, navigate prev/next, and export decisions as CSV |
 | ▸ **Full-text screening** | Review T&A-included papers per run; record inclusions, exclusions with reasons, non-retrieval and deferred decisions. The PRISMA flow and replication ZIP reflect recorded decisions and pending papers. |
 | ▸ **Two-reviewer screening** | Optional per-run, per-stage reviewer decisions and adjudication. Labels are self-declared; identity and blinding are not enforced. Only resolved decisions count. |
-| ▸ **AI Screening Assistant** | Optional AI suggestions during T&A screening — run privately on your own computer (Ollama, LM Studio) or use an online service (OpenAI, Anthropic, Google Gemini, Groq, OpenRouter). Guided setup with automatic model list and one-click **Test & Save**; each service's settings are remembered. The reviewer accepts or overrides each suggestion, and accepted decisions carry model provenance that feeds the PRISMA item 8 automation-tool disclosure |
+| ▸ **AI Screening Assistant** | Optional AI suggestions during T&A screening — run privately on your own computer (Ollama, LM Studio) or use an online service (OpenAI, Anthropic, Google Gemini, Groq, OpenRouter) — no special hardware needed. Anthropic (Claude) is connected through its native API with guaranteed-valid answers. Guided setup with automatic model list and one-click **Test & Save**; each service's settings are remembered. The reviewer accepts or overrides each suggestion, and accepted decisions carry model provenance that feeds the PRISMA item 8 automation-tool disclosure |
 | ▸ **Results Hub** | Browse and download all local run snapshots (saved and ad-hoc) from a single page |
 | ▸ **Charts** | Publications per year (with trend line), abstract keyword frequency (top terms bar chart), venue, and document-type charts — all with PNG export |
 | ▸ **PRISMA 2020** | Auto-generated flow diagram; clickable stage and excluded cards; Snowballing / Other Sources; Review Protocol; evidence checklist with recorded evidence and drafts that require researcher confirmation |
@@ -60,6 +60,18 @@ v2.3.0 · Python 3.12 · Flask 3.1 · Docker ready
 5. Export the replication package. Depending on the run, it includes `02_data/full_text_screening.csv`, `02_data/two_reviewer_screening.json`, `02_data/prisma_manual_evidence.json` and `05_evidence_checklist/researcher_checklist.json`. Manual other-source counts are not individual full-text records. Missing or mismatched checklist evidence is marked unverified, not automatically confirmed.
 
 Run data, screening decisions and run-specific checklist evidence are removed when the run is deleted or pruned. Older browser-only checklist notes and manual evidence can be imported explicitly after checking that they belong to the run; checklist confirmations are not imported.
+
+---
+
+## What's New in v2.4.0
+
+- **Attachments on the Feedback page** — add up to 5 screenshots or files to a bug report or feature request: paste a screenshot with **Ctrl+V**, drag and drop, or browse (images, PDF, text/log/CSV/JSON/RIS/BIB; 5 MB each, 10 MB total). Automatic upload requires a separately configured upload service and is disabled by default. Without it, files are saved in `data/feedback_attachments/`; if SMTP is configured, they are also attached to the email. The feedback page warns when upload is unavailable.
+- **Query check before searching** — unbalanced parentheses or quotation marks, `AND`/`OR`/`NOT` with no term, empty `()`, and (with Scopus selected) syntax Scopus rejects (`&&`, `||`, `"…"~5`, `+term`/`-term`, Web of Science tags such as `TI=`) are reported before any database is contacted, with a message saying exactly what to fix. Scopus's own "HTTP 400" message is also clearer.
+- **More reliable ScienceDirect retrieval** — ScienceDirect now uses the same retries with backoff, request pacing and plain-language errors as the other databases, instead of stopping at the first rate limit (429) or network error.
+- **Claude through Anthropic's native API** — the AI Screening Assistant now talks to Anthropic directly (official SDK) with guaranteed-valid JSON answers and low effort for fast, cheap screening; this also fixes errors with current Claude models, which no longer accept the `temperature` setting. Other AI services are unchanged.
+- **Logs on Windows** — `START.bat` now writes errors to `rsp.log`, like the macOS/Linux launcher.
+- **Developer launchers** — `run.bat` / `run.sh` now create `.venv` and install `requirements.txt` automatically before starting.
+- **Fixes** — user text in feedback emails is now HTML-escaped, and search error messages are escaped before display.
 
 ---
 
@@ -219,19 +231,12 @@ See [`releases/docker/README.md`](releases/docker/README.md) for the full step-b
 git clone <repo-url>
 cd ReviewSentinelPrime
 
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # macOS/Linux
-# .venv\Scripts\activate         # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the app
-python app.py
+# Run — creates .venv and installs requirements.txt automatically
+./run.sh                         # macOS/Linux
+# run.bat                        # Windows
 ```
 
-Open **[http://localhost:5001](http://localhost:5001)** in your browser.
+Open **[http://localhost:5001](http://localhost:5001)** in your browser. The first run needs an internet connection and takes a minute or two; later runs only update packages when `requirements.txt` changes.
 
 On macOS/Linux you can also double-click `releases/python/start.command`.  
 On Windows, double-click `releases/python/START.bat`.
@@ -255,7 +260,7 @@ Then right-click the launcher and choose Open once.
 ReviewSentinelPrime/
 ├── app.py                  # Flask application & all API routes
 ├── requirements.txt        # Python dependencies
-├── run.sh / run.bat        # Run from a repository checkout (activates .venv or venv)
+├── run.sh / run.bat        # Run from a repository checkout (creates .venv, installs requirements, starts the app)
 ├── build-releases.sh/.ps1  # Stamp the version and build the release ZIPs
 ├── index.html              # Quick-start launcher page (docs/index.html is the copy for docs/)
 ├── templates/              # Jinja2 HTML templates (pages and the built-in manual)
@@ -267,7 +272,7 @@ ReviewSentinelPrime/
 └── releases/
     ├── docker/             # Docker Compose files + user guide README
     ├── python/             # One-click Python launcher scripts + user guide README
-    └── relay/              # Feedback / survey relay configuration
+    └── relay/              # Feedback / survey relay configuration (Google Forms, attachment upload script)
 ```
 
 ---
@@ -296,7 +301,7 @@ Each card has an inline **`ALL (AND)`** / **`ANY (OR)`** match mode dropdown:
 
 ## Tech Stack
 
-- **Backend:** Python 3.12, Flask 3.1, APScheduler 3.10, requests 2.32
+- **Backend:** Python 3.12, Flask 3.1, APScheduler 3.10, requests 2.32, Anthropic Python SDK 2.13 (only used when Claude is selected in the AI Screening Assistant)
 - **Frontend:** Vanilla JS, Chart.js 4.4, html2canvas 1.4.1, Jinja2, Inter (Google Fonts)
 - **Deployment:** Docker & Compose, or direct Python
 - **Storage:** Local JSON files — no database server required
@@ -383,7 +388,7 @@ RSP's only stage that uses a language model is the optional **AI Screening Assis
 1. Open **Settings → AI Screening Assistant** and set *Assistant* to **Enabled**.
 2. Under **Where should the AI run?** choose one option — the page shows step-by-step instructions for it:
    - **Ollama** or **LM Studio** — runs on a computer you control; titles and abstracts are sent to the configured model server. Install the app, download a model, and (LM Studio) start its server. To use one running on another computer on your network, replace `localhost` with that computer's IP address (Ollama: set `OLLAMA_HOST=0.0.0.0` on that computer; LM Studio: enable *Serve on Local Network*).
-   - **OpenAI, Anthropic, Google Gemini, Groq, OpenRouter** — online services; paste your API key (the page links to where to get one). Titles and abstracts are sent to that provider and usage is billed to your account.
+   - **OpenAI, Anthropic, Google Gemini, Groq, OpenRouter** — online services; paste your API key (the page links to where to get one). Titles and abstracts are sent to that provider and usage is billed to your account. No special hardware is needed. Anthropic (Claude) uses its native API: answers are always valid JSON, and screening runs at low effort to keep it fast and cheap.
    - **Other / custom server** — any OpenAI-compatible or Ollama-compatible server.
 3. Choose a model from the list (it fills in automatically once connected; *Other* lets you type a name).
 4. Click **Test & Save** — settings are saved only if the model answers correctly; otherwise a plain-language message explains what to fix.

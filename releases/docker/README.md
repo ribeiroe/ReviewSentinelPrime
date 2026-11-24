@@ -1,4 +1,4 @@
-# Review Sentinel Prime v2.3.0 — User Guide
+# Review Sentinel Prime v2.4.0 — User Guide
 
 ![Review Sentinel Prime logo](../../static/images/logo.png)
 
@@ -29,7 +29,7 @@
 
 Instead of visiting Google Scholar, IEEE, PubMed, arXiv, and others one by one, this app lets you search up to **twelve databases at the same time** from a single screen — and automatically removes duplicate results.
 
-**The application and its saved data are local.** Searches send queries and any required credentials to database providers. Optional online AI sends paper details and protocol context to the selected service; email, feedback and survey submissions also use external services. Browser fonts and some libraries load from external hosts. Credentials are stored in plain text in `data/`; protect that folder and do not share or commit it.
+**The application and its saved data are local.** Searches send queries and any required credentials to database providers. Optional online AI sends paper details and protocol context to the selected service; email, feedback and survey submissions also use external services. Feedback attachment uploads require a separately configured service and are disabled by default; otherwise files are saved locally and attached to email if SMTP is configured. Browser fonts and some libraries load from external hosts. Credentials are stored in plain text in `data/`; protect that folder and do not share or commit it.
 
 ---
 
@@ -265,6 +265,16 @@ After every search, a **Database coverage** table under the results shows each d
 
 ---
 
+### The search does not start: "Please fix your search query before searching"
+
+RSP checks the query before contacting any database. The message names the problem.
+→ Close every `(` with a `)` and every `"` with a second `"`.
+→ Don't start with `AND`/`OR`, and don't end with `AND`/`OR`/`NOT`.
+→ With Scopus selected, replace `&&`/`||` with `AND`/`OR`, `"phrase"~5` with `NEAR/5`, `+term`/`-term` with `AND`/`NOT`, and remove Web of Science tags such as `TI=`.
+See the Manual → *Query Syntax Guide → Query check before searching*.
+
+---
+
 ### AI Assistant: "Can't reach the AI server" with Ollama or LM Studio
 
 Inside Docker, `localhost` means the container, not your computer.
@@ -276,11 +286,14 @@ Inside Docker, `localhost` means the container, not your computer.
 
 ### I need help
 
-Please contact the support team and include:
+Report it on the app's **Feedback** page (choose *Bug Report*) and attach:
 
-- A screenshot of the error message.
-- Your operating system (Windows 10/11, macOS version, Linux distribution).
+- A screenshot of the error (paste it with Ctrl+V on the Feedback page).
+- The app's log: open a terminal in the RSP folder, run `docker compose logs --no-color > rsp.log`, and attach the `rsp.log` file it creates.
+- In the description: your operating system (Windows 10/11, macOS version, Linux distribution) and the RSP version shown on the About page.
+
+If the app does not start at all, send the same details to the support team, with a screenshot of the start window.
 
 ---
 
-Review Sentinel Prime v2.3.0 — Systematic Literature Review Automation Platform
+Review Sentinel Prime v2.4.0 — Systematic Literature Review Automation Platform

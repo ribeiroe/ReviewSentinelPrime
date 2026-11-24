@@ -106,6 +106,47 @@
             padding: 1.5rem 0;
             flex-wrap: wrap;
         }
+        /* Attachments */
+        .drop-zone {
+            border: 2px dashed #c5d3e0;
+            border-radius: 8px;
+            padding: 1.2rem;
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .drop-zone:hover, .drop-zone:focus, .drop-zone.dragover {
+            border-color: #3498db; background: #f0f8ff; outline: none;
+        }
+        .drop-zone strong { color: #3498db; }
+        .attach-list { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.7rem; }
+        .attach-item {
+            position: relative;
+            display: flex; align-items: center; gap: 0.5rem;
+            border: 1px solid #e2e8f0; border-radius: 6px;
+            padding: 0.35rem 2rem 0.35rem 0.4rem;
+            background: #fafbfc; font-size: 0.8rem; max-width: 260px;
+        }
+        .attach-item img, .attach-item .file-badge {
+            width: 44px; height: 44px; border-radius: 4px; flex-shrink: 0;
+        }
+        .attach-item img { object-fit: cover; }
+        .attach-item .file-badge {
+            display: flex; align-items: center; justify-content: center;
+            background: #e8eef5; color: #2c3e50; font-weight: 700; font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+        .attach-item .attach-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .attach-item .attach-size { color: #999; }
+        .attach-item button {
+            position: absolute; top: 2px; right: 4px;
+            border: none; background: none; color: #999; font-size: 1.1rem;
+            cursor: pointer; line-height: 1; padding: 2px 4px;
+        }
+        .attach-item button:hover { color: #e74c3c; }
+
         /* Priority select — width constraint only */
         .priority-select { max-width: 320px; }
 
@@ -187,6 +228,22 @@
                 </div>
 
                 <div class="field">
+                    <label for="fbFiles">Attachments (optional)</label>
+                    <div class="drop-zone" id="fbDropZone" tabindex="0" role="button"
+                         aria-describedby="fbAttachHint">
+                        Paste a screenshot (<strong>Ctrl+V</strong>), drag files here, or <strong>click to browse</strong>
+                    </div>
+                    <input type="file" id="fbFiles" multiple hidden
+                           accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.log,.csv,.json,.ris,.bib">
+                    <div class="attach-list" id="fbAttachList"></div>
+                    <div class="hint" id="fbAttachHint">
+                        Up to 5 files, 5 MB each (10 MB total). Images, PDF, or text/log/CSV/JSON/RIS/BIB.
+                        Automatic upload requires separate configuration; otherwise files are saved locally and sent by email only if SMTP is configured.
+                        Screenshots may show API keys or personal data. Please check them before attaching.
+                    </div>
+                </div>
+
+                <div class="field">
                     <label for="fbEmail">Your Email (optional)</label>
                     <input type="email" id="fbEmail" name="contact_email" placeholder="your.email@example.com">
                     <div class="hint">Only if you'd like us to follow up with you about this submission.</div>
@@ -244,6 +301,106 @@
         typeRadios.forEach(r => r.addEventListener('change', updateTypeVisibility));
         updateTypeVisibility();
 
+        // --- Attachments ---
+        const FB_MAX_FILES = 5;
+        const FB_MAX_FILE_BYTES = 5 * 1024 * 1024;
+        const FB_MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+        const FB_ALLOWED_EXTS = ['png','jpg','jpeg','gif','webp','pdf','txt','log','csv','json','ris','bib'];
+        let fbFiles = [];
+
+        const dropZone = document.getElementById('fbDropZone');
+        const fileInput = document.getElementById('fbFiles');
+        const attachList = document.getElementById('fbAttachList');
+
+        function formatSize(bytes) {
+            return bytes < 1024 * 1024 ? Math.max(1, Math.round(bytes / 1024)) + ' KB'
+                                       : (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function addFiles(list) {
+            for (let file of Array.from(list)) {
+                // Pasted screenshots arrive as "image.png" — give them a useful name.
+                if (/^image\.(png|jpe?g|gif|webp)$/i.test(file.name)) {
+                    const ext = file.name.split('.').pop();
+                    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+                    file = new File([file], 'screenshot-' + stamp + '.' + ext, { type: file.type });
+                }
+                const ext = (file.name.split('.').pop() || '').toLowerCase();
+                const total = fbFiles.reduce((s, f) => s + f.size, 0);
+                if (fbFiles.length >= FB_MAX_FILES) {
+                    showToast('You can attach at most ' + FB_MAX_FILES + ' files.', 'warning'); break;
+                }
+                if (!FB_ALLOWED_EXTS.includes(ext)) {
+                    showToast('"' + file.name + '" is not an allowed file type.', 'warning'); continue;
+                }
+                if (file.size > FB_MAX_FILE_BYTES) {
+                    showToast('"' + file.name + '" is larger than 5 MB.', 'warning'); continue;
+                }
+                if (total + file.size > FB_MAX_TOTAL_BYTES) {
+                    showToast('Attachments cannot exceed 10 MB in total.', 'warning'); continue;
+                }
+                fbFiles.push(file);
+            }
+            renderAttachments();
+        }
+
+        function renderAttachments() {
+            attachList.querySelectorAll('img').forEach(img => URL.revokeObjectURL(img.src));
+            attachList.innerHTML = '';
+            fbFiles.forEach((file, i) => {
+                const item = document.createElement('div');
+                item.className = 'attach-item';
+                const ext = file.name.split('.').pop().toLowerCase();
+                let thumb;
+                if (file.type.startsWith('image/')) {
+                    thumb = document.createElement('img');
+                    thumb.src = URL.createObjectURL(file);
+                    thumb.alt = '';
+                } else {
+                    thumb = document.createElement('span');
+                    thumb.className = 'file-badge';
+                    thumb.textContent = ext;
+                }
+                const info = document.createElement('div');
+                info.style.minWidth = '0';
+                const name = document.createElement('div');
+                name.className = 'attach-name';
+                name.textContent = file.name;
+                name.title = file.name;
+                const size = document.createElement('div');
+                size.className = 'attach-size';
+                size.textContent = formatSize(file.size);
+                info.append(name, size);
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.innerHTML = '&times;';
+                remove.setAttribute('aria-label', 'Remove ' + file.name);
+                remove.onclick = () => { fbFiles.splice(i, 1); renderAttachments(); };
+                item.append(thumb, info, remove);
+                attachList.appendChild(item);
+            });
+        }
+
+        function clearAttachments() { fbFiles = []; renderAttachments(); }
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+        });
+        fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+        ['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
+            e.preventDefault(); dropZone.classList.add('dragover');
+        }));
+        ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => {
+            e.preventDefault(); dropZone.classList.remove('dragover');
+        }));
+        dropZone.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+        // Paste anywhere on the page; text pastes into fields are left alone.
+        document.addEventListener('paste', e => {
+            const files = Array.from(e.clipboardData ? e.clipboardData.files : []);
+            if (files.length) { e.preventDefault(); addFiles(files); }
+        });
+
         // --- Validation ---
         function validate() {
             let valid = true;
@@ -276,6 +433,7 @@
                     document.getElementById('feedbackForm').reset();
                     document.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
                     updateTypeVisibility();
+                    clearAttachments();
                 }
             });
         }
@@ -309,6 +467,10 @@
                 body += 'EXPECTED BEHAVIOUR\r\n'  + (d.expected || '(not provided)') + '\r\n\r\n';
                 body += 'ACTUAL BEHAVIOUR\r\n'    + (d.actual   || '(not provided)') + '\r\n';
             }
+            if (fbFiles.length) {
+                body += '\r\nATTACHMENTS (please attach these files to this email)\r\n';
+                body += fbFiles.map(f => '- ' + f.name).join('\r\n') + '\r\n';
+            }
 
             window.location.href = 'mailto:' + recipient + '?subject=' + subject + '&body=' + encodeURIComponent(body);
             closeFeedbackEmailModal();
@@ -331,22 +493,35 @@
             btn.innerHTML = 'Sending…';
 
             try {
-                const resp = await fetch('/api/submit-feedback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(_feedbackMailtoData)
-                });
+                const formData = new FormData();
+                Object.entries(_feedbackMailtoData).forEach(([k, v]) => formData.append(k, v));
+                fbFiles.forEach(f => formData.append('attachments', f, f.name));
+                const resp = await fetch('/api/submit-feedback', { method: 'POST', body: formData });
                 const result = await resp.json();
                 if (resp.ok && result.ok) {
-                    showToast('Feedback submitted successfully! Thank you.', 'success', 6000);
+                    const att = result.attachments;
+                    if (att && !att.uploaded) {
+                        showToast('Feedback submitted, but the attachments could not be uploaded. ' +
+                                  'They were saved locally in: ' + att.localFolder, 'warning', 10000);
+                    } else {
+                        showToast('Feedback submitted successfully! Thank you.', 'success', 6000);
+                    }
                     document.getElementById('feedbackForm').reset();
                     document.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
                     updateTypeVisibility();
+                    clearAttachments();
+                } else if (resp.status === 400 || resp.status === 413) {
+                    // Attachment validation failed — let the user fix it and retry.
+                    showToast(result.error || 'The submission was rejected.', 'warning', 8000);
                 } else {
-                    document.getElementById('femDesc').textContent =
-                        'Automatic submission is not configured on this installation. You can send the ' +
+                    let msg = 'Automatic submission is not configured on this installation. You can send the ' +
                         'feedback directly from your email app (Outlook, Apple Mail, Gmail, etc.), or set ' +
                         'up SMTP in Settings for automatic sending.';
+                    if (fbFiles.length) {
+                        msg += ' Your email app cannot add the attachments automatically, so please attach: ' +
+                               fbFiles.map(f => f.name).join(', ') + '.';
+                    }
+                    document.getElementById('femDesc').textContent = msg;
                     document.getElementById('feedbackEmailModal').style.display = 'flex';
                 }
             } catch (err) {

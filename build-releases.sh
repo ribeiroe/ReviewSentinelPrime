@@ -17,7 +17,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 DIST="$ROOT/dist"
 
 # ── Current version (single source of truth in this file) ────────────────────
-VERSION="v2.3.0"
+VERSION="v2.4.0"
 
 APP_ITEMS=("app.py" "requirements.txt" "templates" "static" "LICENSE")
 
@@ -141,7 +141,7 @@ add_data_skeleton() {
     printf '{}'  > "$stage/data/smtp_config.json"
     # Relay configs live in the tracked releases/relay/ folder so every release ships them.
     # They hold public form URLs and field IDs only - never credentials.
-    for cfg in google_form_config.json google_form_feedback_config.json google_form_feature_config.json; do
+    for cfg in google_form_config.json google_form_feedback_config.json google_form_feature_config.json feedback_upload_config.json; do
         if [ ! -f "$ROOT/releases/relay/$cfg" ]; then
             echo "    [ERROR] Relay config missing: releases/relay/$cfg"
             exit 1

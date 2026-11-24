@@ -3,6 +3,7 @@ data/
 results/
 dist/
 rsp.log
+rsp-output.log
 .rsp.pid
 
 # Python

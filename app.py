@@ -1,3 +1,4 @@
+import base64
 import csv
 import copy
 import hashlib
@@ -29,7 +30,7 @@ from flask import Flask, render_template, request, jsonify, send_file, Response,
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-RSP_VERSION = "v2.3.0"
+RSP_VERSION = "v2.4.0"
 
 @app.context_processor
 def inject_rsp_version():
@@ -71,6 +72,8 @@ SMTP_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dat
 GOOGLE_FORM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "google_form_config.json")
 FEEDBACK_GOOGLE_FORM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "google_form_feedback_config.json")
 FEATURE_GOOGLE_FORM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "google_form_feature_config.json")
+FEEDBACK_UPLOAD_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "feedback_upload_config.json")
+FEEDBACK_ATTACHMENTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "feedback_attachments")
 RUN_RETENTION_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "run_retention_settings.json")
 RETRIEVAL_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "retrieval_settings.json")
 PROTOCOL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "protocol.json")
@@ -415,6 +418,133 @@ def _relay_feedback_to_google_form(data):
         return False, "No feedback answers matched the configured form entries."
 
     return _post_to_google_form(cfg, payload)
+
+
+# ── Feedback attachments ─────────────────────────────────────────────────────
+FEEDBACK_MAX_FILES = 5
+FEEDBACK_MAX_FILE_BYTES = 5 * 1024 * 1024
+FEEDBACK_MAX_TOTAL_BYTES = 10 * 1024 * 1024
+_FEEDBACK_IMAGE_SIGNATURES = {
+    "png": (b"\x89PNG\r\n\x1a\n",),
+    "jpg": (b"\xff\xd8\xff",),
+    "jpeg": (b"\xff\xd8\xff",),
+    "gif": (b"GIF87a", b"GIF89a"),
+    "pdf": (b"%PDF-",),
+}
+_FEEDBACK_TEXT_EXTS = {"txt", "log", "csv", "json", "ris", "bib"}
+FEEDBACK_ALLOWED_EXTS = set(_FEEDBACK_IMAGE_SIGNATURES) | {"webp"} | _FEEDBACK_TEXT_EXTS
+_FEEDBACK_MIME = {
+    "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif",
+    "webp": "image/webp", "pdf": "application/pdf", "json": "application/json",
+    "csv": "text/csv",
+}
+
+
+def get_feedback_upload_config():
+    """Apps Script endpoint that stores feedback attachments in Google Drive.
+
+    Read from data/feedback_upload_config.json (shipped from releases/relay/),
+    overridable with FEEDBACK_UPLOAD_URL / FEEDBACK_UPLOAD_TOKEN. Returns {}
+    when not configured, which disables the Drive upload.
+    """
+    cfg = {}
+    if os.path.exists(FEEDBACK_UPLOAD_CONFIG_FILE):
+        try:
+            with open(FEEDBACK_UPLOAD_CONFIG_FILE, "r", encoding="utf-8-sig") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                cfg = loaded
+        except Exception:
+            cfg = {}
+    url = str(os.environ.get("FEEDBACK_UPLOAD_URL", cfg.get("upload_url", "")) or "").strip()
+    token = str(os.environ.get("FEEDBACK_UPLOAD_TOKEN", cfg.get("token", "")) or "").strip()
+    if not url.startswith("https://script.google.com/"):
+        return {}
+    return {"upload_url": url, "token": token}
+
+
+def _safe_attachment_name(name):
+    name = unicodedata.normalize("NFKC", os.path.basename(str(name or "").replace("\\", "/")))
+    name = re.sub(r"[^\w.\- ]", "_", name).strip(" .")
+    return (name or "attachment")[:120]
+
+
+def _collect_feedback_attachments(file_storages):
+    """Validate uploaded files. Returns a list of {name, ext, mime, data}.
+
+    Raises ValueError with a user-facing message when a limit or type check fails.
+    """
+    files = [f for f in file_storages if f and f.filename]
+    if len(files) > FEEDBACK_MAX_FILES:
+        raise ValueError(f"You can attach at most {FEEDBACK_MAX_FILES} files.")
+    result, total = [], 0
+    for storage in files:
+        name = _safe_attachment_name(storage.filename)
+        ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        if ext not in FEEDBACK_ALLOWED_EXTS:
+            raise ValueError(f"'{name}' is not an allowed file type.")
+        data = storage.read(FEEDBACK_MAX_FILE_BYTES + 1)
+        if len(data) > FEEDBACK_MAX_FILE_BYTES:
+            raise ValueError(f"'{name}' is larger than {FEEDBACK_MAX_FILE_BYTES // (1024 * 1024)} MB.")
+        if not data:
+            raise ValueError(f"'{name}' is empty.")
+        total += len(data)
+        if total > FEEDBACK_MAX_TOTAL_BYTES:
+            raise ValueError(f"Attachments exceed {FEEDBACK_MAX_TOTAL_BYTES // (1024 * 1024)} MB in total.")
+        # Check content, not just the extension or browser-reported type.
+        if ext == "webp":
+            valid = data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+        elif ext in _FEEDBACK_IMAGE_SIGNATURES:
+            valid = data.startswith(_FEEDBACK_IMAGE_SIGNATURES[ext])
+        else:
+            valid = b"\x00" not in data[:8192]
+        if not valid:
+            raise ValueError(f"'{name}' does not look like a valid .{ext} file.")
+        mime = _FEEDBACK_MIME.get(ext, "text/plain")
+        if any(r["name"].lower() == name.lower() for r in result):
+            name = f"{len(result) + 1}_{name}"
+        result.append({"name": name, "ext": ext, "mime": mime, "data": data})
+    return result
+
+
+def _upload_feedback_attachments(attachments, submission_id, fb_type, title):
+    """Send attachments to the Apps Script endpoint. Returns (links_text|None, error|None)."""
+    cfg = get_feedback_upload_config()
+    if not cfg:
+        return None, None
+    payload = {
+        "token": cfg["token"],
+        "submissionId": submission_id,
+        "type": fb_type,
+        "title": title,
+        "files": [
+            {"name": a["name"], "mimeType": a["mime"],
+             "data": base64.b64encode(a["data"]).decode("ascii")}
+            for a in attachments
+        ],
+    }
+    try:
+        # Apps Script answers with a 302 to googleusercontent.com; requests
+        # follows it as a GET, which is how the script's result is fetched.
+        resp = requests.post(cfg["upload_url"], json=payload, timeout=60)
+        result = resp.json()
+    except (requests.RequestException, ValueError) as exc:
+        return None, f"Attachment upload failed: {exc}"
+    if not result.get("ok"):
+        return None, f"Attachment upload rejected: {result.get('error', 'unknown error')}"
+    lines = [f"Folder: {result.get('folderUrl', '')}"]
+    lines += [f"{l.get('name', '')}: {l.get('url', '')}" for l in result.get("links", [])]
+    return "\n".join(lines), None
+
+
+def _save_feedback_attachments_locally(attachments, submission_id):
+    """Keep a local copy when the Drive upload is unavailable. Returns the folder path."""
+    folder = os.path.join(FEEDBACK_ATTACHMENTS_DIR, submission_id)
+    os.makedirs(folder, exist_ok=True)
+    for a in attachments:
+        with open(os.path.join(folder, a["name"]), "wb") as f:
+            f.write(a["data"])
+    return folder
 
 
 def _clamp_keep_last(value):
@@ -1635,7 +1765,18 @@ def submit_feedback():
     """Receive feedback JSON, relay it to Google Forms, and email a copy."""
     FEEDBACK_RECIPIENT = os.environ.get("SURVEY_RECIPIENT_EMAIL", "rsp.researchfeedback@gmail.com")
 
-    data = request.get_json(silent=True)
+    # Multipart (with attachments) from the form; JSON kept for older clients.
+    if request.content_length and request.content_length > FEEDBACK_MAX_TOTAL_BYTES + 1024 * 1024:
+        return jsonify({"error": "Attachments are too large."}), 413
+    attachments = []
+    if request.mimetype == "multipart/form-data":
+        data = request.form.to_dict()
+        try:
+            attachments = _collect_feedback_attachments(request.files.getlist("attachments"))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+    else:
+        data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid payload"}), 400
 
@@ -1649,8 +1790,30 @@ def submit_feedback():
     priority   = data.get("priority", "medium").upper()
     contact    = data.get("contactEmail", "")
 
+    # Attachments: upload to Drive (links go into the Google Form); keep a
+    # local copy if that is unavailable so nothing is lost.
+    attachment_info = None
+    if attachments:
+        submission_id = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
+        names = [a["name"] for a in attachments]
+        links_text, upload_error = _upload_feedback_attachments(attachments, submission_id, fb_type, title)
+        attachment_info = {"count": len(attachments), "names": names, "uploaded": bool(links_text)}
+        if links_text:
+            data["attachments"] = links_text
+        else:
+            data["attachments"] = (f"{len(names)} attachment(s), not uploaded: " + ", ".join(names))
+            attachment_info["localFolder"] = _save_feedback_attachments_locally(attachments, submission_id)
+            if upload_error:
+                attachment_info["uploadError"] = upload_error
+
     # Relay first so submissions are captured even when SMTP is unconfigured.
     relayed, relay_error = _relay_feedback_to_google_form(data)
+
+    # Everything below is HTML email content: escape user input.
+    esc = lambda s: html.escape(str(s or ""))
+    title_html, description, steps, expected, actual, contact = (
+        esc(title), esc(description), esc(steps), esc(expected), esc(actual), esc(contact))
+    priority = esc(priority)
 
     type_label = "Bug Report" if fb_type == "bug" else "Feature Request"
     type_color = "#c0392b" if fb_type == "bug" else "#27ae60"
@@ -1674,6 +1837,10 @@ def submit_feedback():
             + _row("Expected Behaviour", expected)
             + _row("Actual Behaviour", actual)
         )
+
+    attachments_row = ""
+    if attachment_info:
+        attachments_row = _row("Attachments", esc(data.get("attachments", "")), pre=True)
 
     html_body = f"""<!DOCTYPE html>
 <html lang="en">
@@ -1702,9 +1869,10 @@ def submit_feedback():
               <tr><td colspan="2" style="background:#1a2a4a;color:#fff;padding:8px 12px;font-size:0.9rem;font-weight:700;">Submission</td></tr>
               {_row("Type", f'<span style="background:{type_color};color:#fff;padding:2px 8px;border-radius:3px;font-size:0.8rem;font-weight:700;">{type_label}</span>')}
               {_row("Priority", priority)}
-              {_row("Title", title)}
+              {_row("Title", title_html)}
               {_row("Description", description, pre=True)}
               {bug_rows}
+              {attachments_row}
               <tr><td colspan="2" style="background:#1a2a4a;color:#fff;padding:8px 12px;font-size:0.9rem;font-weight:700;">Contact</td></tr>
               {_row("Reporter email", contact or "anonymous")}
 
@@ -1730,30 +1898,45 @@ def submit_feedback():
     cfg = get_smtp_config()
     from_addr = cfg.get("from_addr") or cfg.get("user") or "reviewsentinel@localhost"
 
-    msg = MIMEMultipart("alternative")
+    # mixed = the HTML body plus one part per attached file.
+    msg = MIMEMultipart("mixed")
     msg["Subject"] = f"[Review Sentinel Prime] {type_label}: {title}"
     msg["From"]    = from_addr
     msg["To"]      = FEEDBACK_RECIPIENT
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    body_part = MIMEMultipart("alternative")
+    body_part.attach(MIMEText(html_body, "html", "utf-8"))
+    msg.attach(body_part)
+    for a in attachments:
+        maintype, subtype = a["mime"].split("/", 1)
+        part = MIMEBase(maintype, subtype)
+        part.set_payload(a["data"])
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", "attachment", filename=a["name"])
+        msg.attach(part)
+
+    def _reply(payload, status=200):
+        if attachment_info:
+            payload["attachments"] = attachment_info
+        return jsonify(payload), status
 
     if not FEEDBACK_RECIPIENT:
         if relayed:
-            return jsonify({"ok": True, "googleForm": True, "emailSent": False})
-        return jsonify({"error": relay_error or "Feedback recipient not configured on the server."}), 503
+            return _reply({"ok": True, "googleForm": True, "emailSent": False})
+        return _reply({"error": relay_error or "Feedback recipient not configured on the server."}, 503)
 
     try:
         sent = _smtp_send(FEEDBACK_RECIPIENT, msg)
     except Exception as exc:
         if relayed:
-            return jsonify({"ok": True, "googleForm": True, "emailSent": False, "emailError": str(exc)})
-        return jsonify({"error": str(exc)}), 500
+            return _reply({"ok": True, "googleForm": True, "emailSent": False, "emailError": str(exc)})
+        return _reply({"error": str(exc)}, 500)
 
     if not sent:
         if relayed:
-            return jsonify({"ok": True, "googleForm": True, "emailSent": False})
-        return jsonify({"error": relay_error or "SMTP not configured on the server."}), 503
+            return _reply({"ok": True, "googleForm": True, "emailSent": False})
+        return _reply({"error": relay_error or "SMTP not configured on the server."}, 503)
 
-    return jsonify({"ok": True, "googleForm": relayed, "emailSent": True})
+    return _reply({"ok": True, "googleForm": relayed, "emailSent": True})
 
 
 @app.route("/charts")
@@ -2297,7 +2480,8 @@ def set_protocol_route():
 # automatically, and accepted decisions record aiAssisted provenance so
 # PRISMA item 8 ("details of automation tools used") can report it.
 # Targets a local Ollama instance by default (confidentiality-preserving);
-# any OpenAI-compatible chat endpoint works as an alternative.
+# any OpenAI-compatible chat endpoint works as an alternative. Anthropic
+# (Claude) uses its native Messages API via the official SDK instead.
 
 _AI_DEFAULTS = {
     "enabled": False,
@@ -2401,8 +2585,86 @@ def _openai_chat_url(endpoint):
     return f"{endpoint}/v1/chat/completions"
 
 
-def _ai_chat(cfg, system_prompt, user_prompt, timeout=60):
-    """One chat completion against the configured backend. Returns text."""
+def _is_anthropic(cfg):
+    """True when the configured service is Anthropic's own API (Claude)."""
+    return (_ai_vendor_id(cfg.get("vendor")) == "anthropic"
+            or "api.anthropic.com" in str(cfg.get("endpoint", "")))
+
+
+def _anthropic_client(cfg, timeout):
+    """Official Anthropic SDK client. Imported lazily so the rest of the app
+    keeps working if the package is missing from an older install."""
+    try:
+        import anthropic
+    except ImportError as exc:
+        raise RuntimeError(
+            "The 'anthropic' Python package is not installed. Run "
+            "'pip install -r requirements.txt' and restart the app.") from exc
+    return anthropic, anthropic.Anthropic(api_key=cfg.get("apiKey") or None,
+                                          timeout=timeout, max_retries=2)
+
+
+# JSON shape the screening prompt asks for; with Claude it is enforced by
+# structured outputs instead of being parsed out of free text.
+SCREENING_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "decision": {"type": "string", "enum": ["include", "exclude", "unsure"]},
+        "reason": {"type": "string"},
+        "confidence": {"type": "integer"},
+    },
+    "required": ["decision", "reason", "confidence"],
+    "additionalProperties": False,
+}
+
+
+def _anthropic_chat(cfg, system_prompt, user_prompt, timeout, schema=None):
+    """One request to Claude through the native Messages API.
+
+    No temperature: current Claude models reject sampling parameters. Low
+    effort keeps include/exclude screening fast and cheap; the JSON schema
+    guarantees a parseable answer. Older models that don't support effort or
+    structured outputs get the same request without them (400 -> next attempt).
+    """
+    anthropic, client = _anthropic_client(cfg, timeout)
+    if not cfg.get("model"):
+        raise ValueError("No Claude model selected. Click 'Refresh list' and choose a model.")
+    base = {
+        "model": cfg["model"],
+        "max_tokens": 4096,
+        "system": system_prompt,
+        "messages": [{"role": "user", "content": user_prompt}],
+    }
+    output_config = {"effort": "low"}
+    if schema:
+        output_config["format"] = {"type": "json_schema", "schema": schema}
+    attempts = [dict(base, output_config=output_config)]
+    if schema:
+        attempts.append(dict(base, output_config={"format": output_config["format"]}))
+    attempts.append(base)
+
+    for i, params in enumerate(attempts):
+        try:
+            response = client.messages.create(**params)
+            break
+        except anthropic.BadRequestError:
+            if i == len(attempts) - 1:
+                raise
+    if response.stop_reason == "refusal":
+        raise ValueError("Claude declined to assess this paper. Screen it manually.")
+    if response.stop_reason == "max_tokens":
+        raise ValueError("Claude's answer was cut off before it finished. Try again.")
+    return "".join(block.text for block in response.content if block.type == "text")
+
+
+def _ai_chat(cfg, system_prompt, user_prompt, timeout=60, schema=None):
+    """One chat completion against the configured backend. Returns text.
+
+    `schema` (a JSON schema) is enforced where the backend supports it
+    (Claude); other backends rely on the prompt and on JSON extraction.
+    """
+    if _is_anthropic(cfg):
+        return _anthropic_chat(cfg, system_prompt, user_prompt, timeout, schema)
     endpoint = cfg["endpoint"].rstrip("/")
     if cfg["provider"] == "openai":
         headers = {"Content-Type": "application/json"}
@@ -2515,13 +2777,14 @@ def ai_screen_suggest():
             user_prompt += f"Venue: {paper['journal']}\n"
         user_prompt += f"Abstract: {abstract or '(no abstract available)'}"
         try:
-            reply = _ai_chat(cfg, system_prompt, user_prompt)
+            reply = _ai_chat(cfg, system_prompt, user_prompt, schema=SCREENING_SCHEMA)
             parsed = _extract_json_object(reply)
             decision = str((parsed or {}).get("decision", "")).lower()
             if decision not in ("include", "exclude", "unsure"):
                 # One retry with a stricter reminder; small models often add prose around the JSON.
                 reply = _ai_chat(cfg, system_prompt, user_prompt +
-                                 "\n\nYour previous answer could not be read. Reply with ONLY the JSON object.")
+                                 "\n\nYour previous answer could not be read. Reply with ONLY the JSON object.",
+                                 schema=SCREENING_SCHEMA)
                 parsed = _extract_json_object(reply)
                 decision = str((parsed or {}).get("decision", "")).lower()
             if decision not in ("include", "exclude", "unsure"):
@@ -2557,9 +2820,47 @@ def test_ai_config_route():
         return jsonify({"ok": False, "message": _friendly_ai_error(exc, cfg)})
 
 
+def _friendly_anthropic_error(exc):
+    """Messages for errors raised by the Anthropic SDK; None if not one of them."""
+    try:
+        import anthropic
+    except ImportError:
+        return None
+    if isinstance(exc, anthropic.APITimeoutError):
+        return "Claude took too long to answer. Try again in a moment."
+    if isinstance(exc, anthropic.APIConnectionError):
+        return "Can't reach api.anthropic.com. Check your internet connection, proxy or VPN."
+    if not isinstance(exc, anthropic.APIStatusError):
+        return None
+    code = exc.status_code
+    body = getattr(exc, "body", None)
+    detail = ""
+    if isinstance(body, dict) and isinstance(body.get("error"), dict):
+        detail = str(body["error"].get("message") or "")
+    detail = (detail or str(getattr(exc, "message", "") or exc))[:200]
+    if code == 401:
+        return "Anthropic rejected the API key. Check that you pasted the full key (it starts with 'sk-ant-')."
+    if code == 402:
+        return "Your Anthropic account has a billing problem or no credit left. Check console.anthropic.com → Billing."
+    if code == 403:
+        return f"This Anthropic API key is not allowed to do this ({detail})."
+    if code == 404:
+        return "Claude model not found. Click 'Refresh list' and choose a model from the list."
+    if code == 429:
+        return ("Anthropic is rate-limiting your account, or its spend limit was reached. "
+                "Wait a minute and retry, or check console.anthropic.com → Limits.")
+    if code >= 500:
+        return f"Anthropic's service is busy or had an error (HTTP {code}). Try again in a moment."
+    return f"Anthropic answered with HTTP {code}: {detail}"
+
+
 def _friendly_ai_error(exc, cfg):
     """Translate network/HTTP errors into guidance a non-technical user can act on."""
     endpoint = cfg.get("endpoint", "")
+    if _is_anthropic(cfg):
+        claude_msg = _friendly_anthropic_error(exc)
+        if claude_msg:
+            return claude_msg
     is_local = cfg.get("provider") == "ollama" or any(
         h in endpoint for h in ("localhost", "127.0.0.1", "192.168.", "10.", ":1234", ":11434"))
     if isinstance(exc, requests.exceptions.ConnectionError):
@@ -2595,7 +2896,10 @@ def list_ai_models_route():
     cfg = _apply_ai_overrides(cfg, overrides)
     endpoint = cfg["endpoint"].rstrip("/")
     try:
-        if cfg["provider"] == "ollama":
+        if _is_anthropic(cfg):
+            _, client = _anthropic_client(cfg, timeout=15)
+            models = [m.id for m in client.models.list(limit=100)]
+        elif cfg["provider"] == "ollama":
             resp = requests.get(f"{endpoint}/api/tags", timeout=15)
             resp.raise_for_status()
             models = [m.get("name") for m in resp.json().get("models", [])]
@@ -3079,6 +3383,72 @@ def normalize_boolean_operators(keywords):
                 flags=re.IGNORECASE,
             )
     return "".join(parts)
+
+
+_QUERY_FOREIGN_SYNTAX = [
+    (re.compile(r"&&|\|\|"), "'&&' / '||' are not supported; use AND / OR"),
+    (re.compile(r'"\s*~\s*\d+'), "'~N' proximity after a phrase is not supported; use NEAR/N"),
+    (re.compile(r"(?:^|[\s(])[+-](?=[A-Za-z\"(])"), "'+' / '-' before a term is not supported; use AND / NOT"),
+    (re.compile(r"\b(?:TS|TI|AB|AK|KP|SO|AU|PY)\s*=", re.IGNORECASE),
+     "Web of Science field tags (e.g. TI=, TS=) are not supported in the search box"),
+]
+
+
+def validate_search_query(keywords, exclude_terms=None, databases=None):
+    """Return problems that would make the databases reject the query.
+
+    Checks structure (quotes, parentheses, dangling operators) for every
+    search, and syntax from other search engines when Scopus is selected —
+    Scopus answers those with HTTP 400 ("Error translating query") or 500.
+    Returns a list of user-facing messages; empty means the query is fine.
+    """
+    problems = []
+
+    def _structure(text, label):
+        if text.count('"') % 2:
+            problems.append(f"{label}: a quotation mark (\") is not closed.")
+            return
+        # Ignore everything inside quoted phrases for the remaining checks.
+        bare = re.sub(r'"[^"]*"', ' "PHRASE" ', text)
+        depth = 0
+        for ch in bare:
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth < 0:
+                    problems.append(f"{label}: there is a closing parenthesis ')' without a matching '('.")
+                    return
+        if depth > 0:
+            problems.append(f"{label}: {depth} opening parenthes{'is' if depth == 1 else 'es'} '(' "
+                            f"{'is' if depth == 1 else 'are'} not closed.")
+            return
+        if re.search(r"\(\s*\)", bare):
+            problems.append(f"{label}: there are empty parentheses '()'.")
+        tokens = re.findall(r"\(|\)|[^\s()]+", bare)
+        ops = {"AND", "OR", "NOT"}
+        for i, tok in enumerate(tokens):
+            if tok not in ops:
+                continue
+            prev = tokens[i - 1] if i > 0 else "("
+            nxt = tokens[i + 1] if i + 1 < len(tokens) else ")"
+            if nxt == ")" or nxt in ("AND", "OR"):
+                problems.append(f"{label}: '{tok}' is not followed by a search term.")
+                return
+            if tok != "NOT" and (prev == "(" or prev in ops):
+                problems.append(f"{label}: '{tok}' is not preceded by a search term.")
+                return
+
+    _structure(keywords, "Search query")
+    for term in exclude_terms or []:
+        if str(term).strip():
+            _structure(str(term), f"Exclude term '{term}'")
+
+    if "scopus" in (databases or []):
+        for pattern, message in _QUERY_FOREIGN_SYNTAX:
+            if pattern.search(keywords):
+                problems.append(f"Search query: {message} (Scopus rejects this syntax).")
+    return problems
 
 
 def build_query(keywords):
@@ -4328,6 +4698,12 @@ def search_scopus(keywords, rows, filters=None):
                 use_cursor = False
                 log.note(f"Scopus HTTP {response.status_code} with cursor paging — retried with start-based paging (max {SCOPUS_START_LIMIT:,} records)")
             continue
+        if response.status_code == 400:
+            # All fallbacks already tried, so the query text itself is the problem.
+            error_msg = ("Scopus could not read the search query (HTTP 400). Check for unbalanced "
+                         "parentheses or quotation marks, AND/OR/NOT at the start or end, or syntax "
+                         "from another search engine, then search again.")
+            break
         if response.status_code != 200:
             error_msg = _http_error_message("Scopus", response)
             break
@@ -4526,9 +4902,10 @@ def search_sciencedirect(keywords, rows, filters=None):
     """Search ScienceDirect and return normalized results."""
     filters = filters or {}
     rows = min(rows, _retrieval_cap("sciencedirect"))
+    log = ConnectorLog("sciencedirect", page_size=25, cap=rows)
     api_key = get_sciencedirect_api_key()
     if not api_key:
-        return {"numFound": 0, "docs": [], "error": "ScienceDirect API key not configured"}
+        return _connector_result(log, 0, [], "ScienceDirect API key not configured")
 
     # Build query
     query_text = keywords
@@ -4552,6 +4929,7 @@ def search_sciencedirect(keywords, rows, filters=None):
         params["date"] = f"{year_from}-{year_to or '2099'}"
     elif year_to:
         params["date"] = f"1900-{year_to}"
+    log.set_request(query_text, params)
 
     headers = {
         "X-ELS-APIKey": api_key,
@@ -4569,15 +4947,26 @@ def search_sciencedirect(keywords, rows, filters=None):
         params["start"] = len(normalized)
         # Elsevier API hard limit: start + count must be ≤ 5000
         if params["start"] >= 5000:
+            log.truncated = "ScienceDirect start-based paging stops at 5,000 records"
             break
         params["count"] = min(params["count"], 5000 - params["start"])
+        # Shared helper: throttles, retries 429/5xx/timeouts/connection drops
+        # with backoff, and words failures for the user (same as Scopus).
         try:
-            response = requests.get(SCIENCEDIRECT_API_URL, params=params, headers=headers, timeout=20)
-            response.raise_for_status()
-            data = response.json()
-        except requests.RequestException as e:
-            error_msg = f"Request failed: {e}"
+            response = _http_get(SCIENCEDIRECT_API_URL, log=log, params=params, headers=headers,
+                                 timeout=30, min_interval=0.5, label="ScienceDirect")
+        except ConnectorRequestError as e:
+            error_msg = str(e)
             break
+        if response.status_code != 200:
+            error_msg = _http_error_message("ScienceDirect", response)
+            break
+        try:
+            data = response.json()
+        except ValueError:
+            error_msg = "ScienceDirect returned a non-JSON response"
+            break
+        log.pages += 1
 
         search_results = data.get("search-results", {})
         if total_records == 0:
@@ -4664,10 +5053,9 @@ def search_sciencedirect(keywords, rows, filters=None):
         if len(normalized) >= total_records:
             break
 
-    result = {"numFound": total_records, "docs": normalized}
-    if error_msg:
-        result["error"] = error_msg
-    return result
+    if not error_msg and not log.truncated and total_records > len(normalized) and len(normalized) >= rows:
+        log.truncated = _cap_reason(rows, total_records, "RSP")
+    return _connector_result(log, total_records, normalized, error_msg)
 
 
 def _normalize_springer_record(item):
@@ -7616,6 +8004,17 @@ def search_stream():
         def _err():
             yield f"data: {json.dumps({'type': 'error', 'message': 'Please provide at least one keyword.'})}\n\n"
         return Response(stream_with_context(_err()), mimetype="text/event-stream")
+
+    # Catch malformed queries before any database is called, instead of
+    # letting each API fail with its own cryptic error.
+    if not use_cache:
+        query_problems = validate_search_query(keywords, (filters or {}).get("excludeTerms"), databases)
+        if query_problems:
+            message = ("Please fix your search query before searching: "
+                       + " ".join(query_problems))
+            def _query_err():
+                yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
+            return Response(stream_with_context(_query_err()), mimetype="text/event-stream")
 
     def generate():
         all_docs = []

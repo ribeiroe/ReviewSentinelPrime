@@ -479,6 +479,15 @@
             <div class="warning">
                 <strong>Note:</strong> Commas are not supported as query separators. Use <code>OR</code> to combine terms. If you enter a comma, an inline error message will prompt you to correct the query before searching.
             </div>
+
+            <h3 id="query-check">Query check before searching:</h3>
+            <p>When you start a live search, RSP checks the query — and every exclude term — before contacting any database. If something would make the databases reject it, the search does not start and a message says exactly what to fix, for example <em>"Please fix your search query before searching: Search query: 1 opening parenthesis '(' is not closed."</em></p>
+            <ul>
+                <li><strong>Always checked:</strong> a quotation mark <code>"</code> that is not closed; a <code>(</code> without its <code>)</code> or the reverse; empty parentheses <code>()</code>; <code>AND</code> / <code>OR</code> / <code>NOT</code> at the end of the query or before a <code>)</code>; <code>AND</code> / <code>OR</code> at the start or right after another operator (e.g. <code>AND OR</code>).</li>
+                <li><strong>Checked when Scopus is selected</strong> (Scopus rejects these, other databases may accept them): <code>&amp;&amp;</code> / <code>||</code> (use <code>AND</code> / <code>OR</code>), <code>"phrase"~5</code> (use <code>NEAR/5</code>), <code>+term</code> / <code>-term</code> (use <code>AND</code> / <code>NOT</code>), and Web of Science field tags such as <code>TI=</code> or <code>TS=</code>.</li>
+                <li><strong>Still allowed:</strong> <code>NOT</code> at the start and <code>AND NOT</code>, wildcards (<code>automat*</code>), <code>NEAR/3</code>, hyphenated words (<code>COVID-19</code>, <code>e-learning</code>), and brackets inside a quoted phrase.</li>
+            </ul>
+            <p>Re-filtering from the local cache (<em>Offline Filter</em> mode) skips the check, because no database is contacted. If Scopus still rejects a query, its row in the coverage table reads <em>"Scopus could not read the search query (HTTP 400)"</em> with the same list of things to check.</p>
         </div>
 
         <!-- 4. Supported Databases -->
@@ -1292,7 +1301,7 @@
                 <li>Under <strong>Where should the AI run?</strong> pick an option. The page shows step-by-step instructions for it:
                     <ul>
                         <li><strong>Ollama</strong> or <strong>LM Studio</strong> — runs on a computer you control; titles and abstracts are sent to the configured model server, which may be on another computer in your network. Install the app, download a model, and (LM Studio) start its server in the <em>Developer</em> tab. No API key needed.</li>
-                        <li><strong>OpenAI, Anthropic, Google Gemini, Groq, OpenRouter</strong> — online services. Paste your API key (the page links to where to create one). Titles and abstracts are sent to that provider, and usage is billed to your account.</li>
+                        <li><strong>OpenAI, Anthropic, Google Gemini, Groq, OpenRouter</strong> — online services. Paste your API key (the page links to where to create one). Titles and abstracts are sent to that provider, and usage is billed to your account. <strong>Anthropic (Claude)</strong> is connected through Anthropic's own API: its answers are always valid include / exclude / unsure JSON, and it is asked for a quick, low-effort answer to keep screening fast and cheap.</li>
                         <li><strong>Other / custom server</strong> — any OpenAI-compatible or Ollama-compatible server; enter its address and, if needed, an API key.</li>
                     </ul>
                 </li>
@@ -1308,7 +1317,7 @@
                 <li><strong>Estimate before a batch:</strong> <em>AI-suggest unscreened</em> first shows how many papers will be sent, the expected time and, for online services, a rough cost range. These are rules of thumb, not measurements. During the run, the button shows progress and the time left.</li>
                 <li><strong>Record-keeping:</strong> whenever the AI made a suggestion, the decision records the vendor, the model, what the AI suggested and its confidence. This is kept even if you decided differently. It appears in <code>screening_decisions.csv</code> (columns <code>ai_vendor</code>, <code>ai_suggested</code>, <code>ai_confidence</code>), so you can report AI use and check how often it agreed with you.</li>
                 <li><strong>Agreement on screen:</strong> under the progress bar, the Screening page shows how often your decisions matched the AI (percentage and Cohen's &kappa;).</li>
-                <li><strong>Automatic retry:</strong> if the AI's reply can't be read, RSP asks once more with a stricter instruction before reporting an error for that paper.</li>
+                <li><strong>Automatic retry:</strong> if the AI's reply can't be read, RSP asks once more with a stricter instruction before reporting an error for that paper. (With Claude this does not happen: the answer format is enforced. If an older Claude model doesn't support that, RSP automatically falls back to a plain request.)</li>
                 <li><strong>Model download:</strong> with Ollama selected, Settings offers a <em>Download</em> button for the recommended models (Qwen 2.5 7B, Gemma 3 12B, Gemma 3 27B).</li>
                 <li><strong>API keys:</strong> keys are stored as plain text in <code>data/ai_config.json</code> (the other database keys are also in <code>data/</code>). Don't share, sync or commit the <code>data</code> folder.</li>
             </ul>
@@ -1320,7 +1329,7 @@
                 <li><strong>Online (OpenAI, Gemini, Anthropic, Groq, OpenRouter):</strong> fast and needs no special hardware, but titles and abstracts are sent to the provider and you pay per paper.</li>
                 <li><strong>Local models by graphics memory:</strong> none or 8&nbsp;GB: Qwen&nbsp;2.5&nbsp;7B / Llama&nbsp;3.1&nbsp;8B; 12–16&nbsp;GB: Gemma&nbsp;3&nbsp;12B / Qwen&nbsp;2.5&nbsp;14B / Phi-4; 24&nbsp;GB+: Gemma&nbsp;3&nbsp;27B / Qwen&nbsp;2.5&nbsp;32B / Mistral&nbsp;Small&nbsp;24B.</li>
                 <li><strong>Online models:</strong> the small, fast tiers — OpenAI “mini”, Gemini “Flash”, Claude “Haiku”, Groq Llama&nbsp;70B.</li>
-                <li><strong>Avoid:</strong> reasoning/“thinking” models (DeepSeek-R1, QwQ, o-series) and models of 3B or less.</li>
+                <li><strong>Avoid:</strong> reasoning/“thinking” models (DeepSeek-R1, QwQ, o-series) and models of 3B or less. Current Claude models also think before answering, but RSP asks them for low effort, so they stay fast.</li>
                 <li>In Settings, the model list marks recommended models with ★ and ones to avoid with ⚠. Model names change over time, so always use <em>Refresh list</em>.</li>
                 <li>Before relying on a model, screen about 50 papers yourself and compare its agreement with your decisions.</li>
             </ul>
@@ -1464,16 +1473,28 @@
                 <li><strong>Expected Behaviour</strong> (bug only) — What should happen</li>
                 <li><strong>Actual Behaviour</strong> (bug only) — What actually happens</li>
                 <li><strong>Impact / Priority</strong> — Low, Medium, or High</li>
+                <li><strong>Attachments</strong> (optional) — Screenshots or files that show the problem or idea (see below)</li>
                 <li><strong>Your Email</strong> (optional) — For follow-up communication</li>
             </ul>
+
+            <h3>Attachments:</h3>
+            <ul>
+                <li><strong>Adding files:</strong> paste a screenshot with <span class="kbd">Ctrl</span>+<span class="kbd">V</span> anywhere on the page (e.g. after <span class="kbd">Win</span>+<span class="kbd">Shift</span>+<span class="kbd">S</span> on Windows or <span class="kbd">Cmd</span>+<span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">4</span> on macOS), drag files onto the box, or click the box to browse. Each file shows a thumbnail or file badge with a <strong>×</strong> to remove it.</li>
+                <li><strong>Limits:</strong> up to 5 files, 5&nbsp;MB each and 10&nbsp;MB in total. Allowed types: PNG, JPG, GIF, WebP, PDF, and text files (TXT, LOG, CSV, JSON, RIS, BIB). Files are checked by content, not only by name.</li>
+                <li><strong>Useful for bug reports:</strong> a screenshot of the error and the app's log file <code>rsp.log</code> (in the RSP folder when started with <code>START.bat</code> or <code>start.command</code>).</li>
+                <li><strong>Where files go:</strong> automatic upload requires a separately configured service and is disabled by default. If upload is unavailable, the report is still sent and files are saved in <code>data/feedback_attachments/</code>; the message tells you the folder. With SMTP configured, files are also attached to the email.</li>
+            </ul>
+            <div class="warning">
+                <strong>Privacy:</strong> screenshots can show API keys, email addresses or other personal data (for example the Settings page). Check each file before attaching it.
+            </div>
 
             <h3>Buttons:</h3>
             <ul>
                 <li><strong class="lbl lbl-red"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><polyline points="1.5,8.5 1.5,3.5 6.5,3.5"/><path d="M2 4a7 7 0 107-7"/></svg> Start Over</strong> — Resets all fields after confirmation</li>
                 <li><strong class="lbl lbl-blue"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="6.5"/><polyline points="5,8.5 7,10.5 11,6.5"/></svg> Submit</strong> — Validates required fields, then submits the report:
                     <ul style="margin-top:0.4rem;">
-                        <li>The report is recorded in the project&rsquo;s issue-collection form <strong>regardless of whether SMTP is configured</strong>, so feedback works on a fresh installation</li>
-                        <li><strong>SMTP configured</strong> — the maintainer additionally receives an email copy of the report</li>
+                        <li>The report is recorded in the project&rsquo;s issue-collection form <strong>regardless of whether SMTP is configured</strong>; attachment links are included only when upload is configured and succeeds</li>
+                        <li><strong>SMTP configured</strong> — the maintainer additionally receives an email copy of the report, with the attachments as files</li>
                         <li><strong>If no delivery method is available</strong> — a modal appears offering: <em>&ldquo;<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><polyline points="1.5,4.5 8,9.5 14.5,4.5"/></svg> Open in My Email App&rdquo;</em> (opens your default email client with the report pre-filled) or <em>&ldquo;<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.25em"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg> Configure SMTP in Settings&rdquo;</em> (takes you to Settings with the SMTP section auto-expanded)</li>
                     </ul>
                 </li>
@@ -1567,10 +1588,11 @@
                 <li><strong>Saved searches &amp; history</strong> — server-side JSON files in <code>data/</code> folder</li>
                 <li><strong>API credentials</strong> — stored as plain text in <code>data/</code> and sent to the relevant provider when required. Protect this folder; do not share or commit it.</li>
                 <li><strong>Retrieval settings</strong> — <code>data/retrieval_settings.json</code> (year range at the database, per-database maximums)</li>
+                <li><strong>Feedback attachments</strong> — only if their upload failed: <code>data/feedback_attachments/</code> (one folder per submission; safe to delete once reported)</li>
             </ul>
 
             <div class="info">
-                <strong>Need help?</strong> RSP is designed to be self-explanatory. Each page includes contextual hints. If you encounter issues, restart the application with <code>python app.py</code> and check the terminal for error messages.
+                <strong>Need help?</strong> RSP is designed to be self-explanatory. Each page includes contextual hints. If you encounter issues, restart the application with its launcher (<code>STOP</code> then <code>START.bat</code> / <code>start.command</code>, or the Docker stop/start scripts) and check the error messages in <code>rsp.log</code> in the RSP folder (Docker: <code>docker compose logs</code>). To report a problem, use the <a href="/feedback">Feedback page</a> and attach a screenshot and <code>rsp.log</code>.
             </div>
             <div class="info">
                 <strong>Community support:</strong> RSP is free and will remain free. If it helps your work, optional support is available via the footer link and on the About page.

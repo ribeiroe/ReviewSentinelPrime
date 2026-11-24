@@ -101,10 +101,13 @@ echo  [OK] Starting Review Sentinel Prime at http://127.0.0.1:5001
 echo  [INFO] A browser window will open automatically.
 echo  [INFO] The launcher window will close automatically.
 echo  [INFO] To stop the app later, run STOP.bat.
+echo  [INFO] Errors are logged to rsp.log in this folder.
 echo.
 
-:: Start Flask in the background with a hidden window
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath '.\.venv\Scripts\python.exe' -ArgumentList 'app.py' -WorkingDirectory '%CD%' -WindowStyle Hidden -PassThru; Set-Content -Path '.rsp.pid' -Value $p.Id -Encoding ASCII"
+:: Start Flask in the background with a hidden window. Flask writes its
+:: request log and any error tracebacks to stderr -> rsp.log (same file
+:: name as start.command on macOS/Linux, so support can ask for it).
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath '.\.venv\Scripts\python.exe' -ArgumentList 'app.py' -WorkingDirectory '%CD%' -WindowStyle Hidden -RedirectStandardError 'rsp.log' -RedirectStandardOutput 'rsp-output.log' -PassThru; Set-Content -Path '.rsp.pid' -Value $p.Id -Encoding ASCII"
 if %errorlevel% neq 0 (
     echo  [ERROR] Failed to start the app in background mode.
     pause
